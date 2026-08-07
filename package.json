@@ -1,0 +1,22 @@
+{
+  "name": "omnigo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OmniGo - Vehicle Towing App Ecosystem",
+  "scripts": {
+    "dev:user": "pnpm --filter user-app dev",
+    "dev:vendor": "pnpm --filter vendor-app dev",
+    "dev:admin": "pnpm --filter admin-panel dev",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "build": "turbo build"
+  },
+  "dependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  },
+  "packageManager": "pnpm@10.12.1"
+}
