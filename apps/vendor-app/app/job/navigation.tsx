@@ -88,8 +88,7 @@ const styles = StyleSheet.create({
   fakeMapGrid: {
     flex: 1,
     opacity: 0.1,
-    backgroundImage: 'radial-gradient(circle at center, #00CFFF 1px, transparent 1px)',
-    backgroundSize: '20px 20px',
+    backgroundColor: '#05070A',
   },
   headerBanner: {
     position: 'absolute',
