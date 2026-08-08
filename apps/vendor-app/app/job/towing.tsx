@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated, Easing } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { mockIncomingJob } from '../../constants/mock-data';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, Easing } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
 
@@ -16,24 +15,22 @@ export default function TowingScreen() {
   const router = useRouter();
   const [jobState, setJobState] = useState<JobState>('LOADING');
   
-  const pulse = useSharedValue(1);
+  const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1.5, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.5, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
     );
+    animation.start();
+    return () => animation.stop();
   }, []);
 
-  const animatedDotStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: pulse.value }],
-      opacity: 1.5 - pulse.value
-    };
+  const pulseOpacity = pulse.interpolate({
+    inputRange: [1, 1.5],
+    outputRange: [0.5, 0],
   });
 
   const handleNextState = () => {
@@ -83,11 +80,12 @@ export default function TowingScreen() {
         {/* Pulsing Dot */}
         {jobState === 'IN_TRANSIT' && (
           <View style={styles.trackerContainer}>
-            <Animated.View style={[styles.pulseRing, animatedDotStyle]} />
+            <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulse }], opacity: pulseOpacity }]} />
             <View style={styles.trackerDot} />
           </View>
         )}
       </View>
+
 
       {/* Top Banner */}
       <LinearGradient colors={config.bannerColors} style={styles.topBanner}>

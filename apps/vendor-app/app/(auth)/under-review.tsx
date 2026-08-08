@@ -1,158 +1,269 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, SafeAreaView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
 import { useRouter } from 'expo-router';
-import { THEME } from '../../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { THEME } from '../../constants/theme';
 
 export default function UnderReviewScreen() {
   const router = useRouter();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.2,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        })
+        Animated.timing(pulseAnim, { toValue: 1.15, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ])
-    ).start();
-  }, [pulseAnim]);
+    );
+    animation.start();
+    return () => animation.stop();
+  }, []);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <Animated.View 
-            style={[
-              styles.iconContainer,
-              { transform: [{ scale: pulseAnim }] }
-            ]}
-          >
-            <Ionicons name="hourglass-outline" size={80} color={THEME.colors.primary} />
-          </Animated.View>
-          
-          <Text style={styles.title}>Application Under Review</Text>
-          
-          <Text style={styles.subtitle}>
-            Your documents are being verified by our team. We'll notify you once your account is approved.
-          </Text>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['rgba(5, 8, 16, 0.4)', '#050810']}
+        style={StyleSheet.absoluteFillObject}
+      />
 
-          <BlurView intensity={20} tint="dark" style={styles.badge}>
-            <Ionicons name="time-outline" size={20} color={THEME.colors.warning} />
-            <Text style={styles.badgeText}>Usually takes 24-48 hours</Text>
+      <View style={styles.content}>
+        {/* Animated Icon */}
+        <Animated.View style={[styles.iconContainer, { transform: [{ scale: pulseAnim }] }]}>
+          <View style={styles.iconOuter}>
+            <View style={styles.iconInner}>
+              <Ionicons name="hourglass-outline" size={56} color={THEME.colors.primary} />
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Title */}
+        <Text style={styles.title}>Application Under Review</Text>
+        <Text style={styles.subtitle}>
+          Your documents are being verified by our team.{'\n'}We'll notify you once your account is approved.
+        </Text>
+
+        {/* Time Estimate */}
+        <BlurView intensity={20} tint="dark" style={styles.timeBadge}>
+          <Ionicons name="time-outline" size={18} color="#FFD60A" />
+          <Text style={styles.timeText}>Usually takes 2–3 hours (max 12 hours)</Text>
+        </BlurView>
+
+        {/* What's Next Steps */}
+        <BlurView intensity={15} tint="dark" style={styles.stepsCard}>
+          <Text style={styles.stepsTitle}>What happens next?</Text>
+          
+          <View style={styles.stepRow}>
+            <View style={styles.stepNum}><Text style={styles.stepNumText}>1</Text></View>
+            <Text style={styles.stepText}>Our team verifies your documents</Text>
+          </View>
+          <View style={styles.stepRow}>
+            <View style={styles.stepNum}><Text style={styles.stepNumText}>2</Text></View>
+            <Text style={styles.stepText}>You'll receive an SMS & notification</Text>
+          </View>
+          <View style={styles.stepRow}>
+            <View style={[styles.stepNum, { backgroundColor: 'rgba(0, 255, 151, 0.15)' }]}>
+              <Text style={[styles.stepNumText, { color: '#00FF97' }]}>3</Text>
+            </View>
+            <Text style={styles.stepText}>Start accepting jobs & earning!</Text>
+          </View>
+        </BlurView>
+
+        {/* Contact Support */}
+        <TouchableOpacity style={styles.supportBtn} activeOpacity={0.8}>
+          <BlurView intensity={20} tint="dark" style={styles.supportBtnInner}>
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color={THEME.colors.primary} />
+            <Text style={styles.supportBtnText}>Contact Support</Text>
           </BlurView>
+        </TouchableOpacity>
 
-          <TouchableOpacity style={styles.contactButton} activeOpacity={0.7}>
-            <Text style={styles.contactButtonText}>Contact Support</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity 
-          style={styles.loginLink} 
-          onPress={() => router.replace('/(auth)/login')}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.loginText}>
-            Already Approved? <Text style={styles.loginTextHighlight}>Login</Text>
+        {/* Login Link */}
+        <TouchableOpacity onPress={() => router.replace('/(auth)/login')} style={styles.loginLink}>
+          <Text style={styles.loginLinkText}>
+            Already Approved? <Text style={{ color: '#00FF97', fontFamily: 'Outfit_700Bold' }}>Login</Text>
           </Text>
         </TouchableOpacity>
+
+        {/* DEV MODE: Continue Button */}
+        <TouchableOpacity
+          style={styles.devBtnTouch}
+          onPress={() => router.replace('/(tabs)')}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={['#FF6B35', '#FF4500']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.devBtn}
+          >
+            <Ionicons name="code-slash" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.devBtnText}>Continue (Dev Mode)</Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: THEME.colors.background,
-  },
   container: {
     flex: 1,
-    justifyContent: 'space-between',
-    padding: THEME.spacing.xl,
+    backgroundColor: '#050810',
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 28,
   },
   iconContainer: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(0, 207, 255, 0.05)',
+    marginBottom: 28,
+  },
+  iconOuter: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(0, 207, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: THEME.spacing.xxl,
-    borderWidth: 2,
-    borderColor: 'rgba(0, 207, 255, 0.2)',
+  },
+  iconInner: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(0, 207, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
-    fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 28,
-    color: THEME.colors.text,
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 24,
+    color: '#fff',
     textAlign: 'center',
-    marginBottom: THEME.spacing.md,
+    marginBottom: 10,
   },
   subtitle: {
-    fontFamily: THEME.fonts.inter.regular,
-    fontSize: 16,
-    color: THEME.colors.textSecondary,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.65)',
     textAlign: 'center',
-    marginBottom: THEME.spacing.xl,
-    lineHeight: 24,
-    paddingHorizontal: THEME.spacing.lg,
+    lineHeight: 20,
+    marginBottom: 20,
   },
-  badge: {
+  timeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 184, 0, 0.1)', // warning tint
-    paddingVertical: THEME.spacing.sm,
-    paddingHorizontal: THEME.spacing.lg,
-    borderRadius: THEME.borderRadius.full,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 100,
     borderWidth: 1,
-    borderColor: 'rgba(255, 184, 0, 0.3)',
-    marginBottom: THEME.spacing.xxl,
+    borderColor: 'rgba(255, 214, 10, 0.25)',
+    backgroundColor: 'rgba(255, 214, 10, 0.08)',
+    gap: 8,
+    marginBottom: 24,
     overflow: 'hidden',
   },
-  badgeText: {
-    fontFamily: THEME.fonts.inter.medium,
-    fontSize: 14,
-    color: THEME.colors.warning,
-    marginLeft: THEME.spacing.sm,
+  timeText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#FFD60A',
   },
-  contactButton: {
-    paddingVertical: 14,
-    paddingHorizontal: THEME.spacing.xl,
-    borderRadius: THEME.borderRadius.full,
+  stepsCard: {
+    width: '100%',
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
-    borderColor: THEME.colors.primary,
-    backgroundColor: 'rgba(0, 207, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(13, 20, 32, 0.5)',
+    marginBottom: 20,
+    overflow: 'hidden',
   },
-  contactButtonText: {
-    fontFamily: THEME.fonts.inter.bold,
-    fontSize: 16,
+  stepsTitle: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 15,
+    color: '#fff',
+    marginBottom: 14,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  stepNum: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 207, 255, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepNumText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 13,
+    color: THEME.colors.primary,
+  },
+  stepText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
+    flex: 1,
+  },
+  supportBtn: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 14,
+  },
+  supportBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.25)',
+    backgroundColor: 'rgba(0, 207, 255, 0.06)',
+    gap: 8,
+    overflow: 'hidden',
+  },
+  supportBtnText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
     color: THEME.colors.primary,
   },
   loginLink: {
-    paddingVertical: THEME.spacing.lg,
+    marginBottom: 20,
+  },
+  loginLinkText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  devBtnTouch: {
+    width: '100%',
+    borderRadius: 100,
+    overflow: 'hidden',
+    shadowColor: '#FF4500',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  devBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
   },
-  loginText: {
-    fontFamily: THEME.fonts.inter.medium,
+  devBtnText: {
+    fontFamily: 'Outfit_700Bold',
     fontSize: 15,
-    color: THEME.colors.textSecondary,
-  },
-  loginTextHighlight: {
-    color: THEME.colors.primary,
-    fontFamily: THEME.fonts.inter.bold,
+    color: '#fff',
   },
 });

@@ -1,722 +1,434 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
-  Platform, 
-  KeyboardAvoidingView 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { THEME } from '../../constants/theme';
-import { VEHICLE_TYPES } from '../../constants/mock-data';
-
-const STEPS = [
-  'Personal Info',
-  'Documents',
-  'Vehicle Details',
-  'Bank Details',
-  'Consent'
-];
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [vehicleType, setVehicleType] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
-  const handleNext = () => {
-    if (currentStep < STEPS.length - 1) {
-      setCurrentStep(prev => prev + 1);
-    } else {
-      router.push('/(auth)/under-review');
-    }
+  const [activeTab, setActiveTab] = useState<'email' | 'phone'>('phone');
+  const [fullName, setFullName] = useState('');
+  const [emailOrPhone, setEmailOrPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSignUp = () => {
+    router.push('/(auth)/driver-verification');
   };
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    } else {
-      router.back();
-    }
+  const handleGoogleSignUp = () => {
+    router.push('/(auth)/driver-verification');
   };
 
-  const renderStepIndicator = () => (
-    <View style={styles.stepIndicatorContainer}>
-      <Text style={styles.stepTitle}>
-        Step {currentStep + 1}: {STEPS[currentStep]}
-      </Text>
-      <View style={styles.progressBar}>
-        {STEPS.map((_, index) => (
-          <View key={index} style={styles.progressSegmentWrapper}>
-            <View 
-              style={[
-                styles.progressSegment, 
-                index <= currentStep ? styles.progressSegmentActive : null
-              ]} 
-            />
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderStep1 = () => (
-    <View style={styles.stepContent}>
-      <View style={styles.photoUploadContainer}>
-        <TouchableOpacity style={styles.photoUpload} activeOpacity={0.8}>
-          <Ionicons name="camera" size={32} color={THEME.colors.textSecondary} />
-          <Text style={styles.photoUploadText}>Upload Photo</Text>
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="As per documents"
-          placeholderTextColor={THEME.colors.textMuted || '#555'}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Phone Number</Text>
-        <View style={styles.phoneInputContainer}>
-          <View style={styles.prefixContainer}>
-            <Text style={styles.prefixText}>+91</Text>
-          </View>
-          <TextInput
-            style={styles.phoneInput}
-            placeholder="Enter phone number"
-            placeholderTextColor={THEME.colors.textMuted || '#555'}
-            keyboardType="phone-pad"
-            maxLength={10}
-          />
-        </View>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Email Address</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="your@email.com"
-          placeholderTextColor={THEME.colors.textMuted || '#555'}
-          keyboardType="email-address"
-        />
-      </View>
-    </View>
-  );
-
-  const renderStep2 = () => (
-    <View style={styles.stepContent}>
-      <Text style={styles.sectionDescription}>Upload clear, readable photos of your original documents.</Text>
-      
-      <View style={styles.documentGroup}>
-        <Text style={styles.label}>Driving License</Text>
-        <View style={styles.row}>
-          <TouchableOpacity style={styles.docUploadBox} activeOpacity={0.8}>
-            <Ionicons name="id-card-outline" size={32} color={THEME.colors.primary} />
-            <Text style={styles.docUploadText}>Front Side</Text>
-          </TouchableOpacity>
-          <View style={{ width: 16 }} />
-          <TouchableOpacity style={styles.docUploadBox} activeOpacity={0.8}>
-            <Ionicons name="id-card-outline" size={32} color={THEME.colors.primary} />
-            <Text style={styles.docUploadText}>Back Side</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.documentGroup}>
-        <Text style={styles.label}>Vehicle RC</Text>
-        <TouchableOpacity style={styles.docUploadBoxFull} activeOpacity={0.8}>
-          <Ionicons name="document-text-outline" size={32} color={THEME.colors.primary} />
-          <Text style={styles.docUploadText}>Registration Certificate</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.documentGroup}>
-        <Text style={styles.label}>Vehicle Insurance</Text>
-        <TouchableOpacity style={styles.docUploadBoxFull} activeOpacity={0.8}>
-          <Ionicons name="shield-checkmark-outline" size={32} color={THEME.colors.primary} />
-          <Text style={styles.docUploadText}>Valid Insurance Document</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderStep3 = () => {
-    // Fallback if VEHICLE_TYPES is not fully formed or empty
-    const localTypes = VEHICLE_TYPES?.length > 0 ? VEHICLE_TYPES : [
-      { id: 'sedan', name: 'Sedan', icon: 'car-outline' },
-      { id: 'suv', name: 'SUV', icon: 'car-sport-outline' },
-      { id: 'hatchback', name: 'Hatchback', icon: 'car-outline' },
-      { id: 'bike', name: 'Bike', icon: 'bicycle-outline' },
-      { id: 'truck', name: 'Truck', icon: 'bus-outline' },
-      { id: 'bus', name: 'Bus', icon: 'bus-outline' }
-    ];
-
-    return (
-      <View style={styles.stepContent}>
-        <Text style={styles.label}>Vehicle Category</Text>
-        <View style={styles.vehicleGrid}>
-          {localTypes.map((type: any) => (
-            <TouchableOpacity 
-              key={type.id} 
-              style={[
-                styles.vehicleCard,
-                vehicleType === type.id ? styles.vehicleCardActive : null
-              ]}
-              onPress={() => setVehicleType(type.id)}
-              activeOpacity={0.8}
-            >
-              <Ionicons 
-                name={type.icon as any || 'car-outline'} 
-                size={32} 
-                color={vehicleType === type.id ? THEME.colors.primary : THEME.colors.textSecondary} 
-              />
-              <Text style={[
-                styles.vehicleCardText,
-                vehicleType === type.id ? styles.vehicleCardTextActive : null
-              ]}>
-                {type.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Make & Model</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Maruti Suzuki Swift"
-            placeholderTextColor={THEME.colors.textMuted || '#555'}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>Year</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY"
-              keyboardType="number-pad"
-              placeholderTextColor={THEME.colors.textMuted || '#555'}
-            />
-          </View>
-          <View style={{ width: 16 }} />
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>Color</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. White"
-              placeholderTextColor={THEME.colors.textMuted || '#555'}
-            />
-          </View>
-        </View>
-
-        <Text style={styles.label}>Vehicle Photos</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vehiclePhotoScroll}>
-          <TouchableOpacity style={styles.vehiclePhotoBox} activeOpacity={0.8}>
-            <Ionicons name="camera-outline" size={24} color={THEME.colors.primary} />
-            <Text style={styles.vehiclePhotoText}>Front</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.vehiclePhotoBox} activeOpacity={0.8}>
-            <Ionicons name="camera-outline" size={24} color={THEME.colors.primary} />
-            <Text style={styles.vehiclePhotoText}>Rear</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.vehiclePhotoBox} activeOpacity={0.8}>
-            <Ionicons name="camera-outline" size={24} color={THEME.colors.primary} />
-            <Text style={styles.vehiclePhotoText}>Side</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    );
+  const handleAppleSignUp = () => {
+    router.push('/(auth)/driver-verification');
   };
-
-  const renderStep4 = () => (
-    <View style={styles.stepContent}>
-      <View style={styles.infoBadge}>
-        <Ionicons name="information-circle" size={20} color={THEME.colors.primary} />
-        <Text style={styles.infoBadgeText}>Your earnings will be transferred here</Text>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Account Holder Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="As per bank records"
-          placeholderTextColor={THEME.colors.textMuted || '#555'}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Bank Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. HDFC Bank"
-          placeholderTextColor={THEME.colors.textMuted || '#555'}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Account Number</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter account number"
-          keyboardType="number-pad"
-          secureTextEntry
-          placeholderTextColor={THEME.colors.textMuted || '#555'}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>IFSC Code</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. HDFC0001234"
-          autoCapitalize="characters"
-          placeholderTextColor={THEME.colors.textMuted || '#555'}
-        />
-      </View>
-
-      <View style={styles.divider}>
-        <Text style={styles.dividerText}>OR</Text>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>UPI ID (Optional)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. name@upi"
-          autoCapitalize="none"
-          placeholderTextColor={THEME.colors.textMuted || '#555'}
-        />
-      </View>
-    </View>
-  );
-
-  const renderStep5 = () => (
-    <View style={styles.stepContent}>
-      <Ionicons name="document-text" size={60} color={THEME.colors.primary} style={{ alignSelf: 'center', marginBottom: 24 }} />
-      <Text style={styles.consentTitle}>Partner Agreement</Text>
-      <Text style={styles.consentText}>
-        By submitting this application, you agree to become a driver partner with OmniGo. You confirm that all documents provided are genuine and valid.
-      </Text>
-
-      <TouchableOpacity style={styles.checkboxContainer} activeOpacity={0.8}>
-        <View style={[styles.checkbox, { backgroundColor: THEME.colors.primary }]}>
-          <Ionicons name="checkmark" size={16} color="#000" />
-        </View>
-        <Text style={styles.checkboxLabel}>I accept the Terms & Conditions</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.checkboxContainer} activeOpacity={0.8}>
-        <View style={[styles.checkbox, { backgroundColor: THEME.colors.primary }]}>
-          <Ionicons name="checkmark" size={16} color="#000" />
-        </View>
-        <Text style={styles.checkboxLabel}>I accept the Privacy Policy</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.checkboxContainer} activeOpacity={0.8}>
-        <View style={[styles.checkbox, { backgroundColor: THEME.colors.primary }]}>
-          <Ionicons name="checkmark" size={16} color="#000" />
-        </View>
-        <Text style={styles.checkboxLabel}>I agree to OmniGo driver partner terms</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={THEME.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Register</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      {/* Background gradient */}
+      <LinearGradient
+        colors={['rgba(5, 8, 16, 0.35)', 'rgba(5, 8, 16, 0.55)', 'rgba(5, 8, 16, 0.85)']}
+        style={StyleSheet.absoluteFillObject}
+      />
 
-      {renderStepIndicator()}
-
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
-        <BlurView intensity={20} tint="dark" style={styles.glassCard}>
-          {currentStep === 0 && renderStep1()}
-          {currentStep === 1 && renderStep2()}
-          {currentStep === 2 && renderStep3()}
-          {currentStep === 3 && renderStep4()}
-          {currentStep === 4 && renderStep5()}
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: Math.max(insets.top + 20, 50), paddingBottom: Math.max(insets.bottom + 20, 40) },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Top Badge */}
+          <View style={styles.topBadgeContainer}>
+            <BlurView intensity={20} tint="dark" style={styles.topBadge}>
+              <Ionicons name="car-sport" size={12} color={THEME.colors.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.topBadgeText}>BECOME A DRIVER PARTNER</Text>
+            </BlurView>
+          </View>
 
-          <View style={styles.actions}>
-            {currentStep > 0 && (
-              <TouchableOpacity style={styles.secondaryButton} onPress={handleBack}>
-                <Text style={styles.secondaryButtonText}>BACK</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity 
-              activeOpacity={0.8} 
-              style={[styles.primaryButton, currentStep === 0 && { flex: 1 }]} 
-              onPress={handleNext}
-            >
-              <LinearGradient
-                colors={[THEME.colors.primary, THEME.colors.secondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.gradientButton}
-              >
-                <Text style={styles.primaryButtonText}>
-                  {currentStep === STEPS.length - 1 ? 'SUBMIT' : 'NEXT'}
-                </Text>
-                <Ionicons 
-                  name={currentStep === STEPS.length - 1 ? 'checkmark-circle' : 'arrow-forward'} 
-                  size={20} 
-                  color="#050810" 
-                />
-              </LinearGradient>
+          {/* Title & Subtitle */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Register for driver & towing services</Text>
+          </View>
+
+          {/* Social SSO Buttons */}
+          <View style={styles.socialRow}>
+            <TouchableOpacity style={styles.ssoBtnTouch} onPress={handleGoogleSignUp} activeOpacity={0.8}>
+              <BlurView intensity={25} tint="dark" style={styles.ssoBtn}>
+                <Ionicons name="logo-google" size={18} color="#4285F4" style={{ marginRight: 8 }} />
+                <Text style={styles.ssoBtnText}>Continue with Google</Text>
+              </BlurView>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.ssoBtnTouch} onPress={handleAppleSignUp} activeOpacity={0.8}>
+              <BlurView intensity={25} tint="dark" style={styles.ssoBtn}>
+                <Ionicons name="logo-apple" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.ssoBtnText}>Continue with Apple</Text>
+              </BlurView>
             </TouchableOpacity>
           </View>
-        </BlurView>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          {/* Divider */}
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Email / Phone Toggle Tabs */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'phone' && styles.activeTab]}
+              onPress={() => setActiveTab('phone')}
+              activeOpacity={0.8}
+            >
+              {activeTab === 'phone' ? (
+                <LinearGradient
+                  colors={['#00FF97', '#00CC7A']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.activeTabGradient}
+                >
+                  <Ionicons name="call-outline" size={16} color="#000" style={{ marginRight: 6 }} />
+                  <Text style={styles.activeTabText}>Phone</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.inactiveTabInner}>
+                  <Ionicons name="call-outline" size={16} color={THEME.colors.textSecondary} style={{ marginRight: 6 }} />
+                  <Text style={styles.inactiveTabText}>Phone</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'email' && styles.activeTab]}
+              onPress={() => setActiveTab('email')}
+              activeOpacity={0.8}
+            >
+              {activeTab === 'email' ? (
+                <LinearGradient
+                  colors={['#00FF97', '#00CC7A']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.activeTabGradient}
+                >
+                  <Ionicons name="mail-outline" size={16} color="#000" style={{ marginRight: 6 }} />
+                  <Text style={styles.activeTabText}>Email</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.inactiveTabInner}>
+                  <Ionicons name="mail-outline" size={16} color={THEME.colors.textSecondary} style={{ marginRight: 6 }} />
+                  <Text style={styles.inactiveTabText}>Email</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Form Input Fields */}
+          <View style={styles.formContainer}>
+            {/* Full Name */}
+            <BlurView intensity={30} tint="dark" style={styles.inputWrapper}>
+              <Ionicons name="person-outline" size={18} color={THEME.colors.primary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your full name"
+                placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                value={fullName}
+                onChangeText={setFullName}
+                autoCapitalize="words"
+              />
+            </BlurView>
+
+            {/* Email or Phone */}
+            <BlurView intensity={30} tint="dark" style={styles.inputWrapper}>
+              <Ionicons
+                name={activeTab === 'email' ? 'mail-outline' : 'call-outline'}
+                size={18}
+                color={THEME.colors.primary}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder={activeTab === 'email' ? 'Enter your email' : 'Enter your phone number'}
+                placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                keyboardType={activeTab === 'email' ? 'email-address' : 'phone-pad'}
+                autoCapitalize="none"
+                value={emailOrPhone}
+                onChangeText={setEmailOrPhone}
+              />
+            </BlurView>
+
+            {/* Password */}
+            <BlurView intensity={30} tint="dark" style={styles.inputWrapper}>
+              <Ionicons name="lock-closed-outline" size={18} color={THEME.colors.primary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="rgba(255, 255, 255, 0.6)" />
+              </TouchableOpacity>
+            </BlurView>
+          </View>
+
+          {/* Create Account Button */}
+          <TouchableOpacity style={styles.signInBtnTouch} onPress={handleSignUp} activeOpacity={0.85}>
+            <LinearGradient
+              colors={['#00FF97', '#00CC7A']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.signInBtn}
+            >
+              <Text style={styles.signInBtnText}>Create Account</Text>
+              <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* Footer */}
+          <View style={styles.footerRow}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+              <Text style={styles.createAccountText}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'android' ? 40 : 60,
-    paddingHorizontal: THEME.spacing.lg,
-    paddingBottom: THEME.spacing.md,
-  },
-  backButton: {
-    padding: THEME.spacing.xs,
-  },
-  headerTitle: {
-    fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 20,
-    color: THEME.colors.text,
-  },
-  stepIndicatorContainer: {
-    paddingHorizontal: THEME.spacing.lg,
-    paddingBottom: THEME.spacing.lg,
-  },
-  stepTitle: {
-    fontFamily: THEME.fonts.inter.medium,
-    fontSize: 14,
-    color: THEME.colors.primary,
-    marginBottom: THEME.spacing.sm,
-  },
-  progressBar: {
-    flexDirection: 'row',
-    height: 4,
-    gap: 4,
-  },
-  progressSegmentWrapper: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressSegment: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'transparent',
-  },
-  progressSegmentActive: {
-    backgroundColor: THEME.colors.primary,
+    backgroundColor: '#050810',
   },
   scrollContent: {
-    padding: THEME.spacing.lg,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
   },
-  glassCard: {
-    backgroundColor: THEME.colors.glassBg,
-    borderRadius: THEME.borderRadius.xl,
-    padding: THEME.spacing.lg,
+  topBadgeContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  topBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 207, 255, 0.12)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 100,
     borderWidth: 1,
-    borderColor: THEME.colors.glassBorder,
+    borderColor: 'rgba(0, 207, 255, 0.3)',
     overflow: 'hidden',
   },
-  stepContent: {
-    marginBottom: THEME.spacing.xl,
+  topBadgeText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 10,
+    color: THEME.colors.primary,
+    letterSpacing: 1.5,
   },
-  photoUploadContainer: {
+  header: {
     alignItems: 'center',
-    marginBottom: THEME.spacing.xl,
+    marginBottom: 20,
   },
-  photoUpload: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(5, 8, 16, 0.7)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
+  title: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 34,
+    color: '#00FF97',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 255, 151, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
-  photoUploadText: {
-    fontFamily: THEME.fonts.inter.regular,
-    fontSize: 12,
-    color: THEME.colors.textSecondary,
-    marginTop: THEME.spacing.xs,
-  },
-  inputGroup: {
-    marginBottom: THEME.spacing.lg,
-  },
-  label: {
-    fontFamily: THEME.fonts.inter.medium,
+  subtitle: {
+    fontFamily: 'Inter_400Regular',
     fontSize: 14,
-    color: THEME.colors.textSecondary,
-    marginBottom: THEME.spacing.xs,
+    color: 'rgba(255, 255, 255, 0.85)',
+    textAlign: 'center',
+    marginTop: 6,
   },
-  input: {
-    height: 52,
-    backgroundColor: 'rgba(5, 8, 16, 0.5)',
-    borderRadius: THEME.borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 207, 255, 0.15)',
-    paddingHorizontal: THEME.spacing.md,
-    fontFamily: THEME.fonts.inter.regular,
-    fontSize: 15,
-    color: THEME.colors.text,
+  socialRow: {
+    gap: 10,
+    marginBottom: 20,
   },
-  phoneInputContainer: {
-    flexDirection: 'row',
-    height: 52,
-    backgroundColor: 'rgba(5, 8, 16, 0.5)',
-    borderRadius: THEME.borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 207, 255, 0.15)',
+  ssoBtnTouch: {
+    borderRadius: 20,
     overflow: 'hidden',
   },
-  prefixContainer: {
-    paddingHorizontal: THEME.spacing.md,
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(0, 207, 255, 0.15)',
-    justifyContent: 'center',
+  ssoBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 207, 255, 0.05)',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(13, 28, 60, 0.55)',
+    paddingVertical: 14,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    shadowColor: '#00CFFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+    overflow: 'hidden',
   },
-  prefixText: {
-    fontFamily: THEME.fonts.inter.bold,
-    fontSize: 15,
-    color: THEME.colors.primary,
-  },
-  phoneInput: {
-    flex: 1,
-    paddingHorizontal: THEME.spacing.md,
-    fontFamily: THEME.fonts.inter.regular,
-    fontSize: 15,
-    color: THEME.colors.text,
-  },
-  sectionDescription: {
-    fontFamily: THEME.fonts.inter.regular,
+  ssoBtnText: {
+    fontFamily: 'Outfit_700Bold',
     fontSize: 14,
-    color: THEME.colors.textSecondary,
-    marginBottom: THEME.spacing.lg,
+    color: '#FFFFFF',
   },
-  documentGroup: {
-    marginBottom: THEME.spacing.lg,
-  },
-  row: {
+  dividerContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
   },
-  docUploadBox: {
+  dividerLine: {
     flex: 1,
-    height: 100,
-    backgroundColor: 'rgba(5, 8, 16, 0.5)',
-    borderRadius: THEME.borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 207, 255, 0.3)',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  docUploadBoxFull: {
-    height: 100,
-    backgroundColor: 'rgba(5, 8, 16, 0.5)',
-    borderRadius: THEME.borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 207, 255, 0.3)',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  docUploadText: {
-    fontFamily: THEME.fonts.inter.medium,
-    fontSize: 12,
-    color: THEME.colors.primary,
-    marginTop: THEME.spacing.xs,
-  },
-  vehicleGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: THEME.spacing.xl,
-  },
-  vehicleCard: {
-    width: '31%', // approx 3 per row
-    height: 80,
-    backgroundColor: 'rgba(5, 8, 16, 0.5)',
-    borderRadius: THEME.borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vehicleCardActive: {
-    backgroundColor: 'rgba(0, 207, 255, 0.1)',
-    borderColor: THEME.colors.primary,
-  },
-  vehicleCardText: {
-    fontFamily: THEME.fonts.inter.medium,
-    fontSize: 12,
-    color: THEME.colors.textSecondary,
-    marginTop: 4,
-  },
-  vehicleCardTextActive: {
-    color: THEME.colors.primary,
-    fontFamily: THEME.fonts.inter.bold,
-  },
-  vehiclePhotoScroll: {
-    flexDirection: 'row',
-  },
-  vehiclePhotoBox: {
-    width: 100,
-    height: 80,
-    backgroundColor: 'rgba(5, 8, 16, 0.5)',
-    borderRadius: THEME.borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 207, 255, 0.3)',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  vehiclePhotoText: {
-    fontFamily: THEME.fonts.inter.medium,
-    fontSize: 12,
-    color: THEME.colors.primary,
-    marginTop: 4,
-  },
-  infoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 207, 255, 0.1)',
-    padding: THEME.spacing.md,
-    borderRadius: THEME.borderRadius.md,
-    marginBottom: THEME.spacing.lg,
-  },
-  infoBadgeText: {
-    fontFamily: THEME.fonts.inter.medium,
-    fontSize: 13,
-    color: THEME.colors.text,
-    marginLeft: THEME.spacing.sm,
-  },
-  divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginVertical: THEME.spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   dividerText: {
-    backgroundColor: THEME.colors.glassBg,
-    paddingHorizontal: THEME.spacing.sm,
-    color: THEME.colors.textMuted || '#555',
-    fontFamily: THEME.fonts.inter.medium,
-    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginHorizontal: 12,
+    letterSpacing: 1,
   },
-  consentTitle: {
-    fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 24,
-    color: THEME.colors.text,
-    marginBottom: THEME.spacing.md,
-    textAlign: 'center',
-  },
-  consentText: {
-    fontFamily: THEME.fonts.inter.regular,
-    fontSize: 14,
-    color: THEME.colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: THEME.spacing.xl,
-    lineHeight: 20,
-  },
-  checkboxContainer: {
+  tabContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: THEME.spacing.md,
-    backgroundColor: 'rgba(5, 8, 16, 0.5)',
-    padding: THEME.spacing.md,
-    borderRadius: THEME.borderRadius.md,
+    backgroundColor: 'rgba(13, 20, 32, 0.35)',
+    borderRadius: 100,
+    padding: 4,
+    marginBottom: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: THEME.colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: THEME.spacing.sm,
-  },
-  checkboxLabel: {
-    fontFamily: THEME.fonts.inter.medium,
-    fontSize: 14,
-    color: THEME.colors.text,
+  tab: {
     flex: 1,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: THEME.spacing.sm,
-  },
-  secondaryButton: {
-    flex: 1,
-    height: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: THEME.borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  secondaryButtonText: {
-    fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 16,
-    color: THEME.colors.text,
-  },
-  primaryButton: {
-    flex: 2,
-    borderRadius: THEME.borderRadius.md,
+    borderRadius: 100,
     overflow: 'hidden',
   },
-  gradientButton: {
+  activeTab: {
+    shadowColor: '#00FF97',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
+  activeTabGradient: {
     flexDirection: 'row',
-    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 100,
+  },
+  activeTabText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
+    color: '#000000',
+  },
+  inactiveTabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  inactiveTabText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.75)',
+  },
+  formContainer: {
+    marginBottom: 20,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 28, 60, 0.55)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    height: 56,
+    overflow: 'hidden',
+    shadowColor: '#00CFFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+  },
+  eyeBtn: {
+    padding: 6,
+  },
+  signInBtnTouch: {
+    borderRadius: 100,
+    overflow: 'hidden',
+    marginBottom: 20,
+    shadowColor: '#00FF97',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  signInBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  signInBtnText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 16,
+    color: '#000000',
+    letterSpacing: 0.3,
+  },
+  footerRow: {
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  primaryButtonText: {
-    fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 16,
-    color: '#050810',
-    marginRight: THEME.spacing.sm,
+  footerText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+  createAccountText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
+    color: '#00FF97',
   },
 });
