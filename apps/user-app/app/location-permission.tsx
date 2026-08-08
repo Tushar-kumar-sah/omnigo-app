@@ -52,19 +52,19 @@ export default function LocationPermissionScreen() {
             Allow <Text style={styles.highlightText}>OmniGo</Text> to access your real-time location for instant tow dispatch, live tracking, and emergency roadside assistance.
           </Text>
 
-          {/* 3. Feature Chips Grid for Rich Visuals */}
+          {/* 3. Floating Feature List (No Card Boxes) */}
           <View style={styles.featuresContainer}>
-            <View style={styles.featureBadge}>
+            <View style={styles.featureItem}>
               <Ionicons name="flash-outline" size={18} color="#00FF97" style={{ marginRight: 8 }} />
               <Text style={styles.featureText}>Instant Tow Rescue</Text>
             </View>
 
-            <View style={styles.featureBadge}>
+            <View style={styles.featureItem}>
               <Ionicons name="navigate-outline" size={18} color="#00CFFF" style={{ marginRight: 8 }} />
               <Text style={styles.featureText}>Live GPS Radar</Text>
             </View>
 
-            <View style={styles.featureBadge}>
+            <View style={styles.featureItem}>
               <MaterialCommunityIcons name="shield-check-outline" size={18} color="#00FF97" style={{ marginRight: 8 }} />
               <Text style={styles.featureText}>Verified Fleet</Text>
             </View>
@@ -195,22 +195,18 @@ const styles = StyleSheet.create({
     color: '#00FF97',
   },
 
-  /* 3. Feature Badges */
+  /* 3. Floating Feature List (No Card Boxes) */
   featuresContainer: {
     width: '100%',
-    gap: 10,
-    alignItems: 'stretch',
+    gap: 8,
+    alignItems: 'center',
+    marginTop: 4,
   },
-  featureBadge: {
+  featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: 'rgba(10, 28, 60, 0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 207, 255, 0.25)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   featureText: {
     fontFamily: 'Outfit_600SemiBold',
