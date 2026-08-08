@@ -5,7 +5,9 @@ export default function AuthLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: THEME.colors.background } }}>
       <Stack.Screen name="login" />
+      <Stack.Screen name="otp-verify" />
       <Stack.Screen name="register" />
+      <Stack.Screen name="under-review" />
     </Stack>
   );
 }

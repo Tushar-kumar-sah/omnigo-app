@@ -1,33 +1,60 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { THEME } from '../../constants/theme';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { mockEarnings } from '../../constants/mock-data';
 
 export default function EarningsScreen() {
+  const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
+
+  const currentData = mockEarnings[period];
+
+  const periods = [
+    { id: 'today', label: 'Today' },
+    { id: 'week', label: 'This Week' },
+    { id: 'month', label: 'This Month' },
+  ] as const;
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Earnings</Text>
 
+      <View style={styles.periodSelector}>
+        {periods.map((p) => {
+          const isActive = period === p.id;
+          return (
+            <TouchableOpacity 
+              key={p.id} 
+              onPress={() => setPeriod(p.id)}
+              style={[styles.periodPill, isActive ? styles.periodPillActive : null]}
+            >
+              <Text style={[styles.periodText, isActive ? styles.periodTextActive : null]}>
+                {p.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       <BlurView intensity={20} tint="dark" style={styles.mainCard}>
-        <Text style={styles.periodText}>Today</Text>
-        <Text style={styles.amountText}>₹1,425.00</Text>
+        <Text style={styles.periodLabel}>{periods.find(p => p.id === period)?.label}</Text>
+        <Text style={styles.amountText}>{currentData.amount}</Text>
         
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Ionicons name="car-outline" size={20} color={THEME.colors.primary} />
-            <Text style={styles.statBoxValue}>3</Text>
+            <Text style={styles.statBoxValue}>{currentData.trips}</Text>
             <Text style={styles.statBoxLabel}>Trips</Text>
           </View>
           <View style={styles.statBox}>
             <Ionicons name="time-outline" size={20} color={THEME.colors.secondary} />
-            <Text style={styles.statBoxValue}>4.5h</Text>
+            <Text style={styles.statBoxValue}>{currentData.online}</Text>
             <Text style={styles.statBoxLabel}>Online</Text>
           </View>
           <View style={styles.statBox}>
             <Ionicons name="navigate-outline" size={20} color={THEME.colors.success} />
-            <Text style={styles.statBoxValue}>21 km</Text>
+            <Text style={styles.statBoxValue}>{currentData.distance}</Text>
             <Text style={styles.statBoxLabel}>Distance</Text>
           </View>
         </View>
@@ -67,7 +94,32 @@ const styles = StyleSheet.create({
     fontFamily: THEME.fonts.outfit.bold,
     fontSize: 32,
     color: THEME.colors.text,
+    marginBottom: 16,
+  },
+  periodSelector: {
+    flexDirection: 'row',
     marginBottom: 24,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: THEME.borderRadius.full,
+    padding: 4,
+  },
+  periodPill: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: THEME.borderRadius.full,
+  },
+  periodPillActive: {
+    backgroundColor: 'rgba(0, 207, 255, 0.2)',
+  },
+  periodText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 14,
+    color: THEME.colors.textSecondary,
+  },
+  periodTextActive: {
+    color: THEME.colors.primary,
+    fontFamily: THEME.fonts.inter.bold,
   },
   mainCard: {
     backgroundColor: THEME.colors.glassBg,
@@ -78,7 +130,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
-  periodText: {
+  periodLabel: {
     fontFamily: THEME.fonts.inter.medium,
     fontSize: 16,
     color: THEME.colors.textSecondary,

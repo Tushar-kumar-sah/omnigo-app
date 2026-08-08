@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { THEME } from '../../constants/theme';
 import { BlurView } from 'expo-blur';
-import { mockIncomingJob } from '../../constants/mock-data';
+import { mockIncomingJob, VEHICLE_TYPES } from '../../constants/mock-data';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function IncomingJobScreen() {
   const router = useRouter();
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(20);
+  const [showEarningsBreakdown, setShowEarningsBreakdown] = useState(false);
 
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -28,6 +29,9 @@ export default function IncomingJobScreen() {
     router.back();
   };
 
+  const vType = VEHICLE_TYPES.find(v => v.label.toLowerCase() === mockIncomingJob.vehicleType.toLowerCase());
+  const vehicleIcon = vType ? vType.icon : 'car-outline';
+
   return (
     <View style={styles.container}>
       <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
@@ -39,21 +43,65 @@ export default function IncomingJobScreen() {
         
         <View style={styles.card}>
           <View style={styles.header}>
-            <Text style={styles.etaText}>Pickup in {mockIncomingJob.eta}</Text>
-            <Text style={styles.priceText}>{mockIncomingJob.price}</Text>
+            <View>
+              <Text style={styles.etaText}>Pickup in {mockIncomingJob.eta}</Text>
+              <Text style={styles.pickupDistText}>{mockIncomingJob.pickupDistance} away</Text>
+            </View>
+            <Pressable onPress={() => setShowEarningsBreakdown(!showEarningsBreakdown)}>
+              <View style={styles.priceContainer}>
+                <Text style={styles.priceText}>{mockIncomingJob.driverEarnings}</Text>
+                <Ionicons name="information-circle-outline" size={16} color={THEME.colors.textSecondary} style={{ marginLeft: 4 }} />
+              </View>
+            </Pressable>
           </View>
+
+          {showEarningsBreakdown && (
+            <View style={styles.breakdownBox}>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Base Fare</Text>
+                <Text style={styles.breakdownVal}>{mockIncomingJob.baseFare}</Text>
+              </View>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Distance Fare</Text>
+                <Text style={styles.breakdownVal}>{mockIncomingJob.distanceFare}</Text>
+              </View>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Platform Fee</Text>
+                <Text style={styles.breakdownVal}>-{mockIncomingJob.platformFee}</Text>
+              </View>
+              <View style={styles.breakdownDivider} />
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownTotalLabel}>Estimated Earnings</Text>
+                <Text style={styles.breakdownTotalVal}>{mockIncomingJob.driverEarnings}</Text>
+              </View>
+            </View>
+          )}
           
           <View style={styles.divider} />
           
-          <Text style={styles.customerName}>{mockIncomingJob.customerName}</Text>
-          <Text style={styles.vehicleType}>{mockIncomingJob.vehicleType}</Text>
+          <View style={styles.customerRow}>
+            <View>
+              <Text style={styles.customerName}>{mockIncomingJob.customerName}</Text>
+              <Text style={styles.vehicleDetails}>
+                {mockIncomingJob.vehicleMake} {mockIncomingJob.vehicleModel} • {mockIncomingJob.vehicleColor}
+              </Text>
+              <Text style={styles.vehiclePlate}>{mockIncomingJob.vehiclePlate}</Text>
+            </View>
+            <View style={styles.vehicleTypeBadge}>
+              <Ionicons name={vehicleIcon as any} size={20} color={THEME.colors.primary} />
+            </View>
+          </View>
           
           <View style={styles.locationContainer}>
             <View style={styles.locRow}>
               <Ionicons name="radio-button-on" size={20} color={THEME.colors.primary} />
               <Text style={styles.locText} numberOfLines={1}>{mockIncomingJob.pickup}</Text>
             </View>
-            <View style={styles.locLine} />
+            <View style={styles.locLineContainer}>
+              <View style={styles.locDot} />
+              <View style={styles.locDot} />
+              <View style={styles.locDot} />
+            </View>
             <View style={styles.locRow}>
               <Ionicons name="location" size={20} color={THEME.colors.danger} />
               <Text style={styles.locText} numberOfLines={1}>{mockIncomingJob.drop}</Text>
@@ -62,7 +110,7 @@ export default function IncomingJobScreen() {
           
           <View style={styles.distanceBox}>
             <Ionicons name="navigate-outline" size={16} color={THEME.colors.textSecondary} />
-            <Text style={styles.distanceText}>Total Distance: {mockIncomingJob.distance}</Text>
+            <Text style={styles.distanceText}>Total Trip Distance: {mockIncomingJob.distance}</Text>
           </View>
           
           <TouchableOpacity style={styles.acceptBtn} onPress={handleAccept}>
@@ -92,6 +140,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    backgroundColor: '#050810',
   },
   content: {
     width: '100%',
@@ -99,20 +148,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timerContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: THEME.colors.glassBg,
     borderWidth: 2,
     borderColor: THEME.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: -30,
+    marginBottom: -32,
     zIndex: 10,
+    shadowColor: THEME.colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
   },
   timerText: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 20,
+    fontSize: 22,
     color: THEME.colors.text,
   },
   card: {
@@ -122,12 +175,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: THEME.colors.glassBorder,
     padding: 24,
-    paddingTop: 40,
+    paddingTop: 44,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
   etaText: {
@@ -135,9 +188,63 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: THEME.colors.primary,
   },
+  pickupDistText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 14,
+    color: THEME.colors.textSecondary,
+    marginTop: 2,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 255, 151, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: THEME.borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 151, 0.3)',
+  },
   priceText: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 24,
+    fontSize: 22,
+    color: THEME.colors.success,
+  },
+  breakdownBox: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: THEME.borderRadius.md,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  breakdownLabel: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 14,
+    color: THEME.colors.textSecondary,
+  },
+  breakdownVal: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 14,
+    color: THEME.colors.text,
+  },
+  breakdownDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginVertical: 8,
+  },
+  breakdownTotalLabel: {
+    fontFamily: THEME.fonts.inter.bold,
+    fontSize: 14,
+    color: THEME.colors.text,
+  },
+  breakdownTotalVal: {
+    fontFamily: THEME.fonts.inter.bold,
+    fontSize: 14,
     color: THEME.colors.success,
   },
   divider: {
@@ -145,17 +252,43 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
     marginBottom: 16,
   },
+  customerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   customerName: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 22,
+    fontSize: 20,
     color: THEME.colors.text,
     marginBottom: 4,
   },
-  vehicleType: {
+  vehicleDetails: {
     fontFamily: THEME.fonts.inter.regular,
-    fontSize: 16,
+    fontSize: 14,
     color: THEME.colors.textSecondary,
-    marginBottom: 24,
+    marginBottom: 4,
+  },
+  vehiclePlate: {
+    fontFamily: THEME.fonts.inter.bold,
+    fontSize: 14,
+    color: THEME.colors.text,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  vehicleTypeBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 207, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   locationContainer: {
     marginBottom: 20,
@@ -171,12 +304,18 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     flex: 1,
   },
-  locLine: {
-    width: 2,
-    height: 24,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  locLineContainer: {
     marginLeft: 9,
     marginVertical: 4,
+    width: 2,
+    alignItems: 'center',
+  },
+  locDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: THEME.colors.textSecondary,
+    marginVertical: 2,
   },
   distanceBox: {
     flexDirection: 'row',
@@ -221,6 +360,7 @@ const styles = StyleSheet.create({
     borderRadius: THEME.borderRadius.md,
     borderWidth: 1,
     borderColor: THEME.colors.danger,
+    backgroundColor: 'rgba(255, 51, 102, 0.05)',
   },
   declineBtnText: {
     fontFamily: THEME.fonts.outfit.bold,

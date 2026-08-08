@@ -15,7 +15,12 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Profile</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Profile</Text>
+        <TouchableOpacity>
+          <Text style={styles.editText}>Edit Profile</Text>
+        </TouchableOpacity>
+      </View>
 
       <BlurView intensity={20} tint="dark" style={styles.headerCard}>
         <View style={styles.avatar}>
@@ -28,6 +33,24 @@ export default function ProfileScreen() {
           <Ionicons name="star" size={16} color="#FFD700" />
           <Text style={styles.ratingText}>{mockDriver.rating}</Text>
         </View>
+        
+        <View style={styles.statsGrid}>
+          <View style={styles.statCell}>
+            <Text style={styles.statValue}>{mockDriver.totalTrips}</Text>
+            <Text style={styles.statLabel}>Trips</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statCell}>
+            <Text style={styles.statValue}>{mockDriver.acceptanceRate}%</Text>
+            <Text style={styles.statLabel}>Acceptance</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statCell}>
+            <Text style={styles.statValue}>{mockDriver.completionRate}%</Text>
+            <Text style={styles.statLabel}>Completion</Text>
+          </View>
+        </View>
+        <Text style={styles.memberSince}>Member since {mockDriver.memberSince}</Text>
       </BlurView>
 
       <Text style={styles.sectionTitle}>Vehicle Details</Text>
@@ -50,14 +73,37 @@ export default function ProfileScreen() {
 
       <Text style={styles.sectionTitle}>Documents</Text>
       <BlurView intensity={20} tint="dark" style={styles.infoCard}>
+        <View style={styles.docRow}>
+          <View>
+            <Text style={styles.infoValue}>Driving License</Text>
+            <Text style={styles.verifiedText}>Verified ✓</Text>
+          </View>
+          <TouchableOpacity style={styles.updateBtn}>
+            <Text style={styles.updateBtnText}>Update</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.docRow}>
+          <View>
+            <Text style={styles.infoValue}>Insurance</Text>
+            <Text style={styles.verifiedText}>Verified ✓</Text>
+          </View>
+          <TouchableOpacity style={styles.updateBtn}>
+            <Text style={styles.updateBtnText}>Update</Text>
+          </TouchableOpacity>
+        </View>
+      </BlurView>
+
+      <Text style={styles.sectionTitle}>Bank Account</Text>
+      <BlurView intensity={20} tint="dark" style={styles.infoCard}>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Driving License</Text>
-          <Text style={styles.verifiedText}>Verified ✓</Text>
+          <Text style={styles.infoLabel}>Bank Name</Text>
+          <Text style={styles.infoValue}>{mockDriver.bank.bankName}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Insurance</Text>
-          <Text style={styles.verifiedText}>Verified ✓</Text>
+          <Text style={styles.infoLabel}>Account</Text>
+          <Text style={styles.infoValue}>{mockDriver.bank.accountNumber}</Text>
         </View>
       </BlurView>
 
@@ -78,11 +124,21 @@ const styles = StyleSheet.create({
     paddingTop: 64,
     paddingBottom: 100,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   title: {
     fontFamily: THEME.fonts.outfit.bold,
     fontSize: 32,
     color: THEME.colors.text,
-    marginBottom: 24,
+  },
+  editText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 14,
+    color: THEME.colors.primary,
   },
   headerCard: {
     backgroundColor: THEME.colors.glassBg,
@@ -134,12 +190,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+    marginBottom: 20,
   },
   ratingText: {
     fontFamily: THEME.fonts.inter.bold,
     fontSize: 14,
     color: '#FFD700',
     marginLeft: 6,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 12,
+  },
+  statCell: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  statValue: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 18,
+    color: THEME.colors.text,
+  },
+  statLabel: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 12,
+    color: THEME.colors.textSecondary,
+    marginTop: 4,
+  },
+  memberSince: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 12,
+    color: THEME.colors.textSecondary,
+    marginTop: 8,
   },
   sectionTitle: {
     fontFamily: THEME.fonts.outfit.bold,
@@ -160,6 +253,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
   },
+  docRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
   infoLabel: {
     fontFamily: THEME.fonts.inter.medium,
     fontSize: 14,
@@ -172,8 +271,22 @@ const styles = StyleSheet.create({
   },
   verifiedText: {
     fontFamily: THEME.fonts.inter.medium,
-    fontSize: 14,
+    fontSize: 12,
     color: THEME.colors.success,
+    marginTop: 4,
+  },
+  updateBtn: {
+    backgroundColor: 'rgba(0, 207, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: THEME.borderRadius.full,
+    borderWidth: 1,
+    borderColor: THEME.colors.primary,
+  },
+  updateBtnText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 12,
+    color: THEME.colors.primary,
   },
   divider: {
     height: 1,
@@ -181,7 +294,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   logoutBtn: {
-    marginTop: 16,
+    marginTop: 8,
     padding: 16,
     borderRadius: THEME.borderRadius.md,
     borderWidth: 1,

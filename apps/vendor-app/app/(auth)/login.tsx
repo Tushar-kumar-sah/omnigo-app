@@ -1,60 +1,139 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { THEME } from '../../constants/theme';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  KeyboardAvoidingView, 
+  Platform, 
+  ScrollView 
+} from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { THEME } from '../../constants/theme';
 
 export default function LoginScreen() {
-  const [phone, setPhone] = useState('');
   const router = useRouter();
+  const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
 
-  const handleLogin = () => {
-    // Navigate to tabs for mock
-    router.replace('/(tabs)');
+  const handleSendOtp = () => {
+    router.push('/(auth)/otp-verify');
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="car-sport" size={64} color={THEME.colors.primary} />
-        <Text style={styles.title}>OmniGo</Text>
-        <Text style={styles.subtitle}>Driver Partner</Text>
-      </View>
-      
-      <BlurView intensity={20} tint="dark" style={styles.card}>
-        <Text style={styles.cardTitle}>Welcome Back</Text>
-        
-        <View style={styles.inputContainer}>
-          <Ionicons name="call-outline" size={20} color={THEME.colors.textSecondary} style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Phone Number"
-            placeholderTextColor={THEME.colors.textSecondary}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="car-sport" size={60} color={THEME.colors.primary} />
+          </View>
+          <Text style={styles.title}>OmniGo</Text>
+          <Text style={styles.subtitle}>Driver Partner</Text>
         </View>
 
-        <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
-          <LinearGradient
-            colors={[THEME.colors.primary, THEME.colors.secondary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.btnGradient}
-          >
-            <Text style={styles.btnText}>SEND OTP</Text>
-            <Ionicons name="arrow-forward" size={20} color="#000" />
-          </LinearGradient>
+        <BlurView intensity={20} tint="dark" style={styles.glassCard}>
+          <View style={styles.toggleContainer}>
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={() => setLoginMethod('phone')}
+              activeOpacity={0.8}
+            >
+              {loginMethod === 'phone' && (
+                <LinearGradient
+                  colors={[THEME.colors.primary, THEME.colors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+              )}
+              <Text style={[styles.toggleText, loginMethod === 'phone' && styles.toggleTextActive]}>
+                Phone
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={() => setLoginMethod('email')}
+              activeOpacity={0.8}
+            >
+              {loginMethod === 'email' && (
+                <LinearGradient
+                  colors={[THEME.colors.primary, THEME.colors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+              )}
+              <Text style={[styles.toggleText, loginMethod === 'email' && styles.toggleTextActive]}>
+                Email
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {loginMethod === 'phone' ? (
+            <View style={styles.inputContainer}>
+              <View style={styles.prefixContainer}>
+                <Text style={styles.prefixText}>+91</Text>
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter phone number"
+                placeholderTextColor={THEME.colors.textSecondary}
+                keyboardType="phone-pad"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                maxLength={10}
+              />
+            </View>
+          ) : (
+            <View style={styles.inputContainer}>
+              <View style={styles.prefixContainer}>
+                <Ionicons name="mail" size={20} color={THEME.colors.primary} />
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter email address"
+                placeholderTextColor={THEME.colors.textSecondary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+          )}
+
+          <TouchableOpacity activeOpacity={0.8} style={styles.buttonContainer} onPress={handleSendOtp}>
+            <LinearGradient
+              colors={[THEME.colors.primary, THEME.colors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>SEND OTP</Text>
+              <Ionicons name="arrow-forward" size={20} color="#050810" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </BlurView>
+
+        <TouchableOpacity 
+          style={styles.registerLink} 
+          onPress={() => router.push('/(auth)/register')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.registerText}>
+            Don't have an account? <Text style={styles.registerTextHighlight}>Register</Text>
+          </Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.registerLink} onPress={() => router.push('/(auth)/register')}>
-          <Text style={styles.registerText}>Don't have an account? <Text style={styles.registerTextBold}>Register</Text></Text>
-        </TouchableOpacity>
-      </BlurView>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -62,92 +141,134 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: THEME.colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: THEME.spacing.lg,
+    paddingTop: 60,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: THEME.spacing.xxl,
+  },
+  iconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(0, 207, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: THEME.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.3)',
   },
   title: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 42,
+    fontSize: 36,
     color: THEME.colors.text,
-    marginTop: 16,
+    marginBottom: THEME.spacing.xs,
   },
   subtitle: {
-    fontFamily: THEME.fonts.outfit.medium,
-    fontSize: 20,
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 18,
     color: THEME.colors.primary,
     letterSpacing: 2,
   },
-  card: {
+  glassCard: {
     backgroundColor: THEME.colors.glassBg,
-    borderRadius: THEME.borderRadius.lg,
+    borderRadius: THEME.borderRadius.xl,
+    padding: THEME.spacing.lg,
     borderWidth: 1,
     borderColor: THEME.colors.glassBorder,
-    padding: 24,
     overflow: 'hidden',
   },
-  cardTitle: {
-    fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 24,
-    color: THEME.colors.text,
-    marginBottom: 24,
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(13, 20, 32, 0.8)',
+    borderRadius: THEME.borderRadius.full,
+    marginBottom: THEME.spacing.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: THEME.spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  toggleText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 16,
+    color: THEME.colors.textSecondary,
+    zIndex: 1,
+  },
+  toggleTextActive: {
+    color: '#050810',
+    fontFamily: THEME.fonts.inter.bold,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(5, 8, 16, 0.5)',
     borderRadius: THEME.borderRadius.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    marginBottom: 24,
-    paddingHorizontal: 16,
-    height: 56,
+    borderColor: 'rgba(0, 207, 255, 0.2)',
+    marginBottom: THEME.spacing.lg,
+    overflow: 'hidden',
   },
-  inputIcon: {
-    marginRight: 12,
+  prefixContainer: {
+    paddingHorizontal: THEME.spacing.md,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(0, 207, 255, 0.2)',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 207, 255, 0.05)',
+  },
+  prefixText: {
+    fontFamily: THEME.fonts.inter.bold,
+    fontSize: 16,
+    color: THEME.colors.primary,
   },
   input: {
     flex: 1,
+    height: 56,
+    paddingHorizontal: THEME.spacing.md,
     fontFamily: THEME.fonts.inter.regular,
     fontSize: 16,
     color: THEME.colors.text,
   },
-  loginBtn: {
+  buttonContainer: {
+    marginTop: THEME.spacing.sm,
     borderRadius: THEME.borderRadius.md,
     overflow: 'hidden',
-    shadowColor: THEME.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
   },
-  btnGradient: {
+  button: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     height: 56,
-    paddingHorizontal: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  btnText: {
+  buttonText: {
     fontFamily: THEME.fonts.outfit.bold,
     fontSize: 16,
-    color: '#000',
-    marginRight: 8,
-    letterSpacing: 1,
+    color: '#050810',
+    marginRight: THEME.spacing.sm,
   },
   registerLink: {
-    marginTop: 24,
+    marginTop: THEME.spacing.xl,
     alignItems: 'center',
   },
   registerText: {
-    fontFamily: THEME.fonts.inter.regular,
-    fontSize: 14,
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 15,
     color: THEME.colors.textSecondary,
   },
-  registerTextBold: {
+  registerTextHighlight: {
     color: THEME.colors.primary,
     fontFamily: THEME.fonts.inter.bold,
-  }
+  },
 });
