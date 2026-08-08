@@ -156,7 +156,7 @@ export default function AIAssistantScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? (insets.top + 55) : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
         style={{ flex: 1 }}
       >
         <ScrollView
