@@ -17,13 +17,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../../constants/theme';
 
+const VEHICLE_IMAGES = {
+  sedan: require('../../assets/vehicles/sedan.jpg'),
+  suv: require('../../assets/vehicles/suv.jpg'),
+  hatchback: require('../../assets/vehicles/hatchback.jpg'),
+  bike: require('../../assets/vehicles/bike.jpg'),
+  truck: require('../../assets/vehicles/truck.jpg'),
+  bus: require('../../assets/vehicles/bus.jpg'),
+};
+
 const VEHICLE_TYPES = [
-  { id: 'sedan', icon: 'car-side', label: 'Sedan', desc: 'Compact & mid-size' },
-  { id: 'suv', icon: 'car-estate', label: 'SUV', desc: 'Large vehicles' },
-  { id: 'hatchback', icon: 'car-hatchback', label: 'Hatchback', desc: 'Small cars' },
-  { id: 'bike', icon: 'motorbike', label: 'Bike', desc: 'Two wheelers' },
-  { id: 'truck', icon: 'truck', label: 'Truck', desc: 'Commercial' },
-  { id: 'bus', icon: 'bus-side', label: 'Bus / Van', desc: 'Large transport' },
+  { id: 'sedan', label: 'Sedan', desc: 'Compact & mid-size' },
+  { id: 'suv', label: 'SUV', desc: 'Large vehicles' },
+  { id: 'hatchback', label: 'Hatchback', desc: 'Small cars' },
+  { id: 'bike', label: 'Bike', desc: 'Two wheelers' },
+  { id: 'truck', label: 'Truck', desc: 'Commercial' },
+  { id: 'bus', label: 'Bus / Van', desc: 'Large transport' },
 ];
 
 const COLORS = [
@@ -195,10 +204,10 @@ export default function SelectVehicleScreen() {
                   />
                 )}
                 <View style={[styles.typeIcon, isSelected && styles.typeIconSelected]}>
-                  <MaterialCommunityIcons
-                    name={v.icon as any}
-                    size={26}
-                    color={isSelected ? '#00CFFF' : 'rgba(255,255,255,0.45)'}
+                  <Image
+                    source={VEHICLE_IMAGES[v.id as keyof typeof VEHICLE_IMAGES]}
+                    style={styles.typeVehicleImg}
+                    resizeMode="contain"
                   />
                 </View>
                 <Text style={[styles.typeLabel, isSelected && styles.typeLabelSelected]}>{v.label}</Text>
@@ -641,16 +650,21 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   typeIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 64,
+    height: 48,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
+    overflow: 'hidden',
   },
   typeIconSelected: {
-    backgroundColor: 'rgba(0, 207, 255, 0.12)',
+    backgroundColor: 'rgba(0, 207, 255, 0.08)',
+  },
+  typeVehicleImg: {
+    width: '90%',
+    height: '90%',
   },
   typeLabel: {
     fontFamily: 'Outfit_600SemiBold',
