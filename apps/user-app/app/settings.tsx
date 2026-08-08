@@ -69,11 +69,11 @@ export default function SettingsScreen() {
         {/* Account Section */}
         {renderSectionHeader('Account')}
         <View style={styles.cardContainer}>
-          {renderRow('person-outline', 'Edit Profile', '', () => {})}
+          {renderRow('person-outline', 'Edit Profile', '', () => router.push('/settings/edit-profile'))}
           <View style={styles.divider} />
-          {renderRow('lock-closed-outline', 'Change Password', '', () => {})}
+          {renderRow('lock-closed-outline', 'Change Password', '', () => router.push('/settings/change-password'))}
           <View style={styles.divider} />
-          {renderRow('location-outline', 'Saved Addresses', '', () => {})}
+          {renderRow('location-outline', 'Saved Addresses', '', () => router.push('/settings/saved-addresses'))}
         </View>
 
         {/* Notifications Section */}
@@ -89,7 +89,7 @@ export default function SettingsScreen() {
         {/* Preferences Section */}
         {renderSectionHeader('Preferences')}
         <View style={styles.cardContainer}>
-          {renderRow('language-outline', 'Language', 'English', () => {})}
+          {renderRow('language-outline', 'Language', 'English', () => router.push('/settings/language'))}
           <View style={styles.divider} />
           {renderRow('speedometer-outline', 'Units', 'Kilometers', () => {})}
         </View>
@@ -99,9 +99,9 @@ export default function SettingsScreen() {
         <View style={styles.cardContainer}>
           {renderRow('information-circle-outline', 'App Version', 'v1.0.0')}
           <View style={styles.divider} />
-          {renderRow('document-text-outline', 'Terms of Service', '', () => {})}
+          {renderRow('document-text-outline', 'Terms of Service', '', () => router.push('/settings/terms'))}
           <View style={styles.divider} />
-          {renderRow('shield-checkmark-outline', 'Privacy Policy', '', () => {})}
+          {renderRow('shield-checkmark-outline', 'Privacy Policy', '', () => router.push('/settings/privacy'))}
           <View style={styles.divider} />
           {renderRow('star-outline', 'Rate Us', '', () => {})}
         </View>
