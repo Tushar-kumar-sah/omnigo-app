@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../../constants/theme';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   return (
     <Tabs
@@ -81,6 +82,12 @@ export default function TabLayout() {
             marginTop: 4,
           },
         }}
+        listeners={() => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            router.push('/booking/select-vehicle');
+          },
+        })}
       />
 
       {/* 4. History Tab */}

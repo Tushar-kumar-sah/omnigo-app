@@ -196,7 +196,7 @@ export default function HomeScreen() {
         {/* Card 2: Schedule Tow (Emerald Green Glass Glow) */}
         <TouchableOpacity
           style={styles.actionCardTouch}
-          onPress={() => router.push('/booking/select-vehicle')}
+          onPress={() => router.push('/booking/schedule-tow')}
           activeOpacity={0.85}
         >
           <BlurView intensity={85} tint="dark" style={[styles.actionCard, styles.scheduleTowBorder]}>
@@ -219,7 +219,7 @@ export default function HomeScreen() {
         {/* Card 3: Emergency SOS (Red Crimson Glass Glow) */}
         <TouchableOpacity
           style={styles.actionCardTouch}
-          onPress={() => router.push('/booking/select-vehicle')}
+          onPress={() => router.push('/(tabs)/sos')}
           activeOpacity={0.85}
         >
           <BlurView intensity={85} tint="dark" style={[styles.actionCard, styles.emergencySosBorder]}>
