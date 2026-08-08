@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   Image,
   Dimensions,
+  Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
@@ -41,6 +42,22 @@ export default function AIAssistantScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const [inputMsg, setInputMsg] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -237,7 +254,7 @@ export default function AIAssistantScreen() {
       </ScrollView>
 
       {/* 4. Bottom Input Bar */}
-      <View style={[styles.inputBarContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 10 }]}>
+      <View style={[styles.inputBarContainer, { paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, 12) }]}>
         <View style={styles.inputBarWrapper}>
           <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFillObject} />
           <TextInput
