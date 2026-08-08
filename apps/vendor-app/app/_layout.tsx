@@ -28,6 +28,8 @@ export default function RootLayout() {
     <>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: THEME.colors.background } }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="splash" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="job" />
