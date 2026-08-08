@@ -125,11 +125,7 @@ export default function AIAssistantScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       {/* Background Gradient */}
       <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
 
@@ -158,7 +154,12 @@ export default function AIAssistantScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? (insets.top + 55) : 0}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}
         showsVerticalScrollIndicator={false}
@@ -274,7 +275,8 @@ export default function AIAssistantScreen() {
         </View>
       </View>
     </KeyboardAvoidingView>
-  );
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
