@@ -54,7 +54,7 @@ export default function HomeScreen() {
         {isOnline && (
           <BlurView intensity={30} tint="dark" style={styles.statsCard}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>$142.50</Text>
+              <Text style={styles.statValue}>₹1,425.00</Text>
               <Text style={styles.statLabel}>Today</Text>
             </View>
             <View style={styles.divider} />

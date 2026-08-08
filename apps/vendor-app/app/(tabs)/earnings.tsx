@@ -12,7 +12,7 @@ export default function EarningsScreen() {
 
       <BlurView intensity={20} tint="dark" style={styles.mainCard}>
         <Text style={styles.periodText}>Today</Text>
-        <Text style={styles.amountText}>$142.50</Text>
+        <Text style={styles.amountText}>₹1,425.00</Text>
         
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
@@ -27,7 +27,7 @@ export default function EarningsScreen() {
           </View>
           <View style={styles.statBox}>
             <Ionicons name="navigate-outline" size={20} color={THEME.colors.success} />
-            <Text style={styles.statBoxValue}>21mi</Text>
+            <Text style={styles.statBoxValue}>21 km</Text>
             <Text style={styles.statBoxLabel}>Distance</Text>
           </View>
         </View>
@@ -46,7 +46,7 @@ export default function EarningsScreen() {
               <Text style={styles.txTime}>Today, 2:30 PM</Text>
             </View>
           </View>
-          <Text style={styles.txAmount}>+$45.00</Text>
+          <Text style={styles.txAmount}>+₹475.00</Text>
         </BlurView>
       ))}
     </ScrollView>

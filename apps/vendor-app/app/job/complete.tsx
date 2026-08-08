@@ -29,15 +29,15 @@ export default function CompleteScreen() {
 
         <View style={styles.breakdownRow}>
           <Text style={styles.breakdownLabel}>Base Fare</Text>
-          <Text style={styles.breakdownValue}>$25.00</Text>
+          <Text style={styles.breakdownValue}>₹250.00</Text>
         </View>
         <View style={styles.breakdownRow}>
           <Text style={styles.breakdownLabel}>Distance ({mockIncomingJob.distance})</Text>
-          <Text style={styles.breakdownValue}>$20.00</Text>
+          <Text style={styles.breakdownValue}>₹200.00</Text>
         </View>
         <View style={styles.breakdownRow}>
           <Text style={styles.breakdownLabel}>Tip</Text>
-          <Text style={styles.breakdownValue}>$10.00</Text>
+          <Text style={styles.breakdownValue}>₹100.00</Text>
         </View>
         
         <View style={styles.divider} />
