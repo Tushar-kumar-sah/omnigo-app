@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,12 +32,20 @@ export default function LocationPermissionScreen() {
           </View>
         </View>
 
-        {/* Title & Description Details */}
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>Enable Location</Text>
-          <Text style={styles.description}>
-            Allow Omnigo to access your location for instant rescue services, real-time tracking, and finding the nearest towing vehicles.
-          </Text>
+        {/* Title & Description Details wrapped in Frosted Glass Card */}
+        <View style={styles.glassCardContainer}>
+          <BlurView intensity={85} tint="dark" style={styles.textGlassCard}>
+            <LinearGradient
+              colors={['rgba(0, 207, 255, 0.18)', 'rgba(255, 255, 255, 0.04)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Text style={styles.title}>Enable Location</Text>
+            <Text style={styles.description}>
+              Allow Omnigo to access your location for instant rescue services, real-time tracking, and finding the nearest towing vehicles.
+            </Text>
+          </BlurView>
         </View>
 
         {/* Action Buttons */}
@@ -101,9 +110,25 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     elevation: 8,
   },
-  textContainer: {
-    alignItems: 'center',
+  glassCardContainer: {
+    width: '100%',
     marginVertical: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  textGlassCard: {
+    padding: 24,
+    borderRadius: 24,
+    backgroundColor: 'rgba(10, 28, 60, 0.65)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    alignItems: 'center',
+    shadowColor: '#00CFFF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
+    overflow: 'hidden',
   },
   title: {
     fontFamily: 'Outfit_700Bold',
