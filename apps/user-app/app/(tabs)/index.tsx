@@ -99,7 +99,7 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
               <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
               <View style={styles.notificationDot} />
             </TouchableOpacity>
@@ -242,13 +242,13 @@ export default function HomeScreen() {
         {/* 4. Recent Activity Section */}
         <View style={styles.recentSectionHeader}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')}>
             <Text style={styles.viewAllText}>View All &gt;</Text>
           </TouchableOpacity>
         </View>
 
         {/* Activity Item 1 */}
-        <TouchableOpacity style={styles.activityItemTouch} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.activityItemTouch} activeOpacity={0.8} onPress={() => router.push('/(tabs)/bookings')}>
           <BlurView intensity={75} tint="dark" style={styles.activityItem}>
             <LinearGradient
               colors={['rgba(255, 255, 255, 0.08)', 'rgba(0, 207, 255, 0.03)', 'transparent']}
@@ -271,7 +271,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* Activity Item 2 */}
-        <TouchableOpacity style={styles.activityItemTouch} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.activityItemTouch} activeOpacity={0.8} onPress={() => router.push('/(tabs)/bookings')}>
           <BlurView intensity={75} tint="dark" style={styles.activityItem}>
             <LinearGradient
               colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 179, 0, 0.03)', 'transparent']}
@@ -294,7 +294,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* Activity Item 3 */}
-        <TouchableOpacity style={styles.activityItemTouch} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.activityItemTouch} activeOpacity={0.8} onPress={() => router.push('/(tabs)/bookings')}>
           <BlurView intensity={75} tint="dark" style={styles.activityItem}>
             <LinearGradient
               colors={['rgba(255, 255, 255, 0.08)', 'rgba(0, 255, 151, 0.03)', 'transparent']}

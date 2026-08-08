@@ -1,18 +1,318 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, StatusBar } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
 
+type NotificationType = 'success' | 'info' | 'payment' | 'alert' | 'promo' | 'reminder' | 'location' | 'safety';
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  time: string;
+  type: NotificationType;
+  isUnread: boolean;
+  section: 'Today' | 'Earlier';
+}
+
+const initialNotifications: NotificationItem[] = [
+  {
+    id: '1',
+    title: 'Tow Completed',
+    description: 'Your tow to AutoFix Garage is complete',
+    time: '2 min ago',
+    type: 'success',
+    isUnread: true,
+    section: 'Today',
+  },
+  {
+    id: '2',
+    title: 'Driver Assigned',
+    description: 'Rajesh K. is on the way in a Mahindra Bolero',
+    time: '15 min ago',
+    type: 'info',
+    isUnread: true,
+    section: 'Today',
+  },
+  {
+    id: '3',
+    title: 'Payment Success',
+    description: '₹2,500 paid successfully via UPI',
+    time: '1h ago',
+    type: 'payment',
+    isUnread: true,
+    section: 'Today',
+  },
+  {
+    id: '4',
+    title: 'SOS Alert Resolved',
+    description: 'Your SOS request has been resolved',
+    time: '3h ago',
+    type: 'alert',
+    isUnread: false,
+    section: 'Today',
+  },
+  {
+    id: '5',
+    title: 'Promo Offer',
+    description: 'Use code OMNIGO20 for 20% off next tow',
+    time: 'Yesterday',
+    type: 'promo',
+    isUnread: false,
+    section: 'Earlier',
+  },
+  {
+    id: '6',
+    title: 'Service Reminder',
+    description: 'Your vehicle service is due in 3 days',
+    time: 'Yesterday',
+    type: 'reminder',
+    isUnread: false,
+    section: 'Earlier',
+  },
+  {
+    id: '7',
+    title: 'Tracking Update',
+    description: 'Driver has arrived at pickup location',
+    time: '2 days ago',
+    type: 'location',
+    isUnread: false,
+    section: 'Earlier',
+  },
+  {
+    id: '8',
+    title: 'Safety Alert',
+    description: 'Trip safety report is now available',
+    time: '3 days ago',
+    type: 'safety',
+    isUnread: false,
+    section: 'Earlier',
+  },
+];
+
 export default function NotificationsScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [notifications, setNotifications] = useState(initialNotifications);
+
+  const markAllRead = () => {
+    setNotifications(prev => prev.map(notif => ({ ...notif, isUnread: false })));
+  };
+
+  const getIconConfig = (type: NotificationType) => {
+    switch (type) {
+      case 'success':
+        return { name: 'checkmark-circle', color: '#00FF97', bg: 'rgba(0, 255, 151, 0.15)' };
+      case 'info':
+        return { name: 'car', color: '#00CFFF', bg: 'rgba(0, 207, 255, 0.15)' };
+      case 'payment':
+        return { name: 'cash', color: '#00FF97', bg: 'rgba(0, 255, 151, 0.15)' };
+      case 'alert':
+        return { name: 'warning', color: '#FF3B30', bg: 'rgba(255, 59, 48, 0.15)' };
+      case 'promo':
+        return { name: 'gift', color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' };
+      case 'reminder':
+        return { name: 'build', color: '#FFA500', bg: 'rgba(255, 165, 0, 0.15)' };
+      case 'location':
+        return { name: 'location', color: '#00CFFF', bg: 'rgba(0, 207, 255, 0.15)' };
+      case 'safety':
+        return { name: 'shield-checkmark', color: '#00FF97', bg: 'rgba(0, 255, 151, 0.15)' };
+      default:
+        return { name: 'notifications', color: '#FFFFFF', bg: 'rgba(255, 255, 255, 0.15)' };
+    }
+  };
+
+  const renderNotificationItem = (item: NotificationItem) => {
+    const iconConfig = getIconConfig(item.type);
+
+    return (
+      <TouchableOpacity 
+        key={item.id} 
+        style={[styles.notificationCard, item.isUnread && styles.unreadCard]}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.iconContainer, { backgroundColor: iconConfig.bg }]}>
+          <Ionicons name={iconConfig.name as any} size={24} color={iconConfig.color} />
+        </View>
+        <View style={styles.textContainer}>
+          <View style={styles.titleRow}>
+            <Text style={styles.titleText}>{item.title}</Text>
+            <Text style={styles.timeText}>{item.time}</Text>
+          </View>
+          <Text style={styles.descriptionText} numberOfLines={2}>
+            {item.description}
+          </Text>
+        </View>
+        {item.isUnread && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
+    );
+  };
+
+  const todayNotifications = notifications.filter(n => n.section === 'Today');
+  const earlierNotifications = notifications.filter(n => n.section === 'Earlier');
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Notifications</Text>
-      <Text style={styles.desc}>No new notifications.</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#050810" />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Notifications</Text>
+        <TouchableOpacity style={styles.markAllButton} onPress={markAllRead}>
+          <Ionicons name="checkmark-done" size={20} color="#00CFFF" />
+          <Text style={styles.markAllText}>Read All</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {todayNotifications.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Today</Text>
+            {todayNotifications.map(renderNotificationItem)}
+          </View>
+        )}
+
+        {earlierNotifications.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Earlier</Text>
+            {earlierNotifications.map(renderNotificationItem)}
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background, paddingTop: 60, paddingHorizontal: 20 },
-  title: { fontFamily: 'Outfit_700Bold', fontSize: 28, color: theme.colors.text, marginBottom: 20 },
-  desc: { fontFamily: 'Inter_400Regular', color: theme.colors.textSecondary, fontSize: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: '#050810',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(13, 20, 32, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  headerTitle: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 20,
+    color: '#FFFFFF',
+  },
+  markAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 207, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.3)',
+  },
+  markAllText: {
+    fontFamily: 'Inter_500Medium',
+    color: '#00CFFF',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 18,
+    color: '#FFFFFF',
+    marginBottom: 16,
+    letterSpacing: 0.5,
+  },
+  notificationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(13, 20, 32, 0.45)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  unreadCard: {
+    backgroundColor: 'rgba(13, 20, 32, 0.7)',
+    borderColor: 'rgba(0, 207, 255, 0.3)',
+    shadowColor: '#00CFFF',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  titleText: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 16,
+    color: '#FFFFFF',
+    flex: 1,
+    marginRight: 8,
+  },
+  timeText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  descriptionText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    lineHeight: 20,
+  },
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#00CFFF',
+    marginLeft: 12,
+    shadowColor: '#00CFFF',
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 3,
+  },
 });
