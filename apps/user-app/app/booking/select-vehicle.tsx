@@ -650,21 +650,20 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   typeIcon: {
-    width: 64,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    width: 70,
+    height: 52,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
     overflow: 'hidden',
   },
   typeIconSelected: {
-    backgroundColor: 'rgba(0, 207, 255, 0.08)',
+    backgroundColor: 'transparent',
   },
   typeVehicleImg: {
-    width: '90%',
-    height: '90%',
+    width: '100%',
+    height: '100%',
   },
   typeLabel: {
     fontFamily: 'Outfit_600SemiBold',
