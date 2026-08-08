@@ -479,9 +479,9 @@ const styles = StyleSheet.create({
     color: '#00CFFF',
   },
   aiAvatarImg: {
-    width: 80,
-    height: 110,
-    top: -4,
+    width: '120%',
+    height: '135%',
+    top: 2,
     alignSelf: 'center',
   },
   sectionHeader: {
