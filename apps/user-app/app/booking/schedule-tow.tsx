@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   Platform,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -14,11 +15,22 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../../constants/theme';
 
+const VEHICLE_IMAGES = {
+  sedan: require('../../assets/vehicles/sedan.jpg'),
+  suv: require('../../assets/vehicles/suv.jpg'),
+  hatchback: require('../../assets/vehicles/hatchback.jpg'),
+  bike: require('../../assets/vehicles/bike.jpg'),
+  truck: require('../../assets/vehicles/truck.jpg'),
+  bus: require('../../assets/vehicles/bus.jpg'),
+};
+
 const VEHICLE_TYPES = [
-  { id: 'flatbed', icon: 'tow-truck', label: 'Flatbed', price: '₹1,500' },
-  { id: 'wheel-lift', icon: 'car-lifted-pickup', label: 'Wheel Lift', price: '₹1,200' },
-  { id: 'motorcycle', icon: 'motorbike', label: 'Bike Tow', price: '₹800' },
-  { id: 'heavy', icon: 'truck', label: 'Heavy Duty', price: '₹3,500' },
+  { id: 'sedan', label: 'Sedan', desc: 'Compact & mid-size', price: '₹1,200' },
+  { id: 'suv', label: 'SUV', desc: 'Large vehicles', price: '₹1,500' },
+  { id: 'hatchback', label: 'Hatchback', desc: 'Small cars', price: '₹1,000' },
+  { id: 'bike', label: 'Bike', desc: 'Two wheelers', price: '₹800' },
+  { id: 'truck', label: 'Truck', desc: 'Commercial', price: '₹2,500' },
+  { id: 'bus', label: 'Bus / Van', desc: 'Large transport', price: '₹3,500' },
 ];
 
 const DATES: { day: string; date: number; month: string; full: string }[] = [];
@@ -45,7 +57,7 @@ export default function ScheduleTowScreen() {
 
   const [selectedDate, setSelectedDate] = useState(DATES[1].full);
   const [selectedTime, setSelectedTime] = useState('10:00 AM');
-  const [selectedVehicle, setSelectedVehicle] = useState('flatbed');
+  const [selectedVehicle, setSelectedVehicle] = useState('sedan');
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
   const [pickupFocused, setPickupFocused] = useState(false);
@@ -80,19 +92,24 @@ export default function ScheduleTowScreen() {
           <LinearGradient
             colors={['rgba(0, 255, 151, 0.15)', 'rgba(0, 207, 255, 0.08)']}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFillObject}
           />
-          <Ionicons name="calendar" size={18} color="#00FF97" />
-          <Text style={styles.scheduleBadgeText}>Plan your tow in advance</Text>
+          <Ionicons name="calendar" size={14} color="#00FF97" />
+          <Text style={styles.scheduleBadgeText}>Advance Booking Schedule</Text>
         </View>
 
         {/* Date Picker Section */}
         <Text style={styles.sectionLabel}>Select Date</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateRow} contentContainerStyle={{ gap: 10 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.dateRow}
+          contentContainerStyle={{ gap: 10 }}
+        >
           {DATES.map((d) => {
             const isSelected = d.full === selectedDate;
-            const isToday = d.full === DATES[0].full;
+            const isToday = d.full === now.toISOString().split('T')[0];
             return (
               <TouchableOpacity
                 key={d.full}
@@ -149,27 +166,37 @@ export default function ScheduleTowScreen() {
 
         {/* Vehicle Type Section */}
         <Text style={styles.sectionLabel}>Vehicle Type</Text>
-        <View style={styles.vehicleGrid}>
+        <View style={styles.typeGrid}>
           {VEHICLE_TYPES.map((v) => {
             const isSelected = v.id === selectedVehicle;
             return (
               <TouchableOpacity
                 key={v.id}
                 onPress={() => setSelectedVehicle(v.id)}
-                style={[styles.vehicleCard, isSelected && styles.vehicleCardSelected]}
+                style={[styles.typeCard, isSelected && styles.typeCardSelected]}
                 activeOpacity={0.7}
               >
                 {isSelected && (
                   <LinearGradient
-                    colors={['rgba(0, 207, 255, 0.2)', 'rgba(0, 255, 151, 0.1)']}
+                    colors={['rgba(0, 207, 255, 0.2)', 'rgba(0, 255, 151, 0.08)']}
                     style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
                   />
                 )}
-                <View style={[styles.vehicleIconCircle, isSelected && styles.vehicleIconCircleSelected]}>
-                  <MaterialCommunityIcons name={v.icon as any} size={24} color={isSelected ? '#00CFFF' : 'rgba(255,255,255,0.5)'} />
+                <View style={[styles.typeIcon, isSelected && styles.typeIconSelected]}>
+                  <Image
+                    source={VEHICLE_IMAGES[v.id as keyof typeof VEHICLE_IMAGES]}
+                    style={styles.typeVehicleImg}
+                    resizeMode="contain"
+                  />
                 </View>
-                <Text style={[styles.vehicleLabel, isSelected && styles.vehicleLabelSelected]}>{v.label}</Text>
-                <Text style={[styles.vehiclePrice, isSelected && styles.vehiclePriceSelected]}>{v.price}</Text>
+                <Text style={[styles.typeLabel, isSelected && styles.typeLabelSelected]}>{v.label}</Text>
+                <Text style={[styles.typeDesc, isSelected && styles.typeDescSelected]}>{v.desc}</Text>
+                <Text style={[styles.typePrice, isSelected && styles.typePriceSelected]}>{v.price}</Text>
+                {isSelected && (
+                  <View style={styles.typeCheckBadge}>
+                    <Ionicons name="checkmark-circle" size={16} color="#00FF97" />
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -408,25 +435,26 @@ const styles = StyleSheet.create({
     color: '#00CFFF',
     fontFamily: 'Outfit_600SemiBold',
   },
-  vehicleGrid: {
+  typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
+    gap: 10,
+    marginTop: 6,
+    marginBottom: 20,
   },
-  vehicleCard: {
-    width: '47%',
-    paddingVertical: 18,
-    paddingHorizontal: 14,
+  typeCard: {
+    width: '31%',
+    paddingVertical: 14,
+    paddingHorizontal: 6,
     borderRadius: 16,
     backgroundColor: 'rgba(13, 20, 32, 0.45)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     overflow: 'hidden',
-    gap: 6,
+    gap: 2,
   },
-  vehicleCardSelected: {
+  typeCardSelected: {
     borderColor: '#00CFFF',
     shadowColor: '#00CFFF',
     shadowOffset: { width: 0, height: 4 },
@@ -434,35 +462,52 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
   },
-  vehicleIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+  typeIcon: {
+    width: 64,
+    height: 46,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 4,
+    overflow: 'hidden',
   },
-  vehicleIconCircleSelected: {
-    backgroundColor: 'rgba(0, 207, 255, 0.12)',
-    borderColor: 'rgba(0, 207, 255, 0.3)',
+  typeIconSelected: {
+    backgroundColor: 'transparent',
   },
-  vehicleLabel: {
+  typeVehicleImg: {
+    width: '100%',
+    height: '100%',
+  },
+  typeLabel: {
     fontFamily: 'Outfit_600SemiBold',
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
   },
-  vehicleLabelSelected: {
+  typeLabelSelected: {
     color: '#FFFFFF',
   },
-  vehiclePrice: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+  typeDesc: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 8,
+    color: 'rgba(255,255,255,0.3)',
+    textAlign: 'center',
   },
-  vehiclePriceSelected: {
+  typeDescSelected: {
+    color: 'rgba(0, 207, 255, 0.7)',
+  },
+  typePrice: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 2,
+  },
+  typePriceSelected: {
     color: '#00FF97',
+  },
+  typeCheckBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
   },
   locationContainer: {
     marginBottom: 24,

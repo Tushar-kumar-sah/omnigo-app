@@ -1,496 +1,338 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
-  TextInput,
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { theme } from '../../constants/theme';
 
-export default function BookingConfirmScreen() {
+const PAYMENT_METHODS = [
+  { id: 'upi',  icon: 'qrcode-scan',       label: 'UPI',         sub: 'GPay · PhonePe · Paytm',  color: '#4CAF50' },
+  { id: 'card', icon: 'credit-card-outline', label: 'Card',       sub: 'Credit / Debit Card',      color: '#2196F3' },
+  { id: 'cash', icon: 'cash',               label: 'Cash',        sub: 'Pay driver on delivery',   color: '#FFD60A' },
+] as const;
+
+type PaymentId = typeof PAYMENT_METHODS[number]['id'];
+
+export default function ConfirmBookingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
-  const [selectedPayment, setSelectedPayment] = useState('UPI');
-  const [promoCode, setPromoCode] = useState('');
+  const [selectedPayment, setSelectedPayment] = useState<PaymentId>('upi');
+  const [promoCode, setPromoCode]             = useState('');
+  const [promoApplied, setPromoApplied]       = useState(false);
 
-  const paymentMethods = [
-    { id: 'UPI', icon: 'qrcode-scan', title: 'UPI (GPay, PhonePe)' },
-    { id: 'Card', icon: 'credit-card-outline', title: 'Credit / Debit Card' },
-    { id: 'Cash', icon: 'cash', title: 'Cash on Delivery' },
-  ];
+  // Fare values (₹)
+  const baseFare     = 500;
+  const distanceFee  = 128;  // 8.5 km × ₹15
+  const platformFee  = 25;
+  const subtotal     = baseFare + distanceFee + platformFee;
+  const gst          = Math.round(subtotal * 0.18);
+  const discount     = promoApplied ? 50 : 0;
+  const total        = subtotal + gst - discount;
+
+  const handleApplyPromo = () => {
+    if (promoCode.trim().toUpperCase() === 'OMNI50') {
+      setPromoApplied(true);
+    }
+  };
+
+  const handleConfirm = () => {
+    router.push('/booking/tracking');
+  };
 
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
-      
-      <View style={[styles.inner, { paddingTop: insets.top }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Confirm Booking</Text>
-          <View style={{ width: 40 }} />
-        </View>
 
-        {/* Progress Indicator */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressDotCompleted} />
-          <View style={styles.progressLineCompleted} />
-          <View style={styles.progressDotCompleted} />
-          <View style={styles.progressLineCompleted} />
-          <View style={styles.progressDotActive} />
-          <View style={styles.progressLinePending} />
-          <View style={styles.progressDotPending} />
-        </View>
-        <Text style={styles.stepText}>Step 3 of 4</Text>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Confirm & Pay</Text>
+        <View style={{ width: 40 }} />
+      </View>
 
-        <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContainer}>
-          
-          {/* Booking Summary */}
-          <Text style={styles.sectionTitle}>Summary</Text>
-          <View style={styles.glassCard}>
-            <View style={styles.serviceRow}>
-              <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="tow-truck" size={24} color="#00CFFF" />
-              </View>
-              <View style={styles.serviceInfo}>
-                <Text style={styles.serviceTitle}>Flatbed Tow</Text>
-                <Text style={styles.vehicleText}>Maruti Suzuki Swift Dzire</Text>
-              </View>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom + 100, 120) }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Route Summary */}
+        <BlurView intensity={20} tint="dark" style={styles.card}>
+          <View style={styles.cardHeader}>
+            <MaterialCommunityIcons name="tow-truck" size={22} color={theme.colors.primary} />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.cardTitle}>Flatbed Tow · Maruti Swift</Text>
+              <Text style={styles.cardSub}>KA 01 MH 4521 · White</Text>
             </View>
-            
-            <View style={styles.divider} />
-            
-            <View style={styles.locationContainer}>
-              <View style={styles.locationLine}>
-                <View style={styles.dotGreen} />
-                <View style={styles.dashedLine} />
-                <View style={styles.dotRed} />
+            <View style={styles.etaChip}>
+              <Ionicons name="time-outline" size={12} color={theme.colors.primary} />
+              <Text style={styles.etaText}>ETA 12 min</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Route */}
+          <View style={styles.routeBlock}>
+            <View style={styles.routeDots}>
+              <View style={styles.greenDot} />
+              <View style={styles.dashedLine} />
+              <View style={styles.redDot} />
+            </View>
+            <View style={{ flex: 1, gap: 10 }}>
+              <View>
+                <Text style={styles.routeLabel}>PICKUP</Text>
+                <Text style={styles.routeAddr}>MG Road, Near Brigade Gateway, Bangalore</Text>
               </View>
-              <View style={styles.locationDetails}>
-                <View style={styles.locationBox}>
-                  <Text style={styles.locationLabel}>Pickup</Text>
-                  <Text style={styles.locationAddress} numberOfLines={1}>123, MG Road, Andheri West</Text>
-                </View>
-                <View style={{ height: 24 }} />
-                <View style={styles.locationBox}>
-                  <Text style={styles.locationLabel}>Drop-off</Text>
-                  <Text style={styles.locationAddress} numberOfLines={1}>AutoFix Garage, Bandra</Text>
-                </View>
+              <View>
+                <Text style={styles.routeLabel}>DROP-OFF</Text>
+                <Text style={styles.routeAddr}>AutoFix Garage, Whitefield, Bangalore</Text>
               </View>
             </View>
           </View>
 
-          {/* Fare Breakdown */}
+          <View style={styles.metaRow}>
+            <View style={styles.metaChip}>
+              <Ionicons name="navigate-outline" size={13} color={theme.colors.primary} />
+              <Text style={styles.metaText}>8.5 km</Text>
+            </View>
+            <View style={styles.metaChip}>
+              <Ionicons name="time-outline" size={13} color={theme.colors.primary} />
+              <Text style={styles.metaText}>~25 min</Text>
+            </View>
+            <View style={styles.metaChip}>
+              <Ionicons name="alert-circle-outline" size={13} color="#FFD60A" />
+              <Text style={styles.metaText}>Flat Tyre</Text>
+            </View>
+          </View>
+        </BlurView>
+
+        {/* Driver Card */}
+        <BlurView intensity={20} tint="dark" style={styles.card}>
+          <Text style={styles.sectionTitle}>Assigned Driver</Text>
+          <View style={styles.driverRow}>
+            <View style={styles.driverAvatar}>
+              <Text style={styles.driverAvatarText}>R</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.driverName}>Rajesh Kumar</Text>
+              <View style={styles.driverMeta}>
+                <Ionicons name="star" size={13} color="#FFD60A" />
+                <Text style={styles.driverRating}>4.8 · 1,240 trips</Text>
+              </View>
+              <Text style={styles.driverVehicle}>Mahindra Bolero · MH 02 AB 1234</Text>
+            </View>
+            <View style={styles.driverEtaBox}>
+              <Text style={styles.driverEtaNum}>12</Text>
+              <Text style={styles.driverEtaUnit}>min</Text>
+            </View>
+          </View>
+        </BlurView>
+
+        {/* Fare Breakdown */}
+        <BlurView intensity={20} tint="dark" style={styles.card}>
           <Text style={styles.sectionTitle}>Fare Breakdown</Text>
-          <View style={styles.glassCard}>
+
+          <View style={styles.fareRow}>
+            <Text style={styles.fareLabel}>Base Fare</Text>
+            <Text style={styles.fareValue}>₹{baseFare}</Text>
+          </View>
+          <View style={styles.fareRow}>
+            <Text style={styles.fareLabel}>Distance Fee  <Text style={styles.fareSub}>(8.5 km × ₹15)</Text></Text>
+            <Text style={styles.fareValue}>₹{distanceFee}</Text>
+          </View>
+          <View style={styles.fareRow}>
+            <Text style={styles.fareLabel}>Platform Fee</Text>
+            <Text style={styles.fareValue}>₹{platformFee}</Text>
+          </View>
+          <View style={styles.fareRow}>
+            <Text style={styles.fareLabel}>GST  <Text style={styles.fareSub}>(18%)</Text></Text>
+            <Text style={styles.fareValue}>₹{gst}</Text>
+          </View>
+
+          {promoApplied && (
             <View style={styles.fareRow}>
-              <Text style={styles.fareLabel}>Base Fare</Text>
-              <Text style={styles.fareValue}>₹500</Text>
+              <Text style={[styles.fareLabel, { color: '#00FF97' }]}>Promo: OMNI50</Text>
+              <Text style={[styles.fareValue, { color: '#00FF97' }]}>−₹{discount}</Text>
             </View>
+          )}
+
+          <View style={styles.fareTotalRow}>
+            <View style={styles.divider} />
             <View style={styles.fareRow}>
-              <Text style={styles.fareLabel}>Distance (8.5 km × ₹15)</Text>
-              <Text style={styles.fareValue}>₹128</Text>
-            </View>
-            <View style={styles.fareRow}>
-              <Text style={styles.fareLabel}>Platform Fee</Text>
-              <Text style={styles.fareValue}>₹25</Text>
-            </View>
-            <View style={styles.fareRow}>
-              <Text style={styles.fareLabel}>GST (18%)</Text>
-              <Text style={styles.fareValue}>₹117</Text>
-            </View>
-            <View style={[styles.divider, { marginVertical: 12 }]} />
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>₹770</Text>
+              <Text style={styles.fareTotalLabel}>Total</Text>
+              <Text style={styles.fareTotalValue}>₹{total}</Text>
             </View>
           </View>
 
-          {/* Promo Code */}
-          <View style={styles.promoContainer}>
-            <TextInput
-              style={styles.promoInput}
-              placeholder="Promo Code"
-              placeholderTextColor="rgba(255, 255, 255, 0.4)"
-              value={promoCode}
-              onChangeText={setPromoCode}
-            />
-            <TouchableOpacity style={styles.applyBtn}>
-              <Text style={styles.applyBtnText}>Apply</Text>
-            </TouchableOpacity>
+          {/* No Hidden Charges */}
+          <View style={styles.noHiddenBadge}>
+            <Ionicons name="shield-checkmark" size={14} color="#00FF97" />
+            <Text style={styles.noHiddenText}>No hidden charges · All-inclusive fare</Text>
           </View>
+        </BlurView>
 
-          {/* Payment Method */}
-          <Text style={styles.sectionTitle}>Payment Method</Text>
-          <View style={styles.paymentContainer}>
-            {paymentMethods.map((method) => (
-              <TouchableOpacity
-                key={method.id}
-                style={[
-                  styles.paymentOption,
-                  selectedPayment === method.id && styles.paymentOptionSelected
-                ]}
-                onPress={() => setSelectedPayment(method.id)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.paymentIconBox}>
-                  <MaterialCommunityIcons 
-                    name={method.icon as any} 
-                    size={22} 
-                    color={selectedPayment === method.id ? '#00CFFF' : '#FFF'} 
-                  />
-                </View>
-                <Text style={styles.paymentTitle}>{method.title}</Text>
-                <View style={styles.radioOutline}>
-                  {selectedPayment === method.id && <View style={styles.radioInner} />}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={{ height: 120 }} />
-        </ScrollView>
-
-        {/* Footer Action */}
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-          <TouchableOpacity 
-            activeOpacity={0.8} 
-            onPress={() => router.push('/booking/tracking')}
+        {/* Promo Code */}
+        <BlurView intensity={20} tint="dark" style={[styles.card, { flexDirection: 'row', gap: 10 }]}>
+          <Ionicons name="pricetag-outline" size={18} color={theme.colors.primary} style={{ marginTop: 2 }} />
+          <TextInput
+            style={styles.promoInput}
+            placeholder="Enter promo code (try OMNI50)"
+            placeholderTextColor="rgba(255,255,255,0.3)"
+            value={promoCode}
+            onChangeText={setPromoCode}
+            autoCapitalize="characters"
+            editable={!promoApplied}
+          />
+          <TouchableOpacity
+            onPress={handleApplyPromo}
+            disabled={promoApplied || promoCode.trim().length === 0}
+            activeOpacity={0.8}
           >
-            <LinearGradient
-              colors={['#00CFFF', '#00FF97']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.confirmBtn}
-            >
-              <Text style={styles.confirmBtnText}>CONFIRM & FIND DRIVER</Text>
-              <Ionicons name="search" size={20} color="#050810" />
-            </LinearGradient>
+            <Text style={[styles.applyText, promoApplied && { color: '#00FF97' }]}>
+              {promoApplied ? '✓ Applied' : 'Apply'}
+            </Text>
           </TouchableOpacity>
+        </BlurView>
+
+        {/* Payment Method */}
+        <BlurView intensity={20} tint="dark" style={styles.card}>
+          <Text style={styles.sectionTitle}>Payment Method</Text>
+          <Text style={styles.paymentNote}>
+            All payments are processed securely through OmniGo. Driver will not collect your payment details.
+          </Text>
+          {PAYMENT_METHODS.map(pm => (
+            <TouchableOpacity
+              key={pm.id}
+              style={[styles.paymentRow, selectedPayment === pm.id && styles.paymentRowActive]}
+              onPress={() => setSelectedPayment(pm.id)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name={pm.icon as any} size={22} color={pm.color} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.paymentLabel}>{pm.label}</Text>
+                <Text style={styles.paymentSub}>{pm.sub}</Text>
+              </View>
+              <View style={[styles.radioOuter, selectedPayment === pm.id && styles.radioOuterActive]}>
+                {selectedPayment === pm.id && <View style={styles.radioInner} />}
+              </View>
+            </TouchableOpacity>
+          ))}
+
+          {selectedPayment === 'cash' && (
+            <View style={styles.cashNote}>
+              <Ionicons name="information-circle-outline" size={15} color="#FFD60A" />
+              <Text style={styles.cashNoteText}>
+                Cash payment will be tracked and recorded in the app. Receipt will be generated after completion.
+              </Text>
+            </View>
+          )}
+        </BlurView>
+
+        {/* Cancellation Policy */}
+        <BlurView intensity={10} tint="dark" style={[styles.card, { backgroundColor: 'rgba(255,77,77,0.04)', borderColor: 'rgba(255,77,77,0.12)' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.4)" />
+            <Text style={styles.policyText}>Free cancellation before driver is assigned · ₹50–₹150 fee after assignment</Text>
+          </View>
+        </BlurView>
+      </ScrollView>
+
+      {/* Sticky Bottom CTA */}
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom + 12, 24) }]}>
+        <View style={styles.totalPreview}>
+          <Text style={styles.totalPreviewLabel}>Total Payable</Text>
+          <Text style={styles.totalPreviewValue}>₹{total}</Text>
         </View>
+        <TouchableOpacity onPress={handleConfirm} activeOpacity={0.85} style={styles.ctaTouch}>
+          <LinearGradient
+            colors={['#00FF97', '#00CC7A']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={styles.ctaBtn}
+          >
+            <Text style={styles.ctaText}>Confirm & Find Driver</Text>
+            <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#050810',
-  },
-  inner: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontFamily: 'Outfit_600SemiBold',
-    fontSize: 20,
-    color: '#FFF',
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-    marginTop: 10,
-    marginBottom: 5,
-  },
-  progressDotCompleted: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#00FF97',
-    shadowColor: '#00FF97',
-    shadowOpacity: 0.5,
-    shadowRadius: 5,
-  },
-  progressDotActive: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#00CFFF',
-    borderWidth: 2,
-    borderColor: '#050810',
-    shadowColor: '#00CFFF',
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-  },
-  progressDotPending: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  progressLineCompleted: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#00FF97',
-    marginHorizontal: 4,
-  },
-  progressLinePending: {
-    flex: 1,
-    height: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginHorizontal: 4,
-  },
-  stepText: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 12,
-    color: '#00CFFF',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  scrollContent: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  scrollContainer: {
-    paddingBottom: 40,
-  },
-  sectionTitle: {
-    fontFamily: 'Outfit_600SemiBold',
-    fontSize: 18,
-    color: '#FFF',
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  glassCard: {
-    backgroundColor: 'rgba(13, 20, 32, 0.45)',
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#00CFFF',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  serviceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 207, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  serviceInfo: {
-    flex: 1,
-  },
-  serviceTitle: {
-    fontFamily: 'Outfit_600SemiBold',
-    fontSize: 18,
-    color: '#FFF',
-  },
-  vehicleText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 4,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginVertical: 16,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-  },
-  locationLine: {
-    alignItems: 'center',
-    marginRight: 16,
-    paddingVertical: 6,
-  },
-  dotGreen: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#00FF97',
-  },
-  dashedLine: {
-    width: 2,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderStyle: 'dashed',
-    marginVertical: 4,
-  },
-  dotRed: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#FF3B30',
-  },
-  locationDetails: {
-    flex: 1,
-  },
-  locationBox: {
-    justifyContent: 'center',
-  },
-  locationLabel: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.5)',
-  },
-  locationAddress: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 16,
-    color: '#FFF',
-    marginTop: 4,
-  },
-  fareRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  fareLabel: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  fareValue: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 14,
-    color: '#FFF',
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalLabel: {
-    fontFamily: 'Outfit_600SemiBold',
-    fontSize: 18,
-    color: '#FFF',
-  },
-  totalValue: {
-    fontFamily: 'Outfit_700Bold',
-    fontSize: 24,
-    color: '#00FF97',
-  },
-  promoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(13, 20, 32, 0.45)',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 16,
-    height: 56,
-    marginBottom: 24,
-  },
-  promoInput: {
-    flex: 1,
-    fontFamily: 'Inter_400Regular',
-    fontSize: 16,
-    color: '#FFF',
-    height: '100%',
-  },
-  applyBtn: {
-    backgroundColor: 'rgba(0, 207, 255, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  applyBtnText: {
-    fontFamily: 'Outfit_600SemiBold',
-    fontSize: 14,
-    color: '#00CFFF',
-  },
-  paymentContainer: {
-    marginBottom: 20,
-  },
-  paymentOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(13, 20, 32, 0.45)',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    padding: 16,
-    marginBottom: 12,
-  },
-  paymentOptionSelected: {
-    borderColor: '#00CFFF',
-    backgroundColor: 'rgba(0, 207, 255, 0.05)',
-  },
-  paymentIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  paymentTitle: {
-    flex: 1,
-    fontFamily: 'Inter_500Medium',
-    fontSize: 16,
-    color: '#FFF',
-  },
-  radioOutline: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#00CFFF',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    backgroundColor: 'rgba(5, 8, 16, 0.9)',
-  },
-  confirmBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 56,
-    borderRadius: 28,
-  },
-  confirmBtnText: {
-    fontFamily: 'Outfit_700Bold',
-    fontSize: 16,
-    color: '#050810',
-    marginRight: 8,
-  },
+  container:  { flex: 1, backgroundColor: '#050810' },
+  header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 12 },
+  backBtn:    { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  headerTitle:{ fontFamily: 'Outfit_700Bold', fontSize: 18, color: '#fff' },
+  scroll:     { paddingHorizontal: 20, paddingTop: 8, gap: 14 },
+
+  card:       { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', padding: 16, backgroundColor: 'rgba(13,20,32,0.5)' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center' },
+  cardTitle:  { fontFamily: 'Outfit_700Bold', fontSize: 15, color: '#fff' },
+  cardSub:    { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
+  etaChip:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,207,255,0.1)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100, borderWidth: 1, borderColor: 'rgba(0,207,255,0.2)' },
+  etaText:    { fontFamily: 'Outfit_700Bold', fontSize: 12, color: theme.colors.primary },
+  divider:    { height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginVertical: 12 },
+
+  routeBlock: { flexDirection: 'row', gap: 12 },
+  routeDots:  { alignItems: 'center', paddingTop: 4 },
+  greenDot:   { width: 10, height: 10, borderRadius: 5, backgroundColor: '#00FF97' },
+  dashedLine: { width: 2, height: 24, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 3 },
+  redDot:     { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FF4D4D' },
+  routeLabel: { fontFamily: 'Outfit_700Bold', fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: 1, marginBottom: 2 },
+  routeAddr:  { fontFamily: 'Inter_500Medium', fontSize: 13, color: 'rgba(255,255,255,0.85)' },
+
+  metaRow:    { flexDirection: 'row', gap: 8, marginTop: 12 },
+  metaChip:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,207,255,0.06)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100, borderWidth: 1, borderColor: 'rgba(0,207,255,0.15)' },
+  metaText:   { fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.6)' },
+
+  sectionTitle: { fontFamily: 'Outfit_700Bold', fontSize: 15, color: '#fff', marginBottom: 12 },
+
+  driverRow:        { flexDirection: 'row', alignItems: 'center' },
+  driverAvatar:     { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(0,207,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,207,255,0.3)' },
+  driverAvatarText: { fontFamily: 'Outfit_700Bold', fontSize: 22, color: theme.colors.primary },
+  driverName:       { fontFamily: 'Outfit_700Bold', fontSize: 15, color: '#fff' },
+  driverMeta:       { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  driverRating:     { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.6)' },
+  driverVehicle:    { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
+  driverEtaBox:     { alignItems: 'center', backgroundColor: 'rgba(0,255,151,0.08)', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: 'rgba(0,255,151,0.2)' },
+  driverEtaNum:     { fontFamily: 'Outfit_700Bold', fontSize: 22, color: '#00FF97' },
+  driverEtaUnit:    { fontFamily: 'Inter_400Regular', fontSize: 10, color: 'rgba(255,255,255,0.5)' },
+
+  fareRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  fareLabel:      { fontFamily: 'Inter_400Regular', fontSize: 14, color: 'rgba(255,255,255,0.75)' },
+  fareSub:        { fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.4)' },
+  fareValue:      { fontFamily: 'Inter_500Medium', fontSize: 14, color: '#fff' },
+  fareTotalRow:   {},
+  fareTotalLabel: { fontFamily: 'Outfit_700Bold', fontSize: 17, color: '#fff' },
+  fareTotalValue: { fontFamily: 'Outfit_700Bold', fontSize: 20, color: '#00FF97' },
+  noHiddenBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: 'rgba(0,255,151,0.06)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,255,151,0.15)' },
+  noHiddenText:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#00FF97', flex: 1 },
+
+  promoInput: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 14, color: '#fff', padding: 0 },
+  applyText:  { fontFamily: 'Outfit_700Bold', fontSize: 14, color: theme.colors.primary },
+
+  paymentNote:    { fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 12, lineHeight: 16 },
+  paymentRow:     { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 8, backgroundColor: 'rgba(13,20,32,0.4)' },
+  paymentRowActive: { borderColor: 'rgba(0,207,255,0.35)', backgroundColor: 'rgba(0,207,255,0.06)' },
+  paymentLabel:   { fontFamily: 'Outfit_700Bold', fontSize: 14, color: '#fff' },
+  paymentSub:     { fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 1 },
+  radioOuter:     { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  radioOuterActive: { borderColor: theme.colors.primary },
+  radioInner:     { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primary },
+  cashNote:       { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: 'rgba(255,214,10,0.06)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,214,10,0.15)', marginTop: 4 },
+  cashNoteText:   { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 16 },
+  policyText:     { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 16 },
+
+  bottomBar:        { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: 'rgba(5,8,16,0.97)', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' },
+  totalPreview:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  totalPreviewLabel:{ fontFamily: 'Inter_400Regular', fontSize: 13, color: 'rgba(255,255,255,0.55)' },
+  totalPreviewValue:{ fontFamily: 'Outfit_700Bold', fontSize: 20, color: '#00FF97' },
+  ctaTouch:         { borderRadius: 100, overflow: 'hidden', shadowColor: '#00FF97', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8 },
+  ctaBtn:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16 },
+  ctaText:          { fontFamily: 'Outfit_700Bold', fontSize: 16, color: '#000' },
 });

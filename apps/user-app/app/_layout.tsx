@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { Outfit_400Regular, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
-import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
+import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
@@ -15,6 +15,7 @@ export default function RootLayout() {
     Outfit_700Bold,
     Inter_400Regular,
     Inter_500Medium,
+    Inter_700Bold,
   });
 
   useEffect(() => {

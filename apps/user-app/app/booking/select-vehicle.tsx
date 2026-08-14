@@ -77,8 +77,7 @@ export default function SelectVehicleScreen() {
     model.trim().length > 0 &&
     licensePlate.trim().length > 0 &&
     selectedColor !== '' &&
-    photosUploaded >= 4 &&
-    video !== null;
+    photosUploaded >= 4;
 
   const pickPhoto = async (index: number) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -388,12 +387,15 @@ export default function SelectVehicleScreen() {
           ))}
         </View>
 
-        {/* SECTION 4: 360° Video */}
+        {/* SECTION 4: 360° Video (Optional) */}
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionNumBadge}>
             <Text style={styles.sectionNumText}>4</Text>
           </View>
           <Text style={styles.sectionTitle}>360° Vehicle Video</Text>
+          <View style={styles.optionalBadge}>
+            <Text style={styles.optionalBadgeText}>Optional</Text>
+          </View>
           {video && (
             <View style={[styles.photoCountBadge, { backgroundColor: 'rgba(0,255,151,0.15)' }]}>
               <Ionicons name="checkmark" size={12} color="#00FF97" />
@@ -401,7 +403,7 @@ export default function SelectVehicleScreen() {
           )}
         </View>
         <Text style={styles.sectionSubtitle}>
-          Record a 360° walk-around video of your vehicle (max 60 seconds)
+          Record a 360° walk-around video of your vehicle (max 60 seconds) — Optional
         </Text>
 
         <TouchableOpacity
@@ -479,7 +481,6 @@ export default function SelectVehicleScreen() {
             <CheckItem done={licensePlate.trim().length > 0} label="Enter license plate" />
             <CheckItem done={selectedColor !== ''} label="Select vehicle color" />
             <CheckItem done={photosUploaded >= 4} label={`Upload 4 photos (${photosUploaded}/4)`} />
-            <CheckItem done={video !== null} label="Upload 360° video" />
           </View>
         )}
       </ScrollView>
@@ -800,6 +801,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
     fontSize: 12,
     color: '#00CFFF',
+  },
+  optionalBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,214,10,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,214,10,0.3)',
+  },
+  optionalBadgeText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 10,
+    color: '#FFD60A',
+    letterSpacing: 0.3,
   },
   photoGrid: {
     flexDirection: 'row',
