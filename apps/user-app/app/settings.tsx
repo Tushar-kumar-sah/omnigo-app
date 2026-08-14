@@ -166,6 +166,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     marginBottom: 24,
+    overflow: 'hidden',
     shadowColor: '#00CFFF',
     shadowOpacity: 0.25,
     shadowRadius: 12,
@@ -175,12 +176,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 16,
   },
   rowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    paddingRight: 8,
   },
   iconContainer: {
     width: 36,
@@ -189,16 +192,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 207, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 14,
+    flexShrink: 0,
   },
   rowTitle: {
     fontFamily: 'Inter_500Medium',
-    fontSize: 16,
+    fontSize: 15,
     color: '#FFFFFF',
+    flexShrink: 1,
   },
   rowRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
   },
   rowValue: {
     fontFamily: 'Inter_400Regular',
@@ -208,8 +214,8 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginLeft: 68,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginLeft: 66,
   },
   signOutCard: {
     flexDirection: 'row',

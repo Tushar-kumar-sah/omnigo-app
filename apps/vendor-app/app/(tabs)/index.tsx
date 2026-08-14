@@ -131,11 +131,15 @@ export default function HomeScreen() {
       >
         {/* Greeting */}
         <View style={styles.greetingRow}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>Hello, Driver 👋</Text>
             <Text style={styles.greetingSub}>Ready to hit the road?</Text>
           </View>
-          <TouchableOpacity style={styles.notifBtn} activeOpacity={0.7}>
+          <TouchableOpacity 
+            style={styles.notifBtn} 
+            activeOpacity={0.7}
+            onPress={() => router.push('/notifications')}
+          >
             <Ionicons name="notifications-outline" size={22} color="#fff" />
             <View style={styles.notifDot} />
           </TouchableOpacity>
@@ -177,7 +181,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
-              <Ionicons name="star-outline" size={22} color="#FFD60A" />
+              <Ionicons name="star" size={22} color="#FFD60A" />
               <Text style={styles.statValue}>4.8</Text>
               <Text style={styles.statLabel}>Rating</Text>
             </View>

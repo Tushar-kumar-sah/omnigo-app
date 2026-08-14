@@ -7,7 +7,9 @@ import {
   StyleSheet, 
   KeyboardAvoidingView, 
   Platform,
-  SafeAreaView
+  SafeAreaView,
+  Keyboard,
+  TouchableWithoutFeedback
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -40,6 +42,12 @@ export default function OtpVerifyScreen() {
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+
+    // Dismiss keyboard once all 6 digits entered
+    if (newOtp.filter(Boolean).length === 6) {
+      inputRefs.current[index]?.blur();
+      Keyboard.dismiss();
+    }
   };
 
   const handleKeyPress = (e: any, index: number) => {
@@ -49,6 +57,7 @@ export default function OtpVerifyScreen() {
   };
 
   const handleVerify = () => {
+    Keyboard.dismiss();
     // In a real app, verify OTP against backend here
     router.replace('/(tabs)');
   };
@@ -59,76 +68,78 @@ export default function OtpVerifyScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => router.back()}
-          activeOpacity={0.7}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}
         >
-          <Ionicons name="arrow-back" size={24} color={THEME.colors.text} />
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color={THEME.colors.text} />
+          </TouchableOpacity>
 
-        <View style={styles.content}>
-          <Text style={styles.title}>Verify Phone</Text>
-          <Text style={styles.subtitle}>
-            Code sent to <Text style={styles.highlight}>+91 98***43210</Text>
-          </Text>
+          <View style={styles.content}>
+            <Text style={styles.title}>Verify Phone</Text>
+            <Text style={styles.subtitle}>
+              Code sent to <Text style={styles.highlight}>+91 98***43210</Text>
+            </Text>
 
-          <BlurView intensity={20} tint="dark" style={styles.glassCard}>
-            <View style={styles.otpContainer}>
-              {otp.map((digit, index) => (
-                <TextInput
-                  key={index}
-                  ref={ref => { inputRefs.current[index] = ref; }}
-                  style={[
-                    styles.otpInput,
-                    digit ? styles.otpInputActive : null
-                  ]}
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  value={digit}
-                  onChangeText={(val) => handleOtpChange(val, index)}
-                  onKeyPress={(e) => handleKeyPress(e, index)}
-                  selectTextOnFocus
-                />
-              ))}
-            </View>
+            <BlurView intensity={20} tint="dark" style={styles.glassCard}>
+              <View style={styles.otpContainer}>
+                {otp.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={ref => { inputRefs.current[index] = ref; }}
+                    style={[
+                      styles.otpInput,
+                      digit ? styles.otpInputActive : null
+                    ]}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    value={digit}
+                    onChangeText={(val) => handleOtpChange(val, index)}
+                    onKeyPress={(e) => handleKeyPress(e, index)}
+                    selectTextOnFocus
+                  />
+                ))}
+              </View>
 
-            <View style={styles.resendContainer}>
-              {countdown > 0 ? (
-                <Text style={styles.resendText}>
-                  Resend code in <Text style={styles.countdownText}>00:{countdown.toString().padStart(2, '0')}</Text>
-                </Text>
-              ) : (
-                <TouchableOpacity onPress={handleResend} activeOpacity={0.7}>
-                  <Text style={styles.resendActionText}>Resend OTP</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+              <View style={styles.resendContainer}>
+                {countdown > 0 ? (
+                  <Text style={styles.resendText}>
+                    Resend code in <Text style={styles.countdownText}>00:{countdown.toString().padStart(2, '0')}</Text>
+                  </Text>
+                ) : (
+                  <TouchableOpacity onPress={handleResend} activeOpacity={0.7}>
+                    <Text style={styles.resendActionText}>Resend OTP</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
-            <TouchableOpacity 
-              activeOpacity={0.8} 
-              style={styles.buttonContainer} 
-              onPress={handleVerify}
-            >
-              <LinearGradient
-                colors={[THEME.colors.primary, THEME.colors.secondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.button}
+              <TouchableOpacity 
+                activeOpacity={0.8} 
+                style={styles.buttonContainer} 
+                onPress={handleVerify}
               >
-                <Text style={styles.buttonText}>VERIFY</Text>
-                <Ionicons name="checkmark-circle" size={20} color="#050810" />
-              </LinearGradient>
-            </TouchableOpacity>
-          </BlurView>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+                <LinearGradient
+                  colors={[THEME.colors.primary, THEME.colors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.button}
+                >
+                  <Text style={styles.buttonText}>VERIFY</Text>
+                  <Ionicons name="checkmark-circle" size={20} color="#050810" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </BlurView>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 

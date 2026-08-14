@@ -9,107 +9,88 @@ import { mockIncomingJob } from '../../constants/mock-data';
 
 export default function DropoffScreen() {
   const router = useRouter();
-  const [hasSigned, setHasSigned] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
-  const [cashCollected, setCashCollected] = useState(false);
-
-  const handleSign = () => setHasSigned(true);
-  const handleClearSign = () => setHasSigned(false);
-
-  const canComplete = hasSigned && (paymentMethod === 'online' || cashCollected);
+  const canComplete = true;
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Drop-off Confirmation</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>Drop-off & Payment</Text>
 
-        <BlurView intensity={20} tint="dark" style={styles.statusBadge}>
-          <Ionicons name="checkmark-done-circle" size={24} color={THEME.colors.success} />
-          <Text style={styles.statusText}>Vehicle Unloaded Successfully</Text>
+        <BlurView intensity={25} tint="dark" style={styles.statusBadge}>
+          <View style={styles.statusIconCircle}>
+            <Ionicons name="shield-checkmark" size={24} color={THEME.colors.success} />
+          </View>
+          <View style={styles.statusTextContainer}>
+            <Text style={styles.statusTitle}>Vehicle Safely Delivered</Text>
+            <Text style={styles.statusSubtitle}>Arrived at destination. Tow rig uncoupled and vehicle safely handed over.</Text>
+          </View>
         </BlurView>
 
+        {/* 1. Trip Summary */}
         <BlurView intensity={20} tint="dark" style={styles.summaryCard}>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Distance</Text>
-              <Text style={styles.summaryValue}>{mockIncomingJob.distance} km</Text>
+              <Text style={styles.summaryValue}>{mockIncomingJob.distance}</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Duration</Text>
-              <Text style={styles.summaryValue}>14 min</Text>
+              <Text style={styles.summaryValue}>{mockIncomingJob.duration}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Vehicle</Text>
+              <Text style={styles.summaryValue}>{mockIncomingJob.vehiclePlate}</Text>
             </View>
           </View>
         </BlurView>
 
+        {/* 2. OmniGo Gateway & Ledger Breakdown */}
         <BlurView intensity={20} tint="dark" style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Customer Signature</Text>
-          <Text style={styles.subtitle}>Customer acknowledges vehicle received</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="shield-checkmark" size={18} color="#00FF97" />
+              <Text style={styles.sectionTitle}>OmniGo Ledger & Settlement</Text>
+            </View>
+            <View style={{ backgroundColor: 'rgba(0, 255, 151, 0.12)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+              <Text style={{ fontFamily: THEME.fonts.inter.bold, fontSize: 10, color: THEME.colors.success }}>PAID VIA GATEWAY</Text>
+            </View>
+          </View>
           
-          <TouchableOpacity 
-            style={styles.signatureArea} 
-            onPress={handleSign}
-            activeOpacity={0.8}
-          >
-            {hasSigned ? (
-              <View style={styles.signedContent}>
-                <Ionicons name="checkmark-circle" size={48} color={THEME.colors.success} />
-                <Text style={styles.signedText}>Signature Captured</Text>
-              </View>
-            ) : (
-              <Text style={styles.signPrompt}>Tap to sign</Text>
-            )}
-          </TouchableOpacity>
-
-          {hasSigned && (
-            <TouchableOpacity onPress={handleClearSign} style={styles.clearBtn}>
-              <Text style={styles.clearBtnText}>CLEAR</Text>
-            </TouchableOpacity>
-          )}
-        </BlurView>
-
-        <BlurView intensity={20} tint="dark" style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Payment</Text>
-          
-          <View style={styles.paymentTotalRow}>
-            <Text style={styles.paymentTotalLabel}>Total Amount</Text>
-            <Text style={styles.paymentTotalValue}>₹{mockIncomingJob.price}</Text>
+          <View style={styles.breakdownBox}>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>1. Customer Payment (Gross)</Text>
+              <Text style={styles.breakdownVal}>{mockIncomingJob.customerPayment}</Text>
+            </View>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>2. Booking ID</Text>
+              <Text style={[styles.breakdownVal, { color: THEME.colors.text }]}>JOB-7821</Text>
+            </View>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>3. Payment ID</Text>
+              <Text style={[styles.breakdownVal, { color: THEME.colors.primary }]}>PAY-OMNI-7821</Text>
+            </View>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>4. OmniGo Commission ({mockIncomingJob.platformCommissionRate})</Text>
+              <Text style={[styles.breakdownVal, { color: THEME.colors.danger }]}>-{mockIncomingJob.platformFee}</Text>
+            </View>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>5. Customer Direct Tip (100% Pass-through)</Text>
+              <Text style={[styles.breakdownVal, { color: THEME.colors.success }]}>+{mockIncomingJob.tip}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownTotalLabel}>6. Net Credited to Partner Ledger</Text>
+              <Text style={styles.breakdownTotalVal}>{mockIncomingJob.driverEarnings}</Text>
+            </View>
           </View>
 
-          <View style={styles.paymentMethods}>
-            <TouchableOpacity 
-              style={[styles.methodBtn, paymentMethod === 'online' && styles.methodBtnActive]}
-              onPress={() => setPaymentMethod('online')}
-            >
-              <Text style={[styles.methodText, paymentMethod === 'online' && styles.methodTextActive]}>Online (UPI/Card)</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.methodBtn, paymentMethod === 'cash' && styles.methodBtnActive]}
-              onPress={() => setPaymentMethod('cash')}
-            >
-              <Text style={[styles.methodText, paymentMethod === 'cash' && styles.methodTextActive]}>Cash (COD)</Text>
-            </TouchableOpacity>
+          {/* Ledger & Settlement Status Pill */}
+          <View style={styles.paymentStatus}>
+            <Ionicons name="checkmark-circle" size={18} color={THEME.colors.success} />
+            <Text style={styles.paymentStatusText}>
+              Credited to Partner Ledger · Next Auto-Payout on Tuesday
+            </Text>
           </View>
-
-          {paymentMethod === 'online' ? (
-            <View style={styles.paymentStatus}>
-              <Ionicons name="checkmark-circle" size={20} color={THEME.colors.success} />
-              <Text style={styles.paymentStatusText}>Payment Received ✓</Text>
-            </View>
-          ) : (
-            <View style={styles.cashSection}>
-              <Text style={styles.cashPrompt}>Collect ₹{mockIncomingJob.price} from Customer</Text>
-              <TouchableOpacity 
-                style={[styles.cashBtn, cashCollected && styles.cashBtnCollected]}
-                onPress={() => setCashCollected(!cashCollected)}
-              >
-                <Text style={styles.cashBtnText}>
-                  {cashCollected ? 'CASH COLLECTED' : 'CONFIRM CASH COLLECTION'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
         </BlurView>
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -122,8 +103,8 @@ export default function DropoffScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
           >
-            <Text style={styles.btnText}>COMPLETE JOB</Text>
-            <Ionicons name="checkmark-done" size={24} color="#000" />
+            <Text style={styles.btnText}>COMPLETE JOB & RATE</Text>
+            <Ionicons name="checkmark-done" size={24} color={canComplete ? "#000" : "#666"} />
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -149,18 +130,40 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: THEME.spacing.sm,
-    backgroundColor: 'rgba(0, 255, 151, 0.1)',
-    borderWidth: 1,
-    borderColor: THEME.colors.success,
-    borderRadius: THEME.borderRadius.md,
-    padding: THEME.spacing.md,
+    backgroundColor: 'rgba(0, 255, 151, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 255, 151, 0.3)',
+    borderRadius: THEME.borderRadius.lg,
+    padding: 16,
     marginBottom: THEME.spacing.md,
+    overflow: 'hidden',
   },
-  statusText: {
+  statusIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 255, 151, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 151, 0.3)',
+  },
+  statusTextContainer: {
+    flex: 1,
+  },
+  statusTitle: {
     fontFamily: THEME.fonts.outfit.bold,
     color: THEME.colors.success,
     fontSize: 16,
+    marginBottom: 2,
+  },
+  statusSubtitle: {
+    fontFamily: THEME.fonts.inter.regular,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    lineHeight: 16,
   },
   summaryCard: {
     backgroundColor: THEME.colors.glassBg,
@@ -169,6 +172,7 @@ const styles = StyleSheet.create({
     borderRadius: THEME.borderRadius.md,
     padding: THEME.spacing.md,
     marginBottom: THEME.spacing.md,
+    overflow: 'hidden',
   },
   summaryRow: {
     flexDirection: 'row',
@@ -180,12 +184,12 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontFamily: THEME.fonts.inter.regular,
     color: THEME.colors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
   },
   summaryValue: {
     fontFamily: THEME.fonts.outfit.bold,
     color: THEME.colors.primary,
-    fontSize: 18,
+    fontSize: 16,
     marginTop: THEME.spacing.xs,
   },
   sectionCard: {
@@ -195,6 +199,7 @@ const styles = StyleSheet.create({
     borderRadius: THEME.borderRadius.md,
     padding: THEME.spacing.md,
     marginBottom: THEME.spacing.md,
+    overflow: 'hidden',
   },
   sectionTitle: {
     fontFamily: THEME.fonts.outfit.bold,
@@ -206,37 +211,49 @@ const styles = StyleSheet.create({
     fontFamily: THEME.fonts.inter.regular,
     color: THEME.colors.textSecondary,
     marginBottom: THEME.spacing.md,
-    fontSize: 14,
+    fontSize: 13,
   },
-  signatureArea: {
-    height: 150,
-    backgroundColor: '#fff',
+  breakdownBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: THEME.borderRadius.sm,
-    justifyContent: 'center',
+    padding: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 4,
   },
-  signPrompt: {
-    fontFamily: THEME.fonts.outfit.medium,
-    color: '#999',
-    fontSize: 18,
+  breakdownLabel: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 13,
+    color: THEME.colors.textSecondary,
+    flex: 1,
+    paddingRight: 8,
   },
-  signedContent: {
-    alignItems: 'center',
+  breakdownVal: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 13,
+    color: THEME.colors.text,
+    textAlign: 'right',
+    flexShrink: 0,
   },
-  signedText: {
-    fontFamily: THEME.fonts.outfit.medium,
-    color: THEME.colors.success,
-    marginTop: THEME.spacing.sm,
-    fontSize: 16,
-  },
-  clearBtn: {
-    marginTop: THEME.spacing.sm,
-    alignSelf: 'flex-end',
-  },
-  clearBtnText: {
-    color: THEME.colors.danger,
-    fontFamily: THEME.fonts.inter.bold,
+  breakdownTotalLabel: {
+    fontFamily: THEME.fonts.outfit.bold,
     fontSize: 14,
+    color: '#fff',
+    flex: 1,
+  },
+  breakdownTotalVal: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 16,
+    color: THEME.colors.success,
+    textAlign: 'right',
+    flexShrink: 0,
   },
   paymentTotalRow: {
     flexDirection: 'row',
@@ -341,6 +358,11 @@ const styles = StyleSheet.create({
     padding: THEME.spacing.md,
     borderRadius: THEME.borderRadius.md,
     gap: THEME.spacing.sm,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginVertical: 8,
   },
   btnText: {
     color: '#000',

@@ -199,12 +199,28 @@ export default function ConfirmBookingScreen() {
           </TouchableOpacity>
         </BlurView>
 
-        {/* Payment Method */}
+        {/* Payment Method — OmniGo Escrow Gateway */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
-          <Text style={styles.paymentNote}>
-            All payments are processed securely through OmniGo. Driver will not collect your payment details.
-          </Text>
+          <View style={styles.gatewayHeader}>
+            <View style={styles.gatewayShieldCircle}>
+              <Ionicons name="shield-checkmark" size={18} color="#00FF97" />
+            </View>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.sectionTitle}>OmniGo Payment Gateway</Text>
+              <Text style={styles.gatewaySub}>Secure Escrow Processing</Text>
+            </View>
+            <View style={styles.pciBadge}>
+              <Text style={styles.pciText}>256-BIT SSL</Text>
+            </View>
+          </View>
+
+          <View style={styles.escrowNotice}>
+            <Ionicons name="lock-closed" size={13} color="#00CFFF" />
+            <Text style={styles.escrowNoticeText}>
+              Payments are held securely in OmniGo Escrow. Driver never receives your card/UPI details and cannot request direct payments.
+            </Text>
+          </View>
+
           {PAYMENT_METHODS.map(pm => (
             <TouchableOpacity
               key={pm.id}
@@ -222,22 +238,13 @@ export default function ConfirmBookingScreen() {
               </View>
             </TouchableOpacity>
           ))}
-
-          {selectedPayment === 'cash' && (
-            <View style={styles.cashNote}>
-              <Ionicons name="information-circle-outline" size={15} color="#FFD60A" />
-              <Text style={styles.cashNoteText}>
-                Cash payment will be tracked and recorded in the app. Receipt will be generated after completion.
-              </Text>
-            </View>
-          )}
         </BlurView>
 
         {/* Cancellation Policy */}
         <BlurView intensity={10} tint="dark" style={[styles.card, { backgroundColor: 'rgba(255,77,77,0.04)', borderColor: 'rgba(255,77,77,0.12)' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.4)" />
-            <Text style={styles.policyText}>Free cancellation before driver is assigned · ₹50–₹150 fee after assignment</Text>
+            <Text style={styles.policyText}>Free cancellation before driver is assigned · Automatic refund to original payment source</Text>
           </View>
         </BlurView>
       </ScrollView>
@@ -245,7 +252,7 @@ export default function ConfirmBookingScreen() {
       {/* Sticky Bottom CTA */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom + 12, 24) }]}>
         <View style={styles.totalPreview}>
-          <Text style={styles.totalPreviewLabel}>Total Payable</Text>
+          <Text style={styles.totalPreviewLabel}>Total Payable via Gateway</Text>
           <Text style={styles.totalPreviewValue}>₹{total}</Text>
         </View>
         <TouchableOpacity onPress={handleConfirm} activeOpacity={0.85} style={styles.ctaTouch}>
@@ -254,7 +261,8 @@ export default function ConfirmBookingScreen() {
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={styles.ctaBtn}
           >
-            <Text style={styles.ctaText}>Confirm & Find Driver</Text>
+            <Ionicons name="lock-closed" size={16} color="#000" style={{ marginRight: 6 }} />
+            <Text style={styles.ctaText}>PAY ₹{total} & FIND DRIVER</Text>
             <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />
           </LinearGradient>
         </TouchableOpacity>
@@ -315,6 +323,14 @@ const styles = StyleSheet.create({
 
   promoInput: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 14, color: '#fff', padding: 0 },
   applyText:  { fontFamily: 'Outfit_700Bold', fontSize: 14, color: theme.colors.primary },
+
+  gatewayHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  gatewayShieldCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,255,151,0.12)', justifyContent: 'center', alignItems: 'center' },
+  gatewaySub: { fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 1 },
+  pciBadge: { backgroundColor: 'rgba(0,207,255,0.1)', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(0,207,255,0.25)' },
+  pciText: { fontFamily: 'Outfit_700Bold', fontSize: 9, color: theme.colors.primary, letterSpacing: 0.5 },
+  escrowNotice: { flexDirection: 'row', gap: 6, alignItems: 'center', backgroundColor: 'rgba(0,207,255,0.06)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,207,255,0.15)', marginBottom: 12 },
+  escrowNoticeText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.7)', lineHeight: 15 },
 
   paymentNote:    { fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 12, lineHeight: 16 },
   paymentRow:     { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 8, backgroundColor: 'rgba(13,20,32,0.4)' },

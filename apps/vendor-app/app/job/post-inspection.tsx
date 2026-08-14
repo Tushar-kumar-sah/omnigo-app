@@ -36,28 +36,33 @@ export default function PostInspectionScreen() {
         <ScrollView contentContainerStyle={styles.comparisonScroll}>
           <Text style={styles.title}>Post-Tow Inspection</Text>
           
-          <BlurView intensity={20} tint="dark" style={styles.statusBadge}>
-            <Ionicons name="checkmark-circle" size={24} color={THEME.colors.success} />
-            <Text style={styles.statusText}>No New Damage Detected</Text>
+          <BlurView intensity={25} tint="dark" style={styles.statusBadge}>
+            <View style={styles.statusIconCircle}>
+              <Ionicons name="shield-checkmark" size={24} color={THEME.colors.success} />
+            </View>
+            <View style={styles.statusTextContainer}>
+              <Text style={styles.statusTitle}>No New Damage Detected</Text>
+              <Text style={styles.statusSubtitle}>Pre-tow vs post-tow comparison verified. 0 new scratches or dents detected.</Text>
+            </View>
           </BlurView>
 
           <Text style={styles.comparisonTitle}>Before vs After Comparison</Text>
           
           <View style={styles.comparisonContainer}>
-            <View style={[styles.comparisonCol, { borderColor: THEME.colors.primary }]}>
+            <View style={[styles.comparisonCol, { borderColor: 'rgba(0, 207, 255, 0.3)' }]}>
               <Text style={[styles.colHeader, { color: THEME.colors.primary }]}>PRE-TOW</Text>
               {INSPECTION_STEPS.map(step => (
                 <View key={`pre-${step.id}`} style={styles.thumbBox}>
-                  <Text style={styles.thumbText}>{step.label}</Text>
+                  <Text style={styles.thumbText} numberOfLines={1}>{step.label}</Text>
                 </View>
               ))}
             </View>
             
-            <View style={[styles.comparisonCol, { borderColor: THEME.colors.success }]}>
+            <View style={[styles.comparisonCol, { borderColor: 'rgba(0, 255, 151, 0.3)' }]}>
               <Text style={[styles.colHeader, { color: THEME.colors.success }]}>POST-TOW</Text>
               {INSPECTION_STEPS.map(step => (
                 <View key={`post-${step.id}`} style={styles.thumbBox}>
-                  <Text style={styles.thumbText}>{step.label}</Text>
+                  <Text style={styles.thumbText} numberOfLines={1}>{step.label}</Text>
                 </View>
               ))}
             </View>
@@ -230,23 +235,46 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: THEME.spacing.sm,
-    backgroundColor: 'rgba(0, 255, 151, 0.1)',
-    borderWidth: 1,
-    borderColor: THEME.colors.success,
-    borderRadius: THEME.borderRadius.md,
-    padding: THEME.spacing.md,
-    marginVertical: THEME.spacing.lg,
+    backgroundColor: 'rgba(0, 255, 151, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 255, 151, 0.3)',
+    borderRadius: THEME.borderRadius.lg,
+    padding: 16,
+    marginVertical: THEME.spacing.md,
+    overflow: 'hidden',
   },
-  statusText: {
+  statusIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 255, 151, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 151, 0.3)',
+  },
+  statusTextContainer: {
+    flex: 1,
+  },
+  statusTitle: {
     fontFamily: THEME.fonts.outfit.bold,
     color: THEME.colors.success,
     fontSize: 16,
+    marginBottom: 2,
+  },
+  statusSubtitle: {
+    fontFamily: THEME.fonts.inter.regular,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    lineHeight: 16,
   },
   comparisonTitle: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 20,
+    fontSize: 18,
     color: THEME.colors.text,
+    marginTop: THEME.spacing.md,
     marginBottom: THEME.spacing.md,
   },
   comparisonContainer: {
@@ -259,27 +287,31 @@ const styles = StyleSheet.create({
     borderRadius: THEME.borderRadius.md,
     padding: THEME.spacing.sm,
     backgroundColor: THEME.colors.glassBg,
+    overflow: 'hidden',
   },
   colHeader: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
     marginBottom: THEME.spacing.sm,
+    letterSpacing: 0.5,
   },
   thumbBox: {
-    height: 60,
-    backgroundColor: '#222',
+    height: 52,
+    backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: THEME.borderRadius.sm,
-    marginBottom: THEME.spacing.sm,
+    marginBottom: THEME.spacing.xs,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: THEME.colors.glassBorder,
+    paddingHorizontal: 4,
+    overflow: 'hidden',
   },
   thumbText: {
     fontFamily: THEME.fonts.inter.regular,
-    fontSize: 10,
-    color: THEME.colors.textMuted,
+    fontSize: 11,
+    color: THEME.colors.textSecondary,
     textAlign: 'center',
   },
   footer: {

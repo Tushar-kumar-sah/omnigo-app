@@ -1,76 +1,156 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import { THEME } from '../../constants/theme';
 import { BlurView } from 'expo-blur';
 import { mockIncomingJob, CANCEL_REASONS } from '../../constants/mock-data';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type NavState = 'EN_ROUTE_PICKUP' | 'AT_PICKUP';
 
+const QUICK_CHATS = [
+  'I have arrived at your pickup location.',
+  'Stuck in heavy traffic · Arriving in 3-5 mins.',
+  'Please turn on your vehicle hazard blinkers.',
+  'Finding a safe parking spot to hook up.',
+  'Please ensure vehicle neutral gear & handbrake off.',
+];
+
 export default function NavigationScreen() {
   const router = useRouter();
   const [navState, setNavState] = useState<NavState>('EN_ROUTE_PICKUP');
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [sosModalVisible, setSosModalVisible] = useState(false);
+  const [chatModalVisible, setChatModalVisible] = useState(false);
+  const [chatMessages, setChatMessages] = useState<string[]>([
+    'Hello, this is Vikram from OmniGo Towing. I am on my way.',
+  ]);
+  const [chatInput, setChatInput] = useState('');
+
+  // Waiting timer state (when at pickup)
+  const [waitSeconds, setWaitSeconds] = useState(0);
+
+  useEffect(() => {
+    let interval: any;
+    if (navState === 'AT_PICKUP') {
+      interval = setInterval(() => {
+        setWaitSeconds(s => s + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [navState]);
 
   const handleMainAction = () => {
     if (navState === 'EN_ROUTE_PICKUP') {
       setNavState('AT_PICKUP');
+      setWaitSeconds(0);
     } else {
       router.push('/job/arrival-verify');
     }
   };
 
+  const handleMaskedCall = () => {
+    Alert.alert(
+      'Masked Call Connected',
+      `Connecting to customer via OmniGo Privacy Proxy:\n${mockIncomingJob.customerMaskedPhone}\n\nYour actual phone number remains hidden.`,
+      [{ text: 'End Call' }]
+    );
+  };
+
+  const handleSendChat = (textToSend?: string) => {
+    const msg = textToSend || chatInput;
+    if (!msg.trim()) return;
+    setChatMessages(prev => [...prev, msg]);
+    setChatInput('');
+  };
+
+  const handleCustomerNoShow = () => {
+    Alert.alert(
+      'Customer No-Show Confirmation',
+      'You have waited over 5 minutes. Cancelling now will credit a ₹150 No-Show compensation to your wallet with ZERO penalty.',
+      [
+        { text: 'Keep Waiting', style: 'cancel' },
+        {
+          text: 'Confirm No-Show & Claim ₹150',
+          onPress: () => {
+            Alert.alert('No-Show Recorded', '₹150 has been added to your pending earnings.');
+            router.replace('/(tabs)');
+          },
+        },
+      ]
+    );
+  };
+
   const handleCancelReason = (reason: string) => {
     setCancelModalVisible(false);
+    Alert.alert('Job Cancelled', `Reason recorded: ${reason}`);
     router.replace('/(tabs)');
   };
 
+  const formatTimer = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const waitingMinutesOver = Math.max(0, Math.floor((waitSeconds - 300) / 60));
+  const waitingCharge = waitingMinutesOver * 10;
+
   return (
     <View style={styles.container}>
-      {/* Fake Map Background */}
+      {/* Fake Map Background Grid */}
       <View style={styles.fakeMapGrid}>
         {Array.from({ length: 400 }).map((_, i) => (
           <View key={i} style={styles.mapDot} />
         ))}
       </View>
 
-      {/* Top Banner */}
+      {/* Top Banner & SOS Bar */}
       <LinearGradient
         colors={[THEME.colors.background, 'transparent']}
         style={styles.topBannerContainer}
       >
-        <View style={styles.topBanner}>
-          <Ionicons 
-            name={navState === 'EN_ROUTE_PICKUP' ? 'navigate-circle' : 'location'} 
-            size={24} 
-            color={THEME.colors.primary} 
-          />
-          <View style={styles.topBannerTextContainer}>
-            <Text style={styles.topBannerTitle}>
-              {navState === 'EN_ROUTE_PICKUP' ? 'En Route to Pickup' : 'Arrived at Pickup'}
-            </Text>
-            <Text style={styles.topBannerSub}>
-              {navState === 'EN_ROUTE_PICKUP' ? `Head to ${mockIncomingJob.pickup}` : 'Wait for customer or contact them'}
-            </Text>
+        <View style={styles.topBannerRow}>
+          <View style={styles.topBanner}>
+            <Ionicons 
+              name={navState === 'EN_ROUTE_PICKUP' ? 'navigate-circle' : 'location'} 
+              size={24} 
+              color={THEME.colors.primary} 
+            />
+            <View style={styles.topBannerTextContainer}>
+              <Text style={styles.topBannerTitle}>
+                {navState === 'EN_ROUTE_PICKUP' ? 'En Route to Pickup' : 'Arrived at Pickup Spot'}
+              </Text>
+              <Text style={styles.topBannerSub} numberOfLines={1}>
+                {navState === 'EN_ROUTE_PICKUP' ? `Head to ${mockIncomingJob.pickup}` : 'Wait for customer or complete OTP verification'}
+              </Text>
+            </View>
           </View>
+
+          {/* SOS Emergency Trigger */}
+          <TouchableOpacity style={styles.sosTopBtn} onPress={() => setSosModalVisible(true)} activeOpacity={0.8}>
+            <LinearGradient colors={['#FF3366', '#CC0033']} style={styles.sosGradient}>
+              <Ionicons name="warning" size={16} color="#fff" />
+              <Text style={styles.sosText}>SOS</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
-      {/* Bottom Card */}
+      {/* Bottom Floating Control Card */}
       <View style={styles.bottomContainer}>
         <BlurView intensity={80} tint="dark" style={styles.card}>
           <View style={styles.customerHeader}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.customerName}>{mockIncomingJob.customerName}</Text>
-              <Text style={styles.customerPhone}>{mockIncomingJob.customerPhone}</Text>
+              <Text style={styles.customerPhone}>Masked: {mockIncomingJob.customerMaskedPhone}</Text>
             </View>
             <View style={styles.contactActions}>
-              <TouchableOpacity style={[styles.circleBtn, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]}>
-                <Ionicons name="chatbubble" size={20} color={THEME.colors.primary} />
+              <TouchableOpacity style={[styles.circleBtn, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]} onPress={() => setChatModalVisible(true)}>
+                <Ionicons name="chatbubble-ellipses" size={20} color={THEME.colors.primary} />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.circleBtn, { backgroundColor: 'rgba(0, 255, 151, 0.15)' }]}>
+              <TouchableOpacity style={[styles.circleBtn, { backgroundColor: 'rgba(0, 255, 151, 0.15)' }]} onPress={handleMaskedCall}>
                 <Ionicons name="call" size={20} color={THEME.colors.success} />
               </TouchableOpacity>
             </View>
@@ -90,14 +170,35 @@ export default function NavigationScreen() {
             </View>
           </View>
 
-          <View style={styles.etaRow}>
-            <Ionicons name="time-outline" size={20} color={THEME.colors.primary} />
-            <Text style={styles.etaText}>
-              {navState === 'EN_ROUTE_PICKUP' 
-                ? `Arriving in ${mockIncomingJob.eta} (${mockIncomingJob.pickupDistance})` 
-                : 'Waiting for Customer'}
-            </Text>
-          </View>
+          {/* ETA or Waiting Timer */}
+          {navState === 'EN_ROUTE_PICKUP' ? (
+            <View style={styles.etaRow}>
+              <Ionicons name="time-outline" size={18} color={THEME.colors.primary} />
+              <Text style={styles.etaText}>
+                Arriving in {mockIncomingJob.eta} ({mockIncomingJob.pickupDistance})
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.waitingRow}>
+              <View style={styles.waitingLeft}>
+                <Ionicons name="stopwatch" size={20} color={waitSeconds >= 300 ? THEME.colors.warning : THEME.colors.primary} />
+                <View style={{ marginLeft: 8 }}>
+                  <Text style={styles.waitingTimerText}>{formatTimer(waitSeconds)}</Text>
+                  <Text style={styles.waitingSubText}>
+                    {waitSeconds < 300 
+                      ? `Free waiting time (${Math.max(0, 5 - Math.floor(waitSeconds / 60))}m remaining)` 
+                      : `Surcharge: +₹${waitingCharge} (₹10/min)`}
+                  </Text>
+                </View>
+              </View>
+
+              {waitSeconds >= 300 && (
+                <TouchableOpacity style={styles.noShowBtn} onPress={handleCustomerNoShow}>
+                  <Text style={styles.noShowBtnText}>NO-SHOW (₹150)</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           <TouchableOpacity style={styles.mainActionBtn} onPress={handleMainAction}>
             <LinearGradient
@@ -109,7 +210,7 @@ export default function NavigationScreen() {
               style={styles.btnGradient}
             >
               <Text style={styles.mainActionBtnText}>
-                {navState === 'EN_ROUTE_PICKUP' ? 'ARRIVED AT PICKUP' : 'VERIFY CUSTOMER'}
+                {navState === 'EN_ROUTE_PICKUP' ? 'I HAVE ARRIVED AT PICKUP' : 'VERIFY CUSTOMER & PRE-INSPECT'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -118,22 +219,118 @@ export default function NavigationScreen() {
             style={styles.cancelBtn} 
             onPress={() => setCancelModalVisible(true)}
           >
-            <Text style={styles.cancelBtnText}>Cancel Job</Text>
+            <Text style={styles.cancelBtnText}>Cancel Job / Report Issue</Text>
           </TouchableOpacity>
         </BlurView>
       </View>
 
-      {/* Cancel Reasons Modal */}
-      <Modal
-        visible={cancelModalVisible}
-        transparent
-        animationType="fade"
-      >
+      {/* ─── MODAL 1: SOS EMERGENCY ASSISTANCE ───────────── */}
+      <Modal visible={sosModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Cancel Job</Text>
-            <Text style={styles.modalSub}>Please select a reason for cancellation:</Text>
+            <View style={styles.sosHeader}>
+              <Ionicons name="warning" size={28} color={THEME.colors.danger} />
+              <Text style={styles.sosModalTitle}>Driver Emergency Assistance</Text>
+            </View>
+            <Text style={styles.sosModalSub}>Broadcast live location to safety team or call emergency authorities:</Text>
+            
+            <TouchableOpacity style={styles.emergencyRow} onPress={() => Alert.alert('Police Contacted', 'Dialing Emergency 112...')}>
+              <View style={[styles.emergencyIconCircle, { backgroundColor: 'rgba(255, 51, 102, 0.2)' }]}>
+                <Ionicons name="shield" size={20} color={THEME.colors.danger} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.emergencyTitle}>Police Emergency (112)</Text>
+                <Text style={styles.emergencySub}>Threat, assault, or road obstruction</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.emergencyRow} onPress={() => Alert.alert('Highway Patrol', 'Connecting to 24/7 OmniGo Rapid Support...')}>
+              <View style={[styles.emergencyIconCircle, { backgroundColor: 'rgba(0, 207, 255, 0.2)' }]}>
+                <MaterialCommunityIcons name="tow-truck" size={20} color={THEME.colors.primary} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.emergencyTitle}>OmniGo Highway Dispatch</Text>
+                <Text style={styles.emergencySub}>Vehicle breakdown backup or equipment aid</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.emergencyRow} onPress={() => Alert.alert('Medical Aid', 'Calling Ambulance 108...')}>
+              <View style={[styles.emergencyIconCircle, { backgroundColor: 'rgba(0, 255, 151, 0.2)' }]}>
+                <Ionicons name="medkit" size={20} color={THEME.colors.success} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.emergencyTitle}>Medical Ambulance (108)</Text>
+                <Text style={styles.emergencySub}>Accident injury or health issue</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.closeModalBtn} onPress={() => setSosModalVisible(false)}>
+              <Text style={styles.closeModalText}>Close Emergency Menu</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── MODAL 2: IN-APP CHAT ─────────────────────────── */}
+      <Modal visible={chatModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalContent, { maxHeight: '85%' }]}>
+            <View style={styles.chatHeader}>
+              <View>
+                <Text style={styles.modalTitle}>In-App Customer Chat</Text>
+                <Text style={styles.modalSub}>{mockIncomingJob.customerName} · Masked Channel</Text>
+              </View>
+              <TouchableOpacity onPress={() => setChatModalVisible(false)}>
+                <Ionicons name="close-circle" size={26} color={THEME.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Message Thread */}
+            <ScrollView style={styles.chatThread} showsVerticalScrollIndicator={false}>
+              {chatMessages.map((msg, idx) => (
+                <View key={idx} style={styles.driverBubble}>
+                  <Text style={styles.driverBubbleText}>{msg}</Text>
+                  <Text style={styles.bubbleTime}>Just now · Sent</Text>
+                </View>
+              ))}
+            </ScrollView>
+
+            {/* Quick Template Chips */}
+            <Text style={styles.quickChipsTitle}>QUICK MESSAGES</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickChipsScroll}>
+              {QUICK_CHATS.map((chip, idx) => (
+                <TouchableOpacity key={idx} style={styles.quickChip} onPress={() => handleSendChat(chip)}>
+                  <Text style={styles.quickChipText}>{chip}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Custom Input */}
+            <View style={styles.chatInputRow}>
+              <TextInput
+                style={styles.chatInput}
+                placeholder="Type a custom message..."
+                placeholderTextColor={THEME.colors.textMuted}
+                value={chatInput}
+                onChangeText={setChatInput}
+              />
+              <TouchableOpacity style={styles.sendBtn} onPress={() => handleSendChat()}>
+                <Ionicons name="send" size={18} color="#000" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── MODAL 3: CANCEL REASONS & PENALTIES ─────────── */}
+      <Modal visible={cancelModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Cancel Current Job</Text>
+            <Text style={styles.modalSub}>Select verified cancellation reason. Legitimate reasons (e.g. unsafe vehicle / customer no-show) incur 0 penalty.</Text>
             
             {CANCEL_REASONS.map((reason, index) => (
               <TouchableOpacity 
@@ -142,7 +339,7 @@ export default function NavigationScreen() {
                 onPress={() => handleCancelReason(reason)}
               >
                 <Text style={styles.reasonText}>{reason}</Text>
-                <Ionicons name="chevron-forward" size={20} color={THEME.colors.textSecondary} />
+                <Ionicons name="chevron-forward" size={18} color={THEME.colors.textSecondary} />
               </TouchableOpacity>
             ))}
 
@@ -150,12 +347,11 @@ export default function NavigationScreen() {
               style={styles.closeModalBtn} 
               onPress={() => setCancelModalVisible(false)}
             >
-              <Text style={styles.closeModalText}>Close</Text>
+              <Text style={styles.closeModalText}>Back to Job</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
@@ -181,63 +377,85 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   topBannerContainer: {
-    paddingTop: 60,
+    paddingTop: 54,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
+  topBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   topBanner: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: THEME.colors.glassBg,
     borderRadius: THEME.borderRadius.md,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: THEME.colors.glassBorder,
   },
   topBannerTextContainer: {
-    marginLeft: 12,
+    marginLeft: 10,
     flex: 1,
   },
   topBannerTitle: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 18,
+    fontSize: 16,
     color: THEME.colors.text,
   },
   topBannerSub: {
     fontFamily: THEME.fonts.inter.regular,
-    fontSize: 14,
+    fontSize: 12,
     color: THEME.colors.textSecondary,
     marginTop: 2,
+  },
+  sosTopBtn: {
+    borderRadius: THEME.borderRadius.md,
+    overflow: 'hidden',
+  },
+  sosGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 4,
+  },
+  sosText: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 14,
+    color: '#fff',
   },
   bottomContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 20,
-    paddingBottom: 40,
+    padding: 16,
+    paddingBottom: 32,
   },
   card: {
     borderRadius: THEME.borderRadius.lg,
     borderWidth: 1,
     borderColor: THEME.colors.glassBorder,
     overflow: 'hidden',
-    padding: 24,
+    padding: 20,
   },
   customerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   customerName: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 22,
+    fontSize: 20,
     color: THEME.colors.text,
   },
   customerPhone: {
     fontFamily: THEME.fonts.inter.medium,
-    fontSize: 14,
+    fontSize: 13,
     color: THEME.colors.textSecondary,
     marginTop: 2,
   },
@@ -245,72 +463,112 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   circleBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    marginLeft: 10,
   },
   vehicleChipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   chip: {
     backgroundColor: 'rgba(255,255,255,0.05)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: THEME.borderRadius.full,
-    marginRight: 8,
-    marginBottom: 8,
+    marginRight: 6,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
   chipText: {
     fontFamily: THEME.fonts.inter.medium,
-    fontSize: 13,
+    fontSize: 12,
     color: THEME.colors.text,
   },
   etaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 207, 255, 0.05)',
-    padding: 12,
+    padding: 10,
     borderRadius: THEME.borderRadius.sm,
-    marginBottom: 24,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(0, 207, 255, 0.15)',
   },
   etaText: {
     fontFamily: THEME.fonts.inter.bold,
+    fontSize: 14,
+    color: THEME.colors.text,
+    marginLeft: 6,
+  },
+  waitingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 214, 10, 0.08)',
+    padding: 10,
+    borderRadius: THEME.borderRadius.sm,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 214, 10, 0.25)',
+  },
+  waitingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingRight: 6,
+  },
+  waitingTimerText: {
+    fontFamily: THEME.fonts.outfit.bold,
     fontSize: 15,
     color: THEME.colors.text,
-    marginLeft: 8,
+  },
+  waitingSubText: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 11,
+    color: THEME.colors.warning,
+    flexShrink: 1,
+  },
+  noShowBtn: {
+    backgroundColor: THEME.colors.danger,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    flexShrink: 0,
+  },
+  noShowBtnText: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 10,
+    color: '#fff',
   },
   mainActionBtn: {
     borderRadius: THEME.borderRadius.md,
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   btnGradient: {
-    height: 60,
+    height: 54,
     justifyContent: 'center',
     alignItems: 'center',
   },
   mainActionBtnText: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 18,
+    fontSize: 16,
     color: '#000',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   cancelBtn: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   cancelBtnText: {
     fontFamily: THEME.fonts.inter.medium,
-    fontSize: 15,
+    fontSize: 14,
     color: THEME.colors.danger,
   },
   modalOverlay: {
@@ -321,7 +579,7 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: THEME.colors.surfaceDark,
     borderRadius: THEME.borderRadius.lg,
-    padding: 24,
+    padding: 20,
     borderWidth: 1,
     borderColor: THEME.colors.glassBorder,
     shadowColor: '#000',
@@ -331,31 +589,154 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 22,
+    fontSize: 20,
     color: THEME.colors.text,
-    marginBottom: 8,
   },
   modalSub: {
     fontFamily: THEME.fonts.inter.regular,
-    fontSize: 15,
+    fontSize: 13,
     color: THEME.colors.textSecondary,
-    marginBottom: 20,
+    marginBottom: 16,
+    marginTop: 2,
+  },
+  sosHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  sosModalTitle: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 20,
+    color: THEME.colors.danger,
+  },
+  sosModalSub: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 13,
+    color: THEME.colors.textSecondary,
+    marginBottom: 16,
+  },
+  emergencyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  emergencyIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emergencyTitle: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 15,
+    color: THEME.colors.text,
+  },
+  emergencySub: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 11,
+    color: THEME.colors.textSecondary,
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  chatThread: {
+    maxHeight: 180,
+    marginBottom: 12,
+  },
+  driverBubble: {
+    backgroundColor: 'rgba(0, 207, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.3)',
+    borderRadius: 12,
+    padding: 10,
+    alignSelf: 'flex-end',
+    marginBottom: 8,
+    maxWidth: '85%',
+  },
+  driverBubbleText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 13,
+    color: '#fff',
+  },
+  bubbleTime: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 9,
+    color: THEME.colors.textSecondary,
+    alignSelf: 'flex-end',
+    marginTop: 4,
+  },
+  quickChipsTitle: {
+    fontFamily: THEME.fonts.inter.bold,
+    fontSize: 11,
+    color: THEME.colors.textSecondary,
+    marginBottom: 6,
+    letterSpacing: 0.5,
+  },
+  quickChipsScroll: {
+    marginBottom: 12,
+  },
+  quickChip: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 100,
+    marginRight: 8,
+  },
+  quickChipText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 12,
+    color: THEME.colors.text,
+  },
+  chatInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: THEME.borderRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#fff',
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 13,
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: THEME.borderRadius.md,
+    backgroundColor: THEME.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   reasonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   reasonText: {
     fontFamily: THEME.fonts.inter.medium,
-    fontSize: 16,
+    fontSize: 14,
     color: THEME.colors.text,
+    flex: 1,
+    paddingRight: 8,
   },
   closeModalBtn: {
-    marginTop: 24,
+    marginTop: 18,
     alignItems: 'center',
     paddingVertical: 12,
     backgroundColor: 'rgba(255,255,255,0.05)',
@@ -363,7 +744,7 @@ const styles = StyleSheet.create({
   },
   closeModalText: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 16,
+    fontSize: 15,
     color: THEME.colors.text,
   },
 });

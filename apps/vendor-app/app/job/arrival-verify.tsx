@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { THEME } from '../../constants/theme';
 import { mockIncomingJob } from '../../constants/mock-data';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,9 +16,15 @@ export default function ArrivalVerifyScreen() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto-advance
+    // Auto-advance or dismiss keyboard on completion
     if (value && index < 3) {
       inputs.current[index + 1]?.focus();
+    }
+
+    // If all 4 digits are entered, dismiss keyboard
+    if (newOtp.filter(Boolean).length === 4) {
+      inputs.current[index]?.blur();
+      Keyboard.dismiss();
     }
   };
 
@@ -29,6 +35,7 @@ export default function ArrivalVerifyScreen() {
   };
 
   const handleVerify = () => {
+    Keyboard.dismiss();
     // In mock, any 4-digit is accepted
     if (otp.join('').length === 4) {
       router.push('/job/pre-inspection');
@@ -38,10 +45,11 @@ export default function ArrivalVerifyScreen() {
   const isComplete = otp.join('').length === 4;
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={THEME.colors.text} />
@@ -109,6 +117,7 @@ export default function ArrivalVerifyScreen() {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 

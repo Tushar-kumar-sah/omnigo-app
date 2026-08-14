@@ -5,6 +5,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { mockIncomingJob } from '../../constants/mock-data';
 
 export default function CompleteScreen() {
   const router = useRouter();
@@ -34,26 +35,35 @@ export default function CompleteScreen() {
         </View>
 
         <BlurView intensity={20} tint="dark" style={styles.earningsCard}>
-          <Text style={styles.earningsLabel}>Your Earnings</Text>
-          <Text style={styles.earningsAmount}>₹495</Text>
+          <Text style={styles.earningsLabel}>Your Net Earnings (Take Home)</Text>
+          <Text style={styles.earningsAmount}>₹495.00</Text>
+
+          <View style={styles.walletCreditBadge}>
+            <Ionicons name="wallet" size={16} color={THEME.colors.success} />
+            <Text style={styles.walletCreditText}>Credited to Driver Wallet Balance</Text>
+          </View>
           
           <View style={styles.divider} />
           
           <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Customer Payment (Gross)</Text>
+            <Text style={[styles.breakdownValue, { fontFamily: THEME.fonts.inter.bold }]}>₹550.00</Text>
+          </View>
+          <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Base Fare</Text>
-            <Text style={styles.breakdownValue}>₹250</Text>
+            <Text style={styles.breakdownValue}>₹250.00</Text>
           </View>
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Distance (3.1 km)</Text>
-            <Text style={styles.breakdownValue}>₹200</Text>
+            <Text style={styles.breakdownValue}>₹200.00</Text>
           </View>
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Tip</Text>
-            <Text style={styles.breakdownValue}>₹100</Text>
+            <Text style={styles.breakdownLabel}>Direct Customer Tip</Text>
+            <Text style={[styles.breakdownValue, { color: THEME.colors.success }]}>+₹100.00</Text>
           </View>
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Platform Fee</Text>
-            <Text style={[styles.breakdownValue, { color: THEME.colors.danger }]}>-₹55</Text>
+            <Text style={styles.breakdownLabel}>OmniGo Platform Fee (10%)</Text>
+            <Text style={[styles.breakdownValue, { color: THEME.colors.danger }]}>-₹55.00</Text>
           </View>
           
           <View style={styles.divider} />
@@ -61,11 +71,15 @@ export default function CompleteScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Ionicons name="time-outline" size={16} color={THEME.colors.primary} />
-              <Text style={styles.statText}>14 min</Text>
+              <Text style={styles.statText}>14 min trip</Text>
             </View>
             <View style={styles.statItem}>
               <Ionicons name="swap-horizontal-outline" size={16} color={THEME.colors.primary} />
-              <Text style={styles.statText}>3.1 km</Text>
+              <Text style={styles.statText}>3.1 km towed</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="checkmark-done" size={16} color={THEME.colors.success} />
+              <Text style={[styles.statText, { color: THEME.colors.success }]}>Paid via UPI</Text>
             </View>
           </View>
         </BlurView>
@@ -73,17 +87,17 @@ export default function CompleteScreen() {
         <BlurView intensity={20} tint="dark" style={styles.sectionCard}>
           <View style={styles.inspectionSummary}>
             <Ionicons name="shield-checkmark" size={24} color={THEME.colors.success} />
-            <Text style={styles.inspectionText}>Pre-Tow vs Post-Tow — No Issues</Text>
+            <Text style={styles.inspectionText}>Pre-Tow vs Post-Tow Inspection Passed (0 New Damages)</Text>
           </View>
         </BlurView>
 
         <BlurView intensity={20} tint="dark" style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Rate Customer</Text>
-          <Text style={styles.subtitle}>How was your experience with this customer?</Text>
+          <Text style={styles.sectionTitle}>Rate Customer Experience</Text>
+          <Text style={styles.subtitle}>How courteous and cooperative was {mockIncomingJob.customerName}?</Text>
           
           <View style={styles.starsRow}>
             {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity key={star} onPress={() => setRating(star)}>
+              <TouchableOpacity key={star} onPress={() => setRating(star)} activeOpacity={0.7}>
                 <Ionicons 
                   name={star <= rating ? "star" : "star-outline"} 
                   size={36} 
@@ -96,10 +110,10 @@ export default function CompleteScreen() {
         </BlurView>
 
         <BlurView intensity={20} tint="dark" style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Incident Notes (Optional)</Text>
+          <Text style={styles.sectionTitle}>Incident & Trip Notes (Optional)</Text>
           <TextInput
             style={styles.input}
-            placeholder="Any issues to report?"
+            placeholder="E.g. Customer vehicle had pre-existing scratches on left door..."
             placeholderTextColor={THEME.colors.textMuted}
             multiline
             numberOfLines={3}
@@ -119,7 +133,7 @@ export default function CompleteScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
           >
-            <Text style={styles.btnText}>DONE</Text>
+            <Text style={styles.btnText}>SUBMIT & GO ONLINE</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -166,20 +180,38 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.glassBorder,
     borderWidth: 1,
     borderRadius: THEME.borderRadius.lg,
-    padding: THEME.spacing.lg,
+    padding: THEME.spacing.md,
     marginBottom: THEME.spacing.md,
     alignItems: 'center',
+    overflow: 'hidden',
   },
   earningsLabel: {
     fontFamily: THEME.fonts.inter.medium,
     color: THEME.colors.textSecondary,
-    fontSize: 16,
+    fontSize: 14,
   },
   earningsAmount: {
     fontFamily: THEME.fonts.outfit.bold,
     color: THEME.colors.success,
-    fontSize: 48,
+    fontSize: 38,
     marginVertical: THEME.spacing.xs,
+  },
+  walletCreditBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 255, 151, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 151, 0.25)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 100,
+    gap: 6,
+    marginBottom: 8,
+  },
+  walletCreditText: {
+    fontFamily: THEME.fonts.inter.medium,
+    color: THEME.colors.success,
+    fontSize: 12,
   },
   divider: {
     width: '100%',
@@ -191,22 +223,29 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: THEME.spacing.xs,
   },
   breakdownLabel: {
     fontFamily: THEME.fonts.inter.regular,
     color: THEME.colors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
+    flex: 1,
   },
   breakdownValue: {
     fontFamily: THEME.fonts.inter.medium,
     color: THEME.colors.text,
-    fontSize: 14,
+    fontSize: 13,
+    textAlign: 'right',
+    flexShrink: 0,
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: THEME.spacing.xl,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   statItem: {
     flexDirection: 'row',
@@ -216,7 +255,7 @@ const styles = StyleSheet.create({
   statText: {
     fontFamily: THEME.fonts.inter.medium,
     color: THEME.colors.primary,
-    fontSize: 14,
+    fontSize: 12,
   },
   sectionCard: {
     backgroundColor: THEME.colors.glassBg,
@@ -225,17 +264,19 @@ const styles = StyleSheet.create({
     borderRadius: THEME.borderRadius.md,
     padding: THEME.spacing.md,
     marginBottom: THEME.spacing.md,
+    overflow: 'hidden',
   },
   inspectionSummary: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: THEME.spacing.sm,
   },
   inspectionText: {
     fontFamily: THEME.fonts.inter.medium,
     color: THEME.colors.success,
-    fontSize: 14,
+    fontSize: 13,
+    flex: 1,
+    flexWrap: 'wrap',
   },
   sectionTitle: {
     fontFamily: THEME.fonts.outfit.bold,

@@ -11,20 +11,11 @@ export default function ConditionReportScreen() {
   const router = useRouter();
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [fuelLevel, setFuelLevel] = useState<string>('Quarter');
-  const [hasSigned, setHasSigned] = useState(false);
 
   const fuelOptions = ['Empty', 'Low', 'Quarter', 'Half', 'Full'];
 
   const handleToggle = (id: string) => {
     setChecklist(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const handleSign = () => {
-    setHasSigned(true);
-  };
-
-  const handleClear = () => {
-    setHasSigned(false);
   };
 
   return (
@@ -71,49 +62,23 @@ export default function ConditionReportScreen() {
         <BlurView intensity={20} tint="dark" style={[styles.card, { marginTop: THEME.spacing.md }]}>
           <View style={styles.damageHeader}>
             <Ionicons name="warning-outline" size={20} color={THEME.colors.warning} />
-            <Text style={styles.damageText}>Damage reported in pre-inspection</Text>
+            <Text style={styles.damageText}>Damage recorded in pre-inspection saved</Text>
           </View>
         </BlurView>
 
-        <BlurView intensity={20} tint="dark" style={styles.signatureCard}>
-          <Text style={styles.sectionTitle}>Customer Signature</Text>
-          <Text style={styles.subtitle}>Please ask the customer to sign below</Text>
-          
-          <TouchableOpacity 
-            style={styles.signatureArea} 
-            onPress={handleSign}
-            activeOpacity={0.8}
-          >
-            {hasSigned ? (
-              <View style={styles.signedContent}>
-                <Ionicons name="checkmark-circle" size={48} color={THEME.colors.success} />
-                <Text style={styles.signedText}>Signature Captured</Text>
-              </View>
-            ) : (
-              <Text style={styles.signPrompt}>Tap to sign</Text>
-            )}
-          </TouchableOpacity>
-
-          {hasSigned && (
-            <TouchableOpacity onPress={handleClear} style={styles.clearBtn}>
-              <Text style={styles.clearBtnText}>CLEAR</Text>
-            </TouchableOpacity>
-          )}
-        </BlurView>
-
-        <Text style={styles.footerText}>A copy of this report will be sent to the customer's app</Text>
+        <Text style={styles.footerText}>A copy of this report will be automatically synced to the customer's app</Text>
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity onPress={() => router.push('/job/towing')} disabled={!hasSigned}>
+        <TouchableOpacity onPress={() => router.push('/job/towing')}>
           <LinearGradient
-            colors={hasSigned ? [THEME.colors.success, '#00CC7A'] : ['#333', '#222']}
+            colors={[THEME.colors.success, '#00CC7A']}
             style={styles.btn}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
           >
-            <Text style={styles.btnText}>CONFIRM & PROCEED</Text>
+            <Text style={styles.btnText}>CONFIRM & START TOWING</Text>
             <Ionicons name="arrow-forward" size={20} color="#000" />
           </LinearGradient>
         </TouchableOpacity>
@@ -201,6 +166,7 @@ const styles = StyleSheet.create({
     fontFamily: THEME.fonts.inter.medium,
     color: THEME.colors.warning,
     fontSize: 14,
+    flex: 1,
   },
   signatureCard: {
     backgroundColor: THEME.colors.glassBg,

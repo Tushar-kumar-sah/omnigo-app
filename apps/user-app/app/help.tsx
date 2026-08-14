@@ -59,28 +59,28 @@ export default function HelpScreen() {
 
         {/* Quick Contact Cards */}
         <View style={styles.quickContactContainer}>
-          <TouchableOpacity style={styles.contactCard}>
+          <TouchableOpacity style={styles.contactCard} activeOpacity={0.7}>
             <View style={[styles.iconContainer, { backgroundColor: 'rgba(0, 255, 151, 0.15)' }]}>
-              <Ionicons name="call" size={24} color="#00FF97" />
+              <Ionicons name="call" size={22} color="#00FF97" />
             </View>
-            <Text style={styles.contactTitle}>Call Support</Text>
-            <Text style={styles.contactSubtitle}>24/7 Helpline</Text>
+            <Text style={styles.contactTitle} numberOfLines={1}>Call Support</Text>
+            <Text style={styles.contactSubtitle} numberOfLines={1}>24/7 Helpline</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.contactCard}>
+          <TouchableOpacity style={styles.contactCard} activeOpacity={0.7}>
             <View style={[styles.iconContainer, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]}>
-              <Ionicons name="mail" size={24} color="#00CFFF" />
+              <Ionicons name="mail" size={22} color="#00CFFF" />
             </View>
-            <Text style={styles.contactTitle}>Email Us</Text>
-            <Text style={styles.contactSubtitle}>support@omnigo.in</Text>
+            <Text style={styles.contactTitle} numberOfLines={1}>Email Us</Text>
+            <Text style={styles.contactSubtitle} numberOfLines={1}>support@omnigo.in</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.contactCard}>
+          <TouchableOpacity style={styles.contactCard} activeOpacity={0.7}>
             <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 214, 10, 0.15)' }]}>
-              <Ionicons name="chatbubbles" size={24} color="#FFD60A" />
+              <Ionicons name="chatbubbles" size={22} color="#FFD60A" />
             </View>
-            <Text style={styles.contactTitle}>Live Chat</Text>
-            <Text style={styles.contactSubtitle}>Chat Now</Text>
+            <Text style={styles.contactTitle} numberOfLines={1}>Live Chat</Text>
+            <Text style={styles.contactSubtitle} numberOfLines={1}>Chat Now</Text>
           </TouchableOpacity>
         </View>
 
@@ -194,16 +194,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(13, 20, 32, 0.45)',
     borderRadius: 16,
-    padding: 12,
+    padding: 10,
     alignItems: 'center',
-    marginHorizontal: 4,
+    marginHorizontal: 3,
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
     fontSize: 12,
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 2,
     textAlign: 'center',
   },
   contactSubtitle: {

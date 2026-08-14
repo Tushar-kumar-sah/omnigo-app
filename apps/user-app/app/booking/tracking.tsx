@@ -284,6 +284,31 @@ export default function TrackingScreen() {
             <View style={styles.metaChip}><Ionicons name="wallet-outline" size={12} color={theme.colors.primary} /><Text style={styles.metaText}>₹770</Text></View>
           </View>
         </BlurView>
+
+        {/* OmniGo Payment Gateway & Escrow Audit */}
+        <BlurView intensity={15} tint="dark" style={[styles.card, { borderColor: 'rgba(0,255,151,0.2)' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="shield-checkmark" size={16} color="#00FF97" />
+              <Text style={{ fontFamily: 'Outfit_700Bold', fontSize: 13, color: '#fff' }}>OmniGo Payment Gateway</Text>
+            </View>
+            <View style={{ backgroundColor: 'rgba(0,255,151,0.12)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+              <Text style={{ fontFamily: 'Inter_700Bold', fontSize: 10, color: '#00FF97' }}>ESCROW SECURED</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
+            <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Payment ID</Text>
+            <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 11, color: '#00CFFF' }}>PAY-OMNI-7821</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
+            <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Booking Reference</Text>
+            <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 11, color: '#fff' }}>JOB-7821</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
+            <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Settlement Rule</Text>
+            <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 11, color: '#00FF97' }}>Automated Payout on Safe Delivery</Text>
+          </View>
+        </BlurView>
       </ScrollView>
 
       {/* Cancel Button */}
@@ -437,10 +462,10 @@ const styles = StyleSheet.create({
   closeBtn:     { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
   scroll:       { paddingHorizontal: 20, paddingTop: 4, gap: 14 },
 
-  etaBanner:    { borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,207,255,0.2)', padding: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  etaBanner:    { borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,207,255,0.2)', padding: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', overflow: 'hidden' },
   etaLabel:     { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 4 },
   etaValue:     { fontFamily: 'Outfit_700Bold', fontSize: 26, color: theme.colors.primary },
-  etaIconBox:   { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(0,207,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  etaIconBox:   { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(0,207,255,0.1)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
 
   card:         { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', padding: 16, backgroundColor: 'rgba(13,20,32,0.5)' },
   cardTitle:    { fontFamily: 'Outfit_700Bold', fontSize: 15, color: '#fff', marginBottom: 4 },
@@ -458,18 +483,18 @@ const styles = StyleSheet.create({
   stepLabelActive: { color: '#fff', fontFamily: 'Outfit_700Bold' },
 
   driverRow:        { flexDirection: 'row', alignItems: 'center' },
-  driverAvatar:     { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(0,207,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,207,255,0.3)' },
+  driverAvatar:     { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(0,207,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,207,255,0.3)', flexShrink: 0 },
   driverAvatarText: { fontFamily: 'Outfit_700Bold', fontSize: 20, color: theme.colors.primary },
   driverName:       { fontFamily: 'Outfit_700Bold', fontSize: 15, color: '#fff' },
   ratingRow:        { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   ratingText:       { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.6)' },
-  driverPlate:      { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
-  driverActions:    { marginLeft: 8 },
+  driverPlate:      { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2, flexShrink: 1 },
+  driverActions:    { marginLeft: 8, flexShrink: 0 },
   actionBtn:        { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,207,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,207,255,0.25)' },
   maskedNote:       { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
-  maskedNoteText:   { fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.4)' },
+  maskedNoteText:   { fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.4)', flex: 1 },
 
-  otpCard:      { borderColor: 'rgba(255,214,10,0.25)', backgroundColor: 'rgba(255,214,10,0.04)', alignItems: 'center', gap: 10 },
+  otpCard:      { borderColor: 'rgba(255,214,10,0.25)', backgroundColor: 'rgba(255,214,10,0.04)', alignItems: 'center', gap: 10, overflow: 'hidden' },
   otpHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
   otpTitle:     { fontFamily: 'Outfit_700Bold', fontSize: 15, color: '#FFD60A' },
   otpDigits:    { flexDirection: 'row', gap: 10 },
@@ -483,7 +508,7 @@ const styles = StyleSheet.create({
   dashedLine:   { width: 2, height: 24, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 3 },
   redDot:       { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FF4D4D' },
   routeLabel:   { fontFamily: 'Outfit_700Bold', fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: 1, marginBottom: 2 },
-  routeAddr:    { fontFamily: 'Inter_500Medium', fontSize: 13, color: 'rgba(255,255,255,0.85)' },
+  routeAddr:    { fontFamily: 'Inter_500Medium', fontSize: 13, color: 'rgba(255,255,255,0.85)', flexShrink: 1 },
   metaRow:      { flexDirection: 'row', gap: 8, marginTop: 12 },
   metaChip:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,207,255,0.06)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100, borderWidth: 1, borderColor: 'rgba(0,207,255,0.15)' },
   metaText:     { fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.6)' },
