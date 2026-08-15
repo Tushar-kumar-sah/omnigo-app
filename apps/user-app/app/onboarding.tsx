@@ -48,11 +48,11 @@ const SLIDES = [
 ];
 
 export default function OnboardingScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
-  const scrollX     = useRef(new Animated.Value(0)).current;
+  const scrollX = useRef(new Animated.Value(0)).current;
 
   // Glow pulse for AI assistant
   const glowAnim = useRef(new Animated.Value(0.5)).current;
@@ -61,7 +61,7 @@ export default function OnboardingScreen() {
     // Glow pulse loop
     Animated.loop(
       Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1,   duration: 1200, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
         Animated.timing(glowAnim, { toValue: 0.5, duration: 1200, useNativeDriver: true }),
       ])
     ).start();
@@ -148,13 +148,18 @@ export default function OnboardingScreen() {
                   </View>
                 </View>
               ) : (
-                // ── Slide 3: GPS Tracking image ──
-                <View style={styles.heroCardContainer}>
+                // ── Slide 3: Static GPS Tracking Image with Pickup, Drop-off & Tow Truck ──
+                <View style={[styles.heroCardContainer, styles.gpsCardBorder]}>
                   <Image source={item.image} style={styles.heroImage} resizeMode="cover" />
                   <LinearGradient
-                    colors={['transparent', 'rgba(5, 8, 16, 0.8)', '#050810']}
+                    colors={['transparent', 'rgba(5, 8, 16, 0.5)', '#050810']}
                     style={styles.heroOverlay}
                   />
+                  {/* Live GPS badge */}
+                  <View style={styles.gpsBadge}>
+                    <Ionicons name="navigate-circle-outline" size={12} color="#00FF97" />
+                    <Text style={styles.gpsBadgeText}>LIVE GPS</Text>
+                  </View>
                 </View>
               )}
 
@@ -335,18 +340,35 @@ const styles = StyleSheet.create({
     color: '#00CFFF',
     letterSpacing: 1,
   },
-  aiMascotCardContainer: {
-    backgroundColor: 'rgba(13, 20, 32, 0.65)',
-    justifyContent: 'center',
+
+  // GPS Slide styles
+  gpsCardBorder: {
+    borderColor: 'rgba(0,255,151,0.35)',
+    shadowColor: '#00FF97',
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+  },
+  gpsBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 24,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
+    gap: 4,
+    backgroundColor: 'rgba(0,255,151,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,151,0.35)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  aiMascotHeroImage: {
-    width: '90%',
-    height: '90%',
+  gpsBadgeText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 10,
+    color: '#00FF97',
+    letterSpacing: 1,
   },
+
   heroOverlay: {
     position: 'absolute',
     bottom: 0,
