@@ -1,50 +1,17 @@
 'use client';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import * as Recharts from 'recharts';
+import React from 'react';
 
-interface RevenueChartProps {
-  data: Array<{ name: string; revenue: number; bookings: number }>;
-}
-
-export function RevenueLineChart({ data }: RevenueChartProps) {
-  return (
-    <div style={{ height: '300px' }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <XAxis dataKey="name" stroke="var(--text-secondary)" />
-          <YAxis stroke="var(--text-secondary)" />
-          <Tooltip contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--glass-border)', borderRadius: '8px' }} />
-          <Line type="monotone" dataKey="revenue" stroke="var(--accent-cyan)" strokeWidth={3} dot={{ fill: 'var(--accent-cyan)', r: 4 }} activeDot={{ r: 8 }} />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-export function BookingsBarChart({ data }: RevenueChartProps) {
-  return (
-    <div style={{ height: '300px' }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data}>
-          <XAxis dataKey="name" stroke="var(--text-secondary)" />
-          <Tooltip contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--glass-border)', borderRadius: '8px' }} />
-          <Bar dataKey="bookings" fill="var(--accent-green)" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-export function RevenueFullChart({ data }: RevenueChartProps) {
-  return (
-    <div style={{ height: '400px' }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <XAxis dataKey="name" stroke="var(--text-secondary)" />
-          <YAxis stroke="var(--text-secondary)" />
-          <Tooltip contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--glass-border)' }} />
-          <Line type="monotone" dataKey="revenue" stroke="var(--accent-cyan)" strokeWidth={3} />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
+export const ResponsiveContainer: React.ComponentType<any> = Recharts.ResponsiveContainer as any;
+export const LineChart: React.ComponentType<any> = Recharts.LineChart as any;
+export const Line: React.ComponentType<any> = Recharts.Line as any;
+export const XAxis: React.ComponentType<any> = Recharts.XAxis as any;
+export const YAxis: React.ComponentType<any> = Recharts.YAxis as any;
+export const Tooltip: React.ComponentType<any> = Recharts.Tooltip as any;
+export const BarChart: React.ComponentType<any> = Recharts.BarChart as any;
+export const Bar: React.ComponentType<any> = Recharts.Bar as any;
+export const AreaChart: React.ComponentType<any> = Recharts.AreaChart as any;
+export const Area: React.ComponentType<any> = Recharts.Area as any;
+export const PieChart: React.ComponentType<any> = Recharts.PieChart as any;
+export const Pie: React.ComponentType<any> = Recharts.Pie as any;
+export const Cell: React.ComponentType<any> = Recharts.Cell as any;

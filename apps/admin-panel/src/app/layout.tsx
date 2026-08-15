@@ -1,22 +1,30 @@
 import './globals.css';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import ClientLayout from '@/components/ClientLayout';
 
-const inter = Inter({ subsets: ['latin'] });
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-sans',
+});
 
 export const metadata = {
-  title: 'OmniGo Super Admin',
-  description: 'Admin dashboard for OmniGo towing platform',
+  title: 'OmniGo Super Admin | Enterprise Operations Console',
+  description: 'Enterprise Operations & Financial Ledger Command Center for OmniGo',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: any;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className} style={{ display: 'flex', minHeight: '100vh' }}>
+    <html lang="en" className={jakarta.variable}>
+      <body className={jakarta.className} style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>

@@ -1,18 +1,37 @@
 :root {
-  --bg-primary: #0A0E17;
-  --bg-secondary: #0D1420;
-  --bg-tertiary: #131B2E;
-  --glass-bg: rgba(13, 20, 32, 0.65);
-  --glass-border: rgba(0, 207, 255, 0.15);
-  --accent-cyan: #00CFFF;
-  --accent-green: #00FF97;
-  --text-primary: #FFFFFF;
-  --text-secondary: #8B9DC3;
-  --text-muted: #4A5568;
-  --danger: #FF3B3B;
-  --warning: #FFB800;
-  --glow-cyan: 0 0 20px rgba(0, 207, 255, 0.4);
-  --glow-green: 0 0 20px rgba(0, 255, 151, 0.4);
+  --bg-primary: #080C14;
+  --bg-secondary: #0D1322;
+  --bg-tertiary: #131D31;
+  --bg-surface: #18233C;
+  --glass-bg: rgba(13, 19, 34, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-subtle: rgba(255, 255, 255, 0.05);
+  --glass-border-focus: rgba(56, 189, 248, 0.35);
+
+  --accent-cyan: #38BDF8;
+  --accent-cyan-subtle: rgba(56, 189, 248, 0.12);
+  --accent-green: #10B981;
+  --accent-green-subtle: rgba(16, 185, 129, 0.12);
+  --accent-red: #F43F5E;
+  --accent-red-subtle: rgba(244, 63, 94, 0.12);
+  --danger: #F43F5E;
+  --accent-yellow: #F59E0B;
+  --warning: #F59E0B;
+  --accent-purple: #A855F7;
+  
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --text-dark: #0F172A;
+  
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.45);
+  --shadow-glow-cyan: 0 0 20px rgba(56, 189, 248, 0.2);
+  --shadow-glow-green: 0 0 20px rgba(16, 185, 129, 0.2);
 }
 
 * {
@@ -24,8 +43,11 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
 }
 
 a {
@@ -36,30 +58,75 @@ a {
 .glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 24px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .text-gradient {
-  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+  background: linear-gradient(135deg, #38BDF8 0%, #10B981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
+.text-gradient-gold {
+  background: linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Classic Form Elements */
 input, select {
   background: var(--bg-tertiary);
   border: 1px solid var(--glass-border);
   color: var(--text-primary);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-md);
   outline: none;
-  transition: all 0.3s ease;
+  font-size: 0.85rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
 }
 
 input:focus, select:focus {
   border-color: var(--accent-cyan);
-  box-shadow: var(--glow-cyan);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+input::placeholder {
+  color: var(--text-muted);
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.08);
+  height: 6px;
+  border-radius: 3px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--accent-cyan);
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  vertical-align: middle;
 }
 
 button {
@@ -67,4 +134,33 @@ button {
   border: none;
   background: transparent;
   outline: none;
+  font-family: inherit;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

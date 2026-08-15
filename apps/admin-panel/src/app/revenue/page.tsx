@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import StatsCard from '@/components/StatsCard';
 import GlassCard from '@/components/GlassCard';
+import StatusBadge from '@/components/StatusBadge';
 import { revenueData } from '@/lib/mock-data';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from '@/components/Charts';
 
 interface AuditRow {
   bookingId: string;
@@ -27,14 +28,14 @@ const AUDIT_DATA: AuditRow[] = [
     customerName: 'Rahul Sharma',
     paymentId: 'PAY-OMNI-7821',
     gatewayMethod: 'UPI (GPay)',
-    customerPaid: '₹850',
-    commission: '₹85 (10%)',
-    partnerEarning: '₹765',
-    tip: '₹150',
+    customerPaid: '₹850.00',
+    commission: '₹85.00 (10%)',
+    partnerEarning: '₹765.00',
+    tip: '₹150.00',
     settlementId: 'SETTLE-8910',
     payoutStatus: 'Pending Clearance',
     utr: 'Scheduled Tuesday',
-    date: '15 Aug 2026, 2:30 PM',
+    date: '15 Aug 2026, 14:30',
     route: 'MG Road ➔ Whitefield, Bangalore',
   },
   {
@@ -42,14 +43,14 @@ const AUDIT_DATA: AuditRow[] = [
     customerName: 'Priya Sharma',
     paymentId: 'PAY-OMNI-7802',
     gatewayMethod: 'Card (Visa ••4012)',
-    customerPaid: '₹1,200',
-    commission: '₹120 (10%)',
-    partnerEarning: '₹1,080',
-    tip: '₹0',
+    customerPaid: '₹1,200.00',
+    commission: '₹120.00 (10%)',
+    partnerEarning: '₹1,080.00',
+    tip: '₹0.00',
     settlementId: 'SETTLE-8821',
     payoutStatus: 'Settled & Paid',
     utr: 'UTR9928172648',
-    date: '14 Aug 2026, 10:15 AM',
+    date: '14 Aug 2026, 10:15',
     route: 'Pimpri ➔ Hinjawadi, Pune',
   },
   {
@@ -57,14 +58,14 @@ const AUDIT_DATA: AuditRow[] = [
     customerName: 'Sneha Patil',
     paymentId: 'PAY-OMNI-7798',
     gatewayMethod: 'UPI (PhonePe)',
-    customerPaid: '₹950',
-    commission: '₹95 (10%)',
-    partnerEarning: '₹855',
-    tip: '₹100',
+    customerPaid: '₹950.00',
+    commission: '₹95.00 (10%)',
+    partnerEarning: '₹855.00',
+    tip: '₹100.00',
     settlementId: 'SETTLE-8821',
     payoutStatus: 'Settled & Paid',
     utr: 'UTR9928172648',
-    date: '13 Aug 2026, 4:45 PM',
+    date: '13 Aug 2026, 16:45',
     route: 'Koregaon Park ➔ Hadapsar',
   },
   {
@@ -72,14 +73,14 @@ const AUDIT_DATA: AuditRow[] = [
     customerName: 'Amit Verma',
     paymentId: 'PAY-OMNI-7750',
     gatewayMethod: 'Card (Mastercard)',
-    customerPaid: '₹2,400',
-    commission: '₹240 (10%)',
-    partnerEarning: '₹2,160',
-    tip: '₹200',
+    customerPaid: '₹2,400.00',
+    commission: '₹240.00 (10%)',
+    partnerEarning: '₹2,160.00',
+    tip: '₹200.00',
     settlementId: 'SETTLE-8821',
     payoutStatus: 'Settled & Paid',
     utr: 'UTR9928172648',
-    date: '12 Aug 2026, 11:20 AM',
+    date: '12 Aug 2026, 11:20',
     route: 'Viman Nagar ➔ Baner',
   },
   {
@@ -87,14 +88,14 @@ const AUDIT_DATA: AuditRow[] = [
     customerName: 'Karan Mehra',
     paymentId: 'PAY-OMNI-7710',
     gatewayMethod: 'UPI (Paytm)',
-    customerPaid: '₹3,200',
-    commission: '₹320 (10%)',
-    partnerEarning: '₹2,880',
-    tip: '₹0',
+    customerPaid: '₹3,200.00',
+    commission: '₹320.00 (10%)',
+    partnerEarning: '₹2,880.00',
+    tip: '₹0.00',
     settlementId: 'SETTLE-8821',
     payoutStatus: 'Settled & Paid',
     utr: 'UTR9928172648',
-    date: '11 Aug 2026, 6:10 PM',
+    date: '11 Aug 2026, 18:10',
     route: 'Aundh ➔ Urse Toll Plaza',
   },
 ];
@@ -111,51 +112,47 @@ export default function RevenuePage() {
   });
 
   const handleTriggerSettlement = () => {
-    setSettlementNotice('Batch Settlement Triggered! ₹915.00 scheduled for automated IMPS disbursement.');
+    setSettlementNotice('Batch Settlement Triggered: ₹915.00 scheduled for automated IMPS disbursement.');
     setTimeout(() => setSettlementNotice(null), 5000);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>Revenue & Ledger Architecture</h2>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '0.95rem' }}>
-            OmniGo Double-Entry Ledger · Escrow Gateway · Partner Settlements & Payouts
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            Financial Ledger & Settlement Engine
+          </h2>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem', fontSize: '0.875rem' }}>
+            OmniGo Double-Entry Ledger · Escrow Gateway · Partner Settlements & Automated Payouts
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button
-            onClick={handleTriggerSettlement}
-            style={{
-              padding: '0.65rem 1.25rem',
-              background: 'linear-gradient(135deg, var(--accent-green), #00CC7A)',
-              color: '#000',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              borderRadius: '8px',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            ⚡ Trigger Settlement Batch
-          </button>
-        </div>
+        <button
+          onClick={handleTriggerSettlement}
+          style={{
+            padding: '0.6rem 1.25rem',
+            background: 'var(--accent-green)',
+            color: '#000',
+            fontWeight: 700,
+            fontSize: '0.82rem',
+            borderRadius: 'var(--radius-md)',
+            cursor: 'pointer',
+          }}
+        >
+          Execute Settlement Batch
+        </button>
       </div>
 
       {settlementNotice && (
         <div style={{
-          padding: '1rem 1.25rem',
-          background: 'rgba(0, 255, 151, 0.1)',
-          border: '1px solid rgba(0, 255, 151, 0.3)',
+          padding: '0.85rem 1.25rem',
+          background: 'var(--accent-green-subtle)',
+          border: '1px solid rgba(16, 185, 129, 0.3)',
           borderRadius: '8px',
           color: 'var(--accent-green)',
-          fontSize: '0.9rem',
+          fontSize: '0.86rem',
           fontWeight: 600,
         }}>
           ✓ {settlementNotice}
@@ -163,29 +160,29 @@ export default function RevenuePage() {
       )}
 
       {/* Architecture Pipeline Banner */}
-      <GlassCard style={{ padding: '1.25rem', border: '1px solid rgba(0, 207, 255, 0.25)', background: 'rgba(0, 207, 255, 0.03)' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)', letterSpacing: '1px', marginBottom: '0.5rem' }}>
-          MANDATORY PAYMENT & SETTLEMENT PIPELINE
+      <GlassCard style={{ padding: '1rem 1.25rem', background: 'rgba(56, 189, 248, 0.03)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent-cyan)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+          Mandatory Escrow Settlement Pipeline
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.85rem', color: '#fff' }}>
-          <span style={{ background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '4px' }}>1. Customer Payment (Gateway)</span>
-          <span style={{ color: 'var(--accent-cyan)' }}>➔</span>
-          <span style={{ background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '4px' }}>2. Booking ID</span>
-          <span style={{ color: 'var(--accent-cyan)' }}>➔</span>
-          <span style={{ background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '4px' }}>3. Payment ID</span>
-          <span style={{ color: 'var(--accent-cyan)' }}>➔</span>
-          <span style={{ background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '4px' }}>4. OmniGo Commission (10%)</span>
-          <span style={{ color: 'var(--accent-cyan)' }}>➔</span>
-          <span style={{ background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '4px' }}>5. Partner Earning</span>
-          <span style={{ color: 'var(--accent-cyan)' }}>➔</span>
-          <span style={{ background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '4px' }}>6. Settlement Batch</span>
-          <span style={{ color: 'var(--accent-cyan)' }}>➔</span>
-          <span style={{ background: 'rgba(0,255,151,0.15)', color: 'var(--accent-green)', padding: '4px 8px', borderRadius: '4px', fontWeight: 700 }}>7. Bank Payout (UTR)</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.8rem', color: '#F8FAFC' }}>
+          <span style={{ background: 'rgba(255,255,255,0.04)', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--glass-border-subtle)' }}>1. Customer Payment</span>
+          <span style={{ color: 'var(--text-muted)' }}>➔</span>
+          <span style={{ background: 'rgba(255,255,255,0.04)', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--glass-border-subtle)' }}>2. Booking ID</span>
+          <span style={{ color: 'var(--text-muted)' }}>➔</span>
+          <span style={{ background: 'rgba(255,255,255,0.04)', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--glass-border-subtle)' }}>3. Payment ID</span>
+          <span style={{ color: 'var(--text-muted)' }}>➔</span>
+          <span style={{ background: 'rgba(255,255,255,0.04)', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--glass-border-subtle)' }}>4. OmniGo Commission (10%)</span>
+          <span style={{ color: 'var(--text-muted)' }}>➔</span>
+          <span style={{ background: 'rgba(255,255,255,0.04)', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--glass-border-subtle)' }}>5. Partner Earning</span>
+          <span style={{ color: 'var(--text-muted)' }}>➔</span>
+          <span style={{ background: 'rgba(255,255,255,0.04)', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--glass-border-subtle)' }}>6. Settlement Batch</span>
+          <span style={{ color: 'var(--text-muted)' }}>➔</span>
+          <span style={{ background: 'var(--accent-green-subtle)', color: 'var(--accent-green)', padding: '3px 8px', borderRadius: '4px', fontWeight: 600, border: '1px solid rgba(16,185,129,0.3)' }}>7. Bank Payout (UTR)</span>
         </div>
       </GlassCard>
 
       {/* KPI Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
         <StatsCard title="Gross Gateway Volume" value="₹12,45,000" trend="+15% (100% Gateway)" />
         <StatsCard title="OmniGo Net Commission" value="₹1,85,000" trend="+12.4% Revenue" />
         <StatsCard title="Partner Settlements Paid" value="₹9,98,000" trend="Automated IMPS/NEFT" />
@@ -194,17 +191,20 @@ export default function RevenuePage() {
 
       {/* Revenue Trend Chart */}
       <GlassCard>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h3 style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '1.1rem' }}>OmniGo Daily Gateway vs Commission Volume</h3>
-          <span style={{ fontSize: '0.85rem', color: 'var(--accent-green)' }}>● 100% Direct Gateway Ingestion</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div>
+            <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 600 }}>Daily Gross vs Commission Volume</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '2px' }}>100% processed through OmniGo Master Escrow</p>
+          </div>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-green)' }}>100% Ingestion</span>
         </div>
-        <div style={{ height: '320px' }}>
+        <div style={{ height: '280px' }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={revenueData}>
-              <XAxis dataKey="name" stroke="var(--text-secondary)" />
-              <YAxis stroke="var(--text-secondary)" />
-              <Tooltip contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--glass-border)', borderRadius: '8px' }} />
-              <Line type="monotone" dataKey="revenue" stroke="var(--accent-cyan)" strokeWidth={3} name="Total Volume (₹)" />
+              <XAxis dataKey="name" stroke="#475569" fontSize={12} tickLine={false} />
+              <YAxis stroke="#475569" fontSize={12} tickLine={false} />
+              <Tooltip contentStyle={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} />
+              <Line type="monotone" dataKey="revenue" stroke="var(--accent-cyan)" strokeWidth={2.5} name="Total Volume (₹)" dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -212,24 +212,25 @@ export default function RevenuePage() {
 
       {/* End-to-End Audit Trail Table */}
       <GlassCard style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Complete End-to-End Payment Audit Trail</h3>
-            <p style={{ margin: 0, marginTop: '0.25rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Every transaction recorded with Booking ID, Payment ID, Commission Split, Settlement & UTR
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>End-to-End Payment Audit Trail</h3>
+            <p style={{ margin: 0, marginTop: '2px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+              Full financial lifecycle with Booking ID, Payment ID, Commission Split, Settlement & UTR
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.3rem', background: 'rgba(255,255,255,0.02)', padding: '3px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
             <button
               onClick={() => setFilter('all')}
               style={{
-                padding: '0.4rem 0.8rem',
+                padding: '0.35rem 0.75rem',
                 borderRadius: '6px',
-                border: '1px solid var(--glass-border)',
-                background: filter === 'all' ? 'rgba(0,207,255,0.15)' : 'transparent',
-                color: filter === 'all' ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                fontSize: '0.8rem',
+                border: 'none',
+                background: filter === 'all' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                color: filter === 'all' ? '#FFFFFF' : 'var(--text-muted)',
+                fontSize: '0.78rem',
+                fontWeight: 600,
                 cursor: 'pointer',
               }}
             >
@@ -238,12 +239,13 @@ export default function RevenuePage() {
             <button
               onClick={() => setFilter('pending')}
               style={{
-                padding: '0.4rem 0.8rem',
+                padding: '0.35rem 0.75rem',
                 borderRadius: '6px',
-                border: '1px solid var(--glass-border)',
-                background: filter === 'pending' ? 'rgba(255,214,10,0.15)' : 'transparent',
-                color: filter === 'pending' ? '#FFD60A' : 'var(--text-secondary)',
-                fontSize: '0.8rem',
+                border: 'none',
+                background: filter === 'pending' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                color: filter === 'pending' ? 'var(--accent-yellow)' : 'var(--text-muted)',
+                fontSize: '0.78rem',
+                fontWeight: 600,
                 cursor: 'pointer',
               }}
             >
@@ -252,12 +254,13 @@ export default function RevenuePage() {
             <button
               onClick={() => setFilter('settled')}
               style={{
-                padding: '0.4rem 0.8rem',
+                padding: '0.35rem 0.75rem',
                 borderRadius: '6px',
-                border: '1px solid var(--glass-border)',
-                background: filter === 'settled' ? 'rgba(0,255,151,0.15)' : 'transparent',
-                color: filter === 'settled' ? 'var(--accent-green)' : 'var(--text-secondary)',
-                fontSize: '0.8rem',
+                border: 'none',
+                background: filter === 'settled' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                color: filter === 'settled' ? 'var(--accent-green)' : 'var(--text-muted)',
+                fontSize: '0.78rem',
+                fontWeight: 600,
                 cursor: 'pointer',
               }}
             >
@@ -269,62 +272,58 @@ export default function RevenuePage() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--glass-border)' }}>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Booking ID</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Payment ID</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Customer Paid</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>OmniGo Commission</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Partner Net</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Settlement Batch</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Payout / UTR</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Audit Trail</th>
+              <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--glass-border)' }}>
+                <th style={{ padding: '0.85rem 1.25rem', color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Booking ID</th>
+                <th style={{ padding: '0.85rem 1.25rem', color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Payment ID</th>
+                <th style={{ padding: '0.85rem 1.25rem', color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Customer Paid</th>
+                <th style={{ padding: '0.85rem 1.25rem', color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Commission</th>
+                <th style={{ padding: '0.85rem 1.25rem', color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Partner Net</th>
+                <th style={{ padding: '0.85rem 1.25rem', color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Settlement Batch</th>
+                <th style={{ padding: '0.85rem 1.25rem', color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Payout / UTR</th>
+                <th style={{ padding: '0.85rem 1.25rem', color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredData.map((row) => (
-                <tr key={row.bookingId} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                  <td style={{ padding: '1rem', fontWeight: 600, fontSize: '0.9rem' }}>{row.bookingId}</td>
-                  <td style={{ padding: '1rem', color: 'var(--accent-cyan)', fontSize: '0.85rem', fontFamily: 'monospace' }}>
+                <tr
+                  key={row.bookingId}
+                  style={{ borderBottom: '1px solid var(--glass-border-subtle)', transition: 'background 0.15s ease' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600, fontSize: '0.86rem', color: '#F8FAFC' }}>{row.bookingId}</td>
+                  <td style={{ padding: '0.95rem 1.25rem', color: 'var(--accent-cyan)', fontSize: '0.82rem', fontFamily: 'monospace' }}>
                     {row.paymentId}
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.gatewayMethod}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{row.gatewayMethod}</div>
                   </td>
-                  <td style={{ padding: '1rem', fontWeight: 700, fontSize: '0.95rem' }}>{row.customerPaid}</td>
-                  <td style={{ padding: '1rem', color: 'var(--accent-red)', fontWeight: 600, fontSize: '0.9rem' }}>-{row.commission}</td>
-                  <td style={{ padding: '1rem', color: 'var(--accent-green)', fontWeight: 700, fontSize: '0.95rem' }}>
+                  <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600, fontSize: '0.88rem', fontVariantNumeric: 'tabular-nums' }}>{row.customerPaid}</td>
+                  <td style={{ padding: '0.95rem 1.25rem', color: 'var(--accent-red)', fontWeight: 600, fontSize: '0.84rem', fontVariantNumeric: 'tabular-nums' }}>-{row.commission}</td>
+                  <td style={{ padding: '0.95rem 1.25rem', color: 'var(--accent-green)', fontWeight: 600, fontSize: '0.88rem', fontVariantNumeric: 'tabular-nums' }}>
                     {row.partnerEarning}
-                    {row.tip !== '₹0' && <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}> (+{row.tip} tip)</span>}
+                    {row.tip !== '₹0.00' && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}> (+{row.tip} tip)</span>}
                   </td>
-                  <td style={{ padding: '1rem', fontSize: '0.85rem', fontFamily: 'monospace' }}>{row.settlementId}</td>
-                  <td style={{ padding: '1rem' }}>
-                    <span style={{
-                      padding: '4px 8px',
-                      borderRadius: '100px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      background: row.payoutStatus === 'Settled & Paid' ? 'rgba(0,255,151,0.12)' : 'rgba(255,214,10,0.12)',
-                      color: row.payoutStatus === 'Settled & Paid' ? 'var(--accent-green)' : '#FFD60A',
-                    }}>
-                      {row.payoutStatus}
-                    </span>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px', fontFamily: 'monospace' }}>
+                  <td style={{ padding: '0.95rem 1.25rem', fontSize: '0.8rem', fontFamily: 'monospace', color: '#E2E8F0' }}>{row.settlementId}</td>
+                  <td style={{ padding: '0.95rem 1.25rem' }}>
+                    <StatusBadge status={row.payoutStatus} />
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'monospace' }}>
                       {row.utr}
                     </div>
                   </td>
-                  <td style={{ padding: '1rem' }}>
+                  <td style={{ padding: '0.95rem 1.25rem' }}>
                     <button
                       onClick={() => setSelectedAudit(row)}
                       style={{
-                        padding: '0.4rem 0.8rem',
+                        padding: '0.35rem 0.8rem',
                         borderRadius: '6px',
-                        background: 'rgba(0, 207, 255, 0.1)',
-                        border: '1px solid rgba(0, 207, 255, 0.3)',
+                        background: 'rgba(56,189,248,0.08)',
+                        border: '1px solid rgba(56,189,248,0.25)',
                         color: 'var(--accent-cyan)',
-                        fontSize: '0.8rem',
+                        fontSize: '0.78rem',
                         fontWeight: 600,
                         cursor: 'pointer',
                       }}
                     >
-                      View Trail 🔍
+                      Audit Trail
                     </button>
                   </td>
                 </tr>
@@ -339,64 +338,66 @@ export default function RevenuePage() {
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.8)',
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(8px)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
           zIndex: 1000,
-          padding: '1rem',
+          padding: '1.5rem',
         }}>
           <div style={{
             background: 'var(--bg-secondary)',
-            border: '1px solid var(--accent-cyan)',
-            borderRadius: '16px',
+            border: '1px solid var(--glass-border)',
+            borderRadius: 'var(--radius-lg)',
             width: '100%',
-            maxWidth: '600px',
+            maxWidth: '580px',
             padding: '2rem',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+            boxShadow: 'var(--shadow-card)',
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.3rem' }}>🔍 End-to-End Transaction Trail</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Transaction Lifecycle
+                </span>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#F8FAFC', marginTop: '0.2rem' }}>Audit Trail: {selectedAudit.bookingId}</h3>
+              </div>
               <button
                 onClick={() => setSelectedAudit(null)}
-                style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer' }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
             </div>
 
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-              Full financial lifecycle for Booking <strong>{selectedAudit.bookingId}</strong>
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>1. Customer Payment:</span>
-                <span style={{ fontWeight: 700, color: 'var(--accent-green)' }}>{selectedAudit.customerPaid} via {selectedAudit.gatewayMethod}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.82rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.85rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--glass-border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>1. Customer Payment:</span>
+                <span style={{ fontWeight: 600, color: 'var(--accent-green)' }}>{selectedAudit.customerPaid} via {selectedAudit.gatewayMethod}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>2. Booking Reference:</span>
-                <span style={{ fontWeight: 600 }}>{selectedAudit.bookingId} ({selectedAudit.route})</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.85rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--glass-border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>2. Booking Reference:</span>
+                <span style={{ fontWeight: 500 }}>{selectedAudit.bookingId} ({selectedAudit.route})</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>3. Gateway Payment ID:</span>
-                <span style={{ color: 'var(--accent-cyan)', fontFamily: 'monospace', fontWeight: 600 }}>{selectedAudit.paymentId} (Captured)</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.85rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--glass-border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>3. Master Gateway Order ID:</span>
+                <span style={{ color: 'var(--accent-cyan)', fontFamily: 'monospace', fontWeight: 600 }}>{selectedAudit.paymentId}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>4. OmniGo Commission Split:</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.85rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--glass-border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>4. OmniGo Commission Split:</span>
                 <span style={{ color: 'var(--accent-red)', fontWeight: 600 }}>-{selectedAudit.commission}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>5. Partner Net Earning:</span>
-                <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>{selectedAudit.partnerEarning} (+{selectedAudit.tip} tip)</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.85rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--glass-border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>5. Partner Net Earning:</span>
+                <span style={{ color: 'var(--accent-green)', fontWeight: 600 }}>{selectedAudit.partnerEarning} (+{selectedAudit.tip} tip)</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>6. Partner Settlement Batch:</span>
-                <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{selectedAudit.settlementId} ({selectedAudit.payoutStatus})</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.85rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--glass-border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>6. Partner Settlement Batch:</span>
+                <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{selectedAudit.settlementId}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>7. Bank Payout & UTR:</span>
-                <span style={{ color: 'var(--accent-green)', fontWeight: 600 }}>{selectedAudit.utr}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.85rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--glass-border-subtle)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>7. Bank Payout Disbursed:</span>
+                <span style={{ color: 'var(--accent-green)', fontWeight: 600, fontFamily: 'monospace' }}>{selectedAudit.utr}</span>
               </div>
             </div>
 
@@ -404,17 +405,18 @@ export default function RevenuePage() {
               onClick={() => setSelectedAudit(null)}
               style={{
                 width: '100%',
-                marginTop: '1.5rem',
-                padding: '0.75rem',
-                background: 'rgba(255,255,255,0.08)',
+                marginTop: '1.25rem',
+                padding: '0.65rem',
+                background: 'rgba(255,255,255,0.04)',
                 border: '1px solid var(--glass-border)',
                 color: '#fff',
-                borderRadius: '8px',
+                borderRadius: '6px',
                 cursor: 'pointer',
                 fontWeight: 600,
+                fontSize: '0.82rem',
               }}
             >
-              Close Audit Trail
+              Dismiss
             </button>
           </div>
         </div>
