@@ -1,35 +1,88 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '@/components/GlassCard';
 import StatusBadge from '@/components/StatusBadge';
-import { customerList, CustomerRecord } from '@/lib/mock-data';
+import { updateUser, updateWalletBalance } from '@omnigo/api';
 
+type CustomerRecord = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  membershipTier: string;
+  walletBalance: string;
+  totalSpend: string;
+  totalBookings: number;
+  status: string;
+  savedVehicles: string[];
+  joinedDate: string;
+  ratingGiven: number;
+  rating?: number;
+};
 export default function CustomerManagementPage() {
-  const [customers, setCustomers] = useState<CustomerRecord[]>(customerList);
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
   const [filter, setFilter] = useState<'all' | 'members' | 'suspended'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [alertNotice, setAlertNotice] = useState<string | null>(null);
 
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/users');
+        if (!res.ok) throw new Error('API error');
+        const { users: live } = await res.json();
+        if (live && live.length > 0) {
+          const mapped = live.map((u: any): CustomerRecord => ({
+            id: u.id || 'N/A',
+            name: u.name || 'Unknown',
+            phone: u.phone || '',
+            email: u.email || '',
+            membershipTier: u.membershipTier || u.membership_tier || 'Basic',
+            walletBalance: u.walletBalance || `₹${Number(u.wallet_balance || 0).toLocaleString('en-IN')}`,
+            totalSpend: u.totalSpend || u.total_spend || '₹0',
+            totalBookings: u.totalBookings || u.total_bookings || 0,
+            status: u.status || 'Active',
+            savedVehicles: u.savedVehicles || u.saved_vehicles || [],
+            joinedDate: u.joinedDate || u.joined_date || u.created_at || '',
+            ratingGiven: Number(u.ratingGiven || u.rating_given || 5.0),
+          }));
+          setCustomers(mapped);
+        }
+      } catch (e) { console.error('[Users]', e); }
+    }
+    load();
+  }, []);
+
   const filteredCustomers = customers.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.email.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone.includes(searchTerm);
+    const matchesSearch = c.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) || c.email?.toLowerCase()?.includes(searchTerm.toLowerCase()) || c.phone?.includes(searchTerm);
     if (!matchesSearch) return false;
     if (filter === 'members') return c.membershipTier === 'Pro' || c.membershipTier === 'Elite';
     if (filter === 'suspended') return c.status === 'Suspended';
     return true;
   });
 
-  const handleUpgradeTier = (customerId: string, newTier: CustomerRecord['membershipTier']) => {
-    setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, membershipTier: newTier } : c));
-    setAlertNotice(`Updated customer ${customerId} membership tier to ${newTier}.`);
-    setSelectedCustomer(null);
-    setTimeout(() => setAlertNotice(null), 4000);
+  const handleUpgradeTier = async (customerId: string, newTier: CustomerRecord['membershipTier']) => {
+    try {
+      await updateUser(customerId, { membershipTier: newTier });
+      setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, membershipTier: newTier } : c));
+      setAlertNotice(`Updated customer ${customerId} membership tier to ${newTier}.`);
+      setSelectedCustomer(null);
+      setTimeout(() => setAlertNotice(null), 4000);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleIssueWalletCredit = (customerId: string, amount: number) => {
-    setAlertNotice(`Issued ₹${amount}.00 OmniGo Wallet credit adjustment to Customer ${customerId}.`);
-    setSelectedCustomer(null);
-    setTimeout(() => setAlertNotice(null), 4000);
+  const handleIssueWalletCredit = async (customerId: string, amount: number) => {
+    try {
+      await updateWalletBalance(customerId, amount);
+      setAlertNotice(`Issued ₹${amount}.00 OmniGo Wallet credit adjustment to Customer ${customerId}.`);
+      setSelectedCustomer(null);
+      setTimeout(() => setAlertNotice(null), 4000);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -113,13 +166,20 @@ export default function CustomerManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.map((c) => (
-                <tr
-                  key={c.id}
-                  style={{ borderBottom: '1px solid var(--glass-border-subtle)', transition: 'background 0.15s ease' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
+              {filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    No registered customers found in database.
+                  </td>
+                </tr>
+              ) : (
+                filteredCustomers.map((c) => (
+                  <tr
+                    key={c.id}
+                    style={{ borderBottom: '1px solid var(--glass-border-subtle)', transition: 'background 0.15s ease' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
                   <td style={{ padding: '0.95rem 1.25rem' }}>
                     <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#F8FAFC' }}>{c.name}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.phone} · {c.email}</div>
@@ -181,7 +241,7 @@ export default function CustomerManagementPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
@@ -216,7 +276,7 @@ export default function CustomerManagementPage() {
                 </span>
                 <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#F8FAFC', marginTop: '0.2rem' }}>{selectedCustomer.name}</h3>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'monospace' }}>
-                  ID: {selectedCustomer.id} · Rating {selectedCustomer.rating} / 5.0
+                  ID: {selectedCustomer.id} · Rating {selectedCustomer?.rating ?? selectedCustomer?.ratingGiven ?? '—'} / 5.0
                 </div>
               </div>
               <button

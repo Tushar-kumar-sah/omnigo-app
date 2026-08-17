@@ -1,15 +1,34 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { THEME } from '../../constants/theme';
-import { mockIncomingJob } from '../../constants/mock-data';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams } from 'expo-router';
+import { getBookingById, Booking } from '@omnigo/api';
+import { useEffect } from 'react';
 
 export default function ArrivalVerifyScreen() {
   const router = useRouter();
   const [otp, setOtp] = useState(['', '', '', '']);
   const inputs = useRef<Array<TextInput | null>>([]);
+  const params = useLocalSearchParams();
+  const jobId = params.id as string;
+  const [booking, setBooking] = useState<Booking | null>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      if (!jobId) return;
+      try {
+        const b = await getBookingById(jobId);
+        setBooking(b);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadData();
+  }, [jobId]);
 
   const handleOtpChange = (value: string, index: number) => {
     const newOtp = [...otp];
@@ -36,9 +55,8 @@ export default function ArrivalVerifyScreen() {
 
   const handleVerify = () => {
     Keyboard.dismiss();
-    // In mock, any 4-digit is accepted
     if (otp.join('').length === 4) {
-      router.push('/job/pre-inspection');
+      router.push({ pathname: '/job/pre-inspection', params: { id: jobId } });
     }
   };
 
@@ -63,9 +81,9 @@ export default function ArrivalVerifyScreen() {
           <View style={styles.fraudBadge}>
             <Ionicons name="shield-checkmark" size={24} color={THEME.colors.success} />
           </View>
-          <Text style={styles.customerName}>{mockIncomingJob.customerName}</Text>
+          <Text style={styles.customerName}>{booking?.userId ? 'Customer' : 'Customer'}</Text>
           <Text style={styles.vehicleDetails}>
-            {mockIncomingJob.vehicleMake} {mockIncomingJob.vehicleModel} • {mockIncomingJob.vehiclePlate}
+            {booking?.customerVehicle?.brand || ''} {booking?.customerVehicle?.model || ''} • {booking?.customerVehicle?.number || ''}
           </Text>
         </View>
 

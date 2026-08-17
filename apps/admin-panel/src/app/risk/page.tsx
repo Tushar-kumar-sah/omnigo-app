@@ -1,14 +1,47 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '@/components/GlassCard';
 import StatusBadge from '@/components/StatusBadge';
-import { fraudRiskIncidents, FraudRiskIncident } from '@/lib/mock-data';
+import { supabase } from '@omnigo/api';
+
+type FraudRiskIncident = {
+  id: string;
+  type: string;
+  severity: string;
+  subjectName: string;
+  subjectRole: string;
+  description: string;
+  status: string;
+  timestamp: string;
+};
 
 export default function FraudRiskCenterPage() {
-  const [incidents, setIncidents] = useState<FraudRiskIncident[]>(fraudRiskIncidents);
+  const [incidents, setIncidents] = useState<FraudRiskIncident[]>([]);
   const [selectedIncident, setSelectedIncident] = useState<FraudRiskIncident | null>(null);
   const [filter, setFilter] = useState<'all' | 'high' | 'open' | 'frozen'>('all');
   const [alertNotice, setAlertNotice] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/risk');
+        if (!res.ok) return;
+        const { incidents: live } = await res.json();
+        if (live && Array.isArray(live)) {
+          setIncidents(live as any);
+        } else {
+          setIncidents([]);
+        }
+      } catch (e) {
+        console.error('[Risk]', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   const filteredIncidents = incidents.filter(item => {
     if (filter === 'high') return item.severity === 'High';
@@ -17,19 +50,34 @@ export default function FraudRiskCenterPage() {
     return true;
   });
 
-  const handleFreezeAccount = (id: string, name: string) => {
-    setIncidents(prev => prev.map(item => item.id === id ? { ...item, status: 'Frozen' } : item));
-    setAlertNotice(`Account for "${name}" has been FROZEN. Associated API tokens revoked & wallet locked.`);
-    setSelectedIncident(null);
-    setTimeout(() => setAlertNotice(null), 5000);
+  const handleFreezeAccount = async (id: string, name: string) => {
+    try {
+      await supabase.from('fraud_incidents').update({ status: 'frozen' }).eq('id', id);
+      setIncidents(prev => prev.map(item => item.id === id ? { ...item, status: 'Frozen' } : item));
+      setAlertNotice(`Account for "${name}" has been FROZEN. Associated API tokens revoked & wallet locked.`);
+      setSelectedIncident(null);
+      setTimeout(() => setAlertNotice(null), 5000);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleResolveIncident = (id: string) => {
-    setIncidents(prev => prev.map(item => item.id === id ? { ...item, status: 'Resolved' } : item));
-    setAlertNotice(`Incident ${id} marked as RESOLVED after review.`);
-    setSelectedIncident(null);
-    setTimeout(() => setAlertNotice(null), 4000);
+  const handleResolveIncident = async (id: string) => {
+    try {
+      await supabase.from('fraud_incidents').update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', id);
+      setIncidents(prev => prev.map(item => item.id === id ? { ...item, status: 'Resolved' } : item));
+      setAlertNotice(`Incident ${id} marked as RESOLVED after review.`);
+      setSelectedIncident(null);
+      setTimeout(() => setAlertNotice(null), 4000);
+    } catch (err) {
+      console.error(err);
+    }
   };
+
+  const gpsFlagsCount = incidents.filter(i => i.type === 'GPS Mismatch').length;
+  const chargebacksCount = incidents.filter(i => i.type === 'Payment Chargeback' || i.type === 'Cash Discrepancy').length;
+  const frozenCount = incidents.filter(i => i.status === 'Frozen').length;
+  const openCasesCount = incidents.filter(i => i.status === 'Open Investigation').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -86,23 +134,31 @@ export default function FraudRiskCenterPage() {
         </div>
       )}
 
-      {/* Anomaly Metrics Overview */}
+      {/* Anomaly Metrics Overview - 100% Dynamic */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
         <GlassCard style={{ padding: '1rem 1.25rem' }}>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.06em' }}>Active GPS Telemetry Flags</div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--accent-red)', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>1 Flagged</div>
+          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--accent-red)', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>
+            {gpsFlagsCount} Flagged
+          </div>
         </GlassCard>
         <GlassCard style={{ padding: '1rem 1.25rem' }}>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.06em' }}>Chargeback Disputes</div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--accent-yellow)', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>1 Dispute</div>
+          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--accent-yellow)', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>
+            {chargebacksCount} Disputes
+          </div>
         </GlassCard>
         <GlassCard style={{ padding: '1rem 1.25rem' }}>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.06em' }}>Device Fingerprint Rings</div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--accent-yellow)', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>3 Accounts</div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.06em' }}>Frozen Accounts</div>
+          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--accent-yellow)', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>
+            {frozenCount} Accounts
+          </div>
         </GlassCard>
         <GlassCard style={{ padding: '1rem 1.25rem' }}>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.06em' }}>Risk Mitigation Rate</div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--accent-green)', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>99.2%</div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.06em' }}>Open Risk Cases</div>
+          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--accent-green)', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>
+            {openCasesCount} Cases
+          </div>
         </GlassCard>
       </div>
 
@@ -122,57 +178,65 @@ export default function FraudRiskCenterPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredIncidents.map((item) => (
-                <tr
-                  key={item.id}
-                  style={{ borderBottom: '1px solid var(--glass-border-subtle)', transition: 'background 0.15s ease' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <td style={{ padding: '0.95rem 1.25rem', fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-cyan)', fontSize: '0.82rem' }}>
-                    {item.id}
-                  </td>
-
-                  <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600, fontSize: '0.86rem', color: '#F8FAFC' }}>
-                    {item.type}
-                  </td>
-
-                  <td style={{ padding: '0.95rem 1.25rem' }}>
-                    <StatusBadge status={item.severity} />
-                  </td>
-
-                  <td style={{ padding: '0.95rem 1.25rem' }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#F8FAFC' }}>{item.subjectName}</div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Role: {item.subjectRole}</div>
-                  </td>
-
-                  <td style={{ padding: '0.95rem 1.25rem', fontSize: '0.82rem', color: 'var(--text-secondary)', maxWidth: '320px' }}>
-                    {item.description}
-                  </td>
-
-                  <td style={{ padding: '0.95rem 1.25rem' }}>
-                    <StatusBadge status={item.status} />
-                  </td>
-
-                  <td style={{ padding: '0.95rem 1.25rem' }}>
-                    <button
-                      onClick={() => setSelectedIncident(item)}
-                      style={{
-                        padding: '0.35rem 0.8rem',
-                        borderRadius: '6px',
-                        background: 'rgba(245, 158, 11, 0.08)',
-                        border: '1px solid rgba(245, 158, 11, 0.25)',
-                        color: 'var(--accent-yellow)',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Inspect
-                    </button>
+              {filteredIncidents.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    {loading ? 'Scanning for fraud anomalies in database...' : 'No risk or fraud incidents detected.'}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredIncidents.map((item) => (
+                  <tr
+                    key={item.id}
+                    style={{ borderBottom: '1px solid var(--glass-border-subtle)', transition: 'background 0.15s ease' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <td style={{ padding: '0.95rem 1.25rem', fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-cyan)', fontSize: '0.82rem' }}>
+                      {item.id}
+                    </td>
+
+                    <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600, fontSize: '0.86rem', color: '#F8FAFC' }}>
+                      {item.type}
+                    </td>
+
+                    <td style={{ padding: '0.95rem 1.25rem' }}>
+                      <StatusBadge status={item.severity} />
+                    </td>
+
+                    <td style={{ padding: '0.95rem 1.25rem' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#F8FAFC' }}>{item.subjectName}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Role: {item.subjectRole}</div>
+                    </td>
+
+                    <td style={{ padding: '0.95rem 1.25rem', fontSize: '0.82rem', color: 'var(--text-secondary)', maxWidth: '320px' }}>
+                      {item.description}
+                    </td>
+
+                    <td style={{ padding: '0.95rem 1.25rem' }}>
+                      <StatusBadge status={item.status} />
+                    </td>
+
+                    <td style={{ padding: '0.95rem 1.25rem' }}>
+                      <button
+                        onClick={() => setSelectedIncident(item)}
+                        style={{
+                          padding: '0.35rem 0.8rem',
+                          borderRadius: '6px',
+                          background: 'rgba(245, 158, 11, 0.08)',
+                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                          color: 'var(--accent-yellow)',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Inspect
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

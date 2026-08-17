@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, LayoutAnimation, UIManager, Platform } from 'react-native';
 import { THEME } from '../../constants/theme';
 import { BlurView } from 'expo-blur';
-import { mockJobs } from '../../constants/mock-data';
+import { getBookingsByDriver, Booking } from '@omnigo/api';
 import { Ionicons } from '@expo/vector-icons';
 
 if (Platform.OS === 'android') {
@@ -15,6 +15,42 @@ export default function HistoryScreen() {
   const [filter, setFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const [apiJobs, setApiJobs] = useState<Booking[]>([]);
+  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await getBookingsByDriver(DRIVER_ID);
+        setApiJobs(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadData();
+  }, [DRIVER_ID]);
+
+  const jobsData = apiJobs.map(job => ({
+    id: job.id,
+    date: new Date(job.createdAt).toLocaleDateString(),
+    price: `₹${job.finalPrice || job.estimatedPrice || 0}`,
+    customerName: 'Customer',
+    vehicleMake: job.customerVehicle?.brand || '',
+    vehicleModel: job.customerVehicle?.model || '',
+    vehicleColor: 'White',
+    vehiclePlate: job.customerVehicle?.number || '',
+    pickup: job.pickup?.address || 'Pickup',
+    drop: job.dropoff?.address || 'Dropoff',
+    baseFare: `₹${Math.round((job.estimatedPrice || 0) * 0.7)}`,
+    distanceFare: `₹${Math.round((job.estimatedPrice || 0) * 0.2)}`,
+    tip: '—',
+    platformFee: '—',
+    rating: job.driverRating || 0,
+    distance: job.distance ? job.distance + ' km' : '—',
+    duration: job.estimatedETA ? job.estimatedETA + ' mins' : '—',
+    status: job.status === 'completed' ? 'completed' : (job.status === 'cancelled' ? 'cancelled' : 'completed')
+  }));
+
   const filters = [
     { id: 'all', label: 'All' },
     { id: 'completed', label: 'Completed' },
@@ -26,7 +62,7 @@ export default function HistoryScreen() {
     setExpandedId(expandedId === id ? null : id);
   };
 
-  const filteredJobs = mockJobs.filter(job => {
+  const filteredJobs = jobsData.filter(job => {
     if (filter === 'all') return true;
     return job.status === filter;
   });

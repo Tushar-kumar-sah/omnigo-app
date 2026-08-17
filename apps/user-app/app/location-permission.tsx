@@ -6,11 +6,18 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
 
+import * as Location from 'expo-location';
+
 export default function LocationPermissionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const handleEnable = () => {
+  const handleEnable = async () => {
+    try {
+      await Location.requestForegroundPermissionsAsync();
+    } catch (e) {
+      console.warn('Location permission request', e);
+    }
     router.replace('/onboarding');
   };
 

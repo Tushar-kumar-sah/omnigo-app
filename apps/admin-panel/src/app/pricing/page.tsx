@@ -1,15 +1,47 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '@/components/GlassCard';
-import { pricingTiers, dynamicPricingRules, VehiclePricingTier } from '@/lib/mock-data';
+import { getPricingRules, updatePricingRules, supabase } from '@omnigo/api';
 
+type VehiclePricingTier = { category: string; baseFare: number; baseKmIncluded: number; perKmRate: number; heavyDutySurcharge: number; };
 export default function PricingEnginePage() {
-  const [tiers, setTiers] = useState<VehiclePricingTier[]>(pricingTiers);
-  const [rules, setRules] = useState(dynamicPricingRules);
+  const [tiers, setTiers] = useState<VehiclePricingTier[]>([]);
+  const [rules, setRules] = useState({ nightChargeMultiplier: 1.25, waitingChargePerMin: 5, emergencySosCharge: 300, highwayTollPolicy: '', platformCommissionPercent: 10, gstRate: 18, activeSurgeZones: [] as any[] });
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const rulesData = await getPricingRules();
+        if (rulesData) {
+          setRules({
+            ...rulesData,
+            activeSurgeZones: rulesData.activeSurgeZones || []
+          });
+        }
+        const { data: vtData, error } = await supabase.from('vehicle_types').select('*');
+        if (vtData && !error) {
+          setTiers(vtData.map(vt => ({
+            category: vt.name,
+            baseFare: Number(vt.base_price),
+            baseKmIncluded: Number(vt.base_km_included),
+            perKmRate: Number(vt.price_per_km),
+            heavyDutySurcharge: Number(vt.heavy_duty_surcharge)
+          })));
+        }
+      } catch (err) {
+        console.error('Error loading pricing data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   // Fare Simulator State
-  const [simCategory, setSimCategory] = useState(pricingTiers[1].category);
+  const [simCategory, setSimCategory] = useState('');
   const [simDistance, setSimDistance] = useState(12); // km
   const [simIsNight, setSimIsNight] = useState(false);
   const [simWaitingMins, setSimWaitingMins] = useState(0);
@@ -22,18 +54,23 @@ export default function PricingEnginePage() {
     setTiers(updated);
   };
 
-  const handleSave = () => {
-    setSaveNotice('Fare matrices and dynamic surcharge rules deployed to active dispatchers.');
-    setTimeout(() => setSaveNotice(null), 4000);
+  const handleSave = async () => {
+    try {
+      await updatePricingRules(rules);
+      setSaveNotice('Fare matrices and dynamic surcharge rules deployed to active dispatchers.');
+      setTimeout(() => setSaveNotice(null), 4000);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Calculate simulated fare
-  const activeTier = tiers.find(t => t.category === simCategory) || tiers[0];
-  const extraKm = Math.max(0, simDistance - activeTier.baseKmIncluded);
-  const distanceFare = extraKm * activeTier.perKmRate;
+  const activeTier = tiers.find(t => t.category === simCategory) || { baseKmIncluded: 0, perKmRate: 0, baseFare: 0, heavyDutySurcharge: 0 };
+  const extraKm = Math.max(0, simDistance - (activeTier.baseKmIncluded || 0));
+  const distanceFare = extraKm * (activeTier.perKmRate || 0);
   const waitingFare = Math.max(0, simWaitingMins - 5) * rules.waitingChargePerMin;
   const sosCharge = simIsSOS ? rules.emergencySosCharge : 0;
-  const rawSubtotal = activeTier.baseFare + distanceFare + activeTier.heavyDutySurcharge + waitingFare + sosCharge;
+  const rawSubtotal = (activeTier.baseFare || 0) + distanceFare + (activeTier.heavyDutySurcharge || 0) + waitingFare + sosCharge;
   const nightMultiplier = simIsNight ? rules.nightChargeMultiplier : 1.0;
   const totalCustomerFare = Math.round(rawSubtotal * nightMultiplier * simSurgeMultiplier);
   const omniGoCommission = Math.round(totalCustomerFare * (rules.platformCommissionPercent / 100));
@@ -104,43 +141,51 @@ export default function PricingEnginePage() {
                 </tr>
               </thead>
               <tbody>
-                {tiers.map((tier, idx) => (
-                  <tr key={tier.category} style={{ borderBottom: '1px solid var(--glass-border-subtle)' }}>
-                    <td style={{ padding: '0.75rem', fontWeight: 600, color: '#F8FAFC' }}>{tier.category}</td>
-                    <td style={{ padding: '0.75rem' }}>
-                      <input
-                        type="number"
-                        value={tier.baseFare}
-                        onChange={(e) => handleUpdateTier(idx, 'baseFare', Number(e.target.value))}
-                        style={{ width: '65px', padding: '3px 6px' }}
-                      />
-                    </td>
-                    <td style={{ padding: '0.75rem' }}>
-                      <input
-                        type="number"
-                        value={tier.baseKmIncluded}
-                        onChange={(e) => handleUpdateTier(idx, 'baseKmIncluded', Number(e.target.value))}
-                        style={{ width: '50px', padding: '3px 6px' }}
-                      /> km
-                    </td>
-                    <td style={{ padding: '0.75rem' }}>
-                      <input
-                        type="number"
-                        value={tier.perKmRate}
-                        onChange={(e) => handleUpdateTier(idx, 'perKmRate', Number(e.target.value))}
-                        style={{ width: '55px', padding: '3px 6px', color: 'var(--accent-green)', fontWeight: 700 }}
-                      />
-                    </td>
-                    <td style={{ padding: '0.75rem' }}>
-                      <input
-                        type="number"
-                        value={tier.heavyDutySurcharge}
-                        onChange={(e) => handleUpdateTier(idx, 'heavyDutySurcharge', Number(e.target.value))}
-                        style={{ width: '55px', padding: '3px 6px' }}
-                      />
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      Loading...
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  tiers.map((tier, idx) => (
+                    <tr key={tier.category} style={{ borderBottom: '1px solid var(--glass-border-subtle)' }}>
+                      <td style={{ padding: '0.75rem', fontWeight: 600, color: '#F8FAFC' }}>{tier.category}</td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <input
+                          type="number"
+                          value={tier.baseFare}
+                          onChange={(e) => handleUpdateTier(idx, 'baseFare', Number(e.target.value))}
+                          style={{ width: '65px', padding: '3px 6px' }}
+                        />
+                      </td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <input
+                          type="number"
+                          value={tier.baseKmIncluded}
+                          onChange={(e) => handleUpdateTier(idx, 'baseKmIncluded', Number(e.target.value))}
+                          style={{ width: '50px', padding: '3px 6px' }}
+                        /> km
+                      </td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <input
+                          type="number"
+                          value={tier.perKmRate}
+                          onChange={(e) => handleUpdateTier(idx, 'perKmRate', Number(e.target.value))}
+                          style={{ width: '55px', padding: '3px 6px', color: 'var(--accent-green)', fontWeight: 700 }}
+                        />
+                      </td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <input
+                          type="number"
+                          value={tier.heavyDutySurcharge}
+                          onChange={(e) => handleUpdateTier(idx, 'heavyDutySurcharge', Number(e.target.value))}
+                          style={{ width: '55px', padding: '3px 6px' }}
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

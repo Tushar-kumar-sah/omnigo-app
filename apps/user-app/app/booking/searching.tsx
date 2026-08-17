@@ -1,19 +1,44 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { theme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { fetchBookingById } from '../../lib/api';
+import { subscribeToBooking } from '@omnigo/api';
 
 export default function SearchingScreen() {
   const router = useRouter();
 
+  const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      router.replace('/booking/driver-assigned');
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
+    let unsubscribe: any = null;
+
+    if (bookingId) {
+      const setupSubscription = async () => {
+        try {
+          unsubscribe = await subscribeToBooking(bookingId, (payload: any) => {
+            const driverId = payload?.driver_id || payload?.driverId;
+            const status = payload?.status?.toLowerCase();
+            if (driverId || status === 'driver_assigned' || status === 'assigned') {
+              router.replace({ pathname: '/booking/driver-assigned', params: { driverId: driverId || null, bookingId } });
+            }
+          });
+        } catch (e) {
+          console.warn('Subscription error', e);
+        }
+      };
+      setupSubscription();
+    }
+
+    return () => {
+      if (unsubscribe) {
+        if (typeof unsubscribe === 'function') unsubscribe();
+        else if (typeof unsubscribe.unsubscribe === 'function') unsubscribe.unsubscribe();
+      }
+    };
+  }, [bookingId]);
 
   return (
     <View style={styles.container}>

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
-import { CONDITION_CHECKLIST } from '../../constants/mock-data';
+import { CONDITION_CHECKLIST } from '../../constants/app-config';
 
 export default function ConditionReportScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const jobId = params.id as string;
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [fuelLevel, setFuelLevel] = useState<string>('Quarter');
 
@@ -71,7 +73,7 @@ export default function ConditionReportScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity onPress={() => router.push('/job/towing')}>
+        <TouchableOpacity onPress={() => router.push({ pathname: '/job/towing', params: { id: jobId } })}>
           <LinearGradient
             colors={[THEME.colors.success, '#00CC7A']}
             style={styles.btn}

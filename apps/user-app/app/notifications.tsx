@@ -5,6 +5,13 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
+import {
+  fetchCurrentUser,
+  fetchNotifications as apiFetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  deleteNotificationApi
+} from '../lib/api';
 
 type NotificationType = 'success' | 'info' | 'payment' | 'alert' | 'promo' | 'reminder' | 'location' | 'safety';
 
@@ -18,88 +25,49 @@ interface NotificationItem {
   section: 'Today' | 'Earlier';
 }
 
-const initialNotifications: NotificationItem[] = [
-  {
-    id: '1',
-    title: 'Tow Completed',
-    description: 'Your tow to AutoFix Garage is complete',
-    time: '2 min ago',
-    type: 'success',
-    isUnread: true,
-    section: 'Today',
-  },
-  {
-    id: '2',
-    title: 'Driver Assigned',
-    description: 'Rajesh K. is on the way in a Mahindra Bolero',
-    time: '15 min ago',
-    type: 'info',
-    isUnread: true,
-    section: 'Today',
-  },
-  {
-    id: '3',
-    title: 'Payment Success',
-    description: '₹2,500 paid successfully via UPI',
-    time: '1h ago',
-    type: 'payment',
-    isUnread: true,
-    section: 'Today',
-  },
-  {
-    id: '4',
-    title: 'SOS Alert Resolved',
-    description: 'Your SOS request has been resolved',
-    time: '3h ago',
-    type: 'alert',
-    isUnread: false,
-    section: 'Today',
-  },
-  {
-    id: '5',
-    title: 'Promo Offer',
-    description: 'Use code OMNIGO20 for 20% off next tow',
-    time: 'Yesterday',
-    type: 'promo',
-    isUnread: false,
-    section: 'Earlier',
-  },
-  {
-    id: '6',
-    title: 'Service Reminder',
-    description: 'Your vehicle service is due in 3 days',
-    time: 'Yesterday',
-    type: 'reminder',
-    isUnread: false,
-    section: 'Earlier',
-  },
-  {
-    id: '7',
-    title: 'Tracking Update',
-    description: 'Driver has arrived at pickup location',
-    time: '2 days ago',
-    type: 'location',
-    isUnread: false,
-    section: 'Earlier',
-  },
-  {
-    id: '8',
-    title: 'Safety Alert',
-    description: 'Trip safety report is now available',
-    time: '3 days ago',
-    type: 'safety',
-    isUnread: false,
-    section: 'Earlier',
-  },
-];
-
 export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const markAllRead = () => {
+  React.useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const u = await fetchCurrentUser();
+        if (u?.uuid || u?.id) {
+          const uid = u.uuid || u.id;
+          setUserId(uid);
+          const notifs = await apiFetchNotifications(uid);
+          if (notifs) {
+            setNotifications(notifs.map((n: any) => ({
+              id: n.id,
+              title: n.title,
+              description: n.message || n.description,
+              time: n.time || new Date(n.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              type: (n.type || 'info') as NotificationType,
+              isUnread: n.is_read !== undefined ? !n.is_read : Boolean(n.isUnread),
+              section: new Date(n.created_at || Date.now()).toDateString() === new Date().toDateString() ? 'Today' : new Date(n.created_at || Date.now()).toDateString() === new Date(Date.now() - 86400000).toDateString() ? 'Yesterday' : 'Earlier',
+            })));
+          }
+        }
+      } catch (e) {
+        console.warn('[Notifications] fetch error', e);
+      }
+    };
+    fetchNotifs();
+  }, []);
+
+  const markAllRead = async () => {
     setNotifications(prev => prev.map(notif => ({ ...notif, isUnread: false })));
+    if (userId) {
+      await markAllNotificationsRead(userId);
+    }
+  };
+
+  const handleMarkAsRead = async (id: string) => {
+    setNotifications(prev => prev.map(notif => notif.id === id ? { ...notif, isUnread: false } : notif));
+    await markNotificationRead(id);
   };
 
   const getIconConfig = (type: NotificationType) => {
@@ -133,6 +101,7 @@ export default function NotificationsScreen() {
         key={item.id} 
         style={[styles.notificationCard, item.isUnread && styles.unreadCard]}
         activeOpacity={0.7}
+        onPress={() => { if(item.isUnread) handleMarkAsRead(item.id); }}
       >
         <View style={[styles.iconContainer, { backgroundColor: iconConfig.bg }]}>
           <Ionicons name={iconConfig.name as any} size={24} color={iconConfig.color} />

@@ -5,10 +5,19 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
+import { getCurrentUser } from '@omnigo/api';
 
 export default function MembershipScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [user, setUser] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    (async () => {
+      const u = await getCurrentUser();
+      if (u) setUser(u);
+    })();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -26,7 +35,7 @@ export default function MembershipScreen() {
         <View style={styles.currentPlanContainer}>
           <Text style={styles.currentPlanText}>Your Current Plan:</Text>
           <View style={styles.currentPlanBadge}>
-            <Text style={styles.currentPlanBadgeText}>Free Tier</Text>
+            <Text style={styles.currentPlanBadgeText}>{user?.membershipTier || 'Free Tier'}</Text>
           </View>
         </View>
 

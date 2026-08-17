@@ -1,18 +1,49 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '@/components/GlassCard';
 import StatusBadge from '@/components/StatusBadge';
-import { bookings } from '@/lib/mock-data';
 
 export default function BookingsPage() {
   const [filter, setFilter] = useState<'all' | 'Completed' | 'Searching'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/bookings');
+        if (!res.ok) throw new Error('API error');
+        const { bookings: live } = await res.json();
+        if (live && live.length > 0) {
+          // Normalize DB shape to what the table expects
+          const normalized = live.map((b: any) => ({
+            id: b.id || b.booking_number || 'N/A',
+            customer: b.customer || b.customerName || b.customer_name || 'Unknown',
+            driver: b.driver || b.driverName || b.driver_name || 'Unassigned',
+            vehicle: b.vehicle || b.vehicleType || b.vehicle_type || '—',
+            pickup: b.pickup || b.pickup_address || '—',
+            drop: b.drop || b.dropoff || b.dropoff_address || '—',
+            status: b.status || 'Unknown',
+            price: b.price || b.estimated_price || 0,
+            date: b.date || b.created_at || '',
+          }));
+          setBookings(normalized);
+        }
+      } catch (e) {
+        console.error('[Bookings]', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   const filteredBookings = bookings.filter(b => {
-    const matches = b.id.toLowerCase().includes(searchTerm.toLowerCase()) || b.customer.toLowerCase().includes(searchTerm.toLowerCase()) || b.driver.toLowerCase().includes(searchTerm.toLowerCase());
+    const matches = b.id?.toLowerCase()?.includes(searchTerm.toLowerCase()) || b.customer?.toLowerCase()?.includes(searchTerm.toLowerCase()) || b.driver?.toLowerCase()?.includes(searchTerm.toLowerCase());
     if (!matches) return false;
-    if (filter !== 'all' && b.status !== filter) return false;
+    if (filter !== 'all' && b.status?.toLowerCase() !== filter.toLowerCase()) return false;
     return true;
   });
 
@@ -80,13 +111,20 @@ export default function BookingsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredBookings.map((b) => (
-                <tr
-                  key={b.id}
-                  style={{ borderBottom: '1px solid var(--glass-border-subtle)', transition: 'background 0.15s ease' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
+              {filteredBookings.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    No bookings found in database.
+                  </td>
+                </tr>
+              ) : (
+                filteredBookings.map((b) => (
+                  <tr
+                    key={b.id}
+                    style={{ borderBottom: '1px solid var(--glass-border-subtle)', transition: 'background 0.15s ease' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
                   <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600, fontFamily: 'monospace', color: 'var(--accent-cyan)', fontSize: '0.84rem' }}>{b.id}</td>
                   <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600, fontSize: '0.88rem', color: '#F8FAFC' }}>{b.customer}</td>
                   <td style={{ padding: '0.95rem 1.25rem', color: 'var(--text-secondary)', fontSize: '0.84rem' }}>{b.driver}</td>
@@ -115,7 +153,7 @@ export default function BookingsPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

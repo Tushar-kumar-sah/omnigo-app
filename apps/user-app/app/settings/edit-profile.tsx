@@ -14,20 +14,35 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../../constants/theme';
+import { getCurrentUser, updateUser } from '@omnigo/api';
+
+const USER_ID = 'a0000000-0000-0000-0000-000000000001';
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [fullName, setFullName] = useState('Tushar Kumar');
-  const [email, setEmail] = useState('tushar@omnigo.in');
-  const [phone, setPhone] = useState('+91 98765 43210');
-  const [gender, setGender] = useState('Male');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState('');
   
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  const handleSave = () => {
-    // Perform save action
+  React.useEffect(() => {
+    (async () => {
+      const u = await getCurrentUser();
+      if (u) {
+        setFullName(u.name || '');
+        setEmail(u.email || '');
+        setPhone(u.phone || '');
+        setGender(u.gender || '');
+      }
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    await updateUser(USER_ID, { name: fullName, phone, email, gender });
     router.back();
   };
 
@@ -137,7 +152,7 @@ export default function EditProfileScreen() {
               <Text style={styles.label}>Date of Birth</Text>
               <TouchableOpacity style={styles.inputWrapper}>
                 <Ionicons name="calendar-outline" size={20} color="rgba(255, 255, 255, 0.5)" />
-                <Text style={styles.inputText}>15 Jan 1998</Text>
+                <Text style={styles.inputText}>—</Text>
               </TouchableOpacity>
             </View>
 

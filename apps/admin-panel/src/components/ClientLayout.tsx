@@ -18,7 +18,7 @@ export default function ClientLayout({ children }: { children: any }) {
   return (
     <>
       <Sidebar />
-      <div style={{ flex: 1, marginLeft: '260px', display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+      <div style={{ flex: 1, marginLeft: '260px', display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-primary)' }}>
         {/* Executive Top Header Bar */}
         <header style={{
           height: '56px',
@@ -45,10 +45,10 @@ export default function ClientLayout({ children }: { children: any }) {
               border: '1px solid rgba(56, 189, 248, 0.25)',
               letterSpacing: '0.04em',
             }}>
-              PROD · AP-SOUTH-1
+              OmniGo Admin
             </span>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              HQ Operations Command · Bangalore & Pune Fleet
+              Operations Command Center
             </span>
           </div>
 
@@ -62,7 +62,7 @@ export default function ClientLayout({ children }: { children: any }) {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--accent-green)' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '3px', background: 'var(--accent-green)' }} />
-              <span style={{ fontWeight: 600 }}>Ledger Active</span>
+              <span style={{ fontWeight: 600 }}>System Online</span>
             </div>
 
             <div style={{
@@ -88,7 +88,7 @@ export default function ClientLayout({ children }: { children: any }) {
               }}>
                 A
               </div>
-              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>admin@omnigo.in</span>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>Admin</span>
             </div>
           </div>
         </header>

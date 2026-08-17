@@ -5,11 +5,28 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { currentUser } from '../../constants/mock-data';
+import { fetchCurrentUser } from '../../lib/api';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  const [user, setUser] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const u = await fetchCurrentUser();
+        if (u) setUser(u);
+      } catch (e) {
+        console.warn('[Profile]', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, []);
 
   const MENU_ITEMS = [
     { title: 'Membership', icon: 'card-outline', route: '/membership' },
@@ -41,8 +58,8 @@ export default function ProfileScreen() {
               <Ionicons name="person" size={38} color="#00CFFF" />
             </View>
             <View style={styles.info}>
-              <Text style={styles.name}>{currentUser.name}</Text>
-              <Text style={styles.phone}>{currentUser.phone}</Text>
+              <Text style={styles.name}>{user?.name || 'Loading...'}</Text>
+              <Text style={styles.phone}>{user?.phone || 'Loading...'}</Text>
               <View style={styles.badge}>
                 <Ionicons name="checkmark-circle" size={14} color="#00FF97" />
                 <Text style={styles.badgeText}>Verified Account</Text>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated, Easing } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
-import { mockIncomingJob } from '../../constants/mock-data';
+import { getBookingById, updateBookingStatus, Booking } from '@omnigo/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -13,9 +13,25 @@ type JobState = 'LOADING' | 'IN_TRANSIT' | 'ARRIVED';
 
 export default function TowingScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const jobId = params.id as string;
   const [jobState, setJobState] = useState<JobState>('LOADING');
+  const [booking, setBooking] = useState<Booking | null>(null);
   
   const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    async function loadData() {
+      if (!jobId) return;
+      try {
+        const b = await getBookingById(jobId);
+        setBooking(b);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadData();
+  }, [jobId]);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -33,10 +49,16 @@ export default function TowingScreen() {
     outputRange: [0.5, 0],
   });
 
-  const handleNextState = () => {
-    if (jobState === 'LOADING') setJobState('IN_TRANSIT');
-    else if (jobState === 'IN_TRANSIT') setJobState('ARRIVED');
-    else if (jobState === 'ARRIVED') router.push('/job/post-inspection');
+  const handleNextState = async () => {
+    if (jobState === 'LOADING') {
+      await updateBookingStatus(jobId, 'towing');
+      setJobState('IN_TRANSIT');
+    } else if (jobState === 'IN_TRANSIT') {
+      await updateBookingStatus(jobId, 'at_pickup');
+      setJobState('ARRIVED');
+    } else if (jobState === 'ARRIVED') {
+      router.push({ pathname: '/job/post-inspection', params: { id: jobId } });
+    }
   };
 
   const getStateConfig = () => {
@@ -99,18 +121,19 @@ export default function TowingScreen() {
           <Text style={styles.cardTitle}>Destination</Text>
           <View style={styles.locationRow}>
             <Ionicons name="location" size={20} color={THEME.colors.danger} />
-            <Text style={styles.locationText}>{mockIncomingJob.drop}</Text>
+            <Text style={styles.locationText}>{booking?.dropoff?.address || 'Dropoff Location'}</Text>
           </View>
 
           {jobState === 'IN_TRANSIT' && (
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>ETA</Text>
-                <Text style={styles.statValue}>14 mins</Text>
+                <Text style={styles.statValue}>—</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Distance</Text>
-                <Text style={styles.statValue}>{mockIncomingJob.distance} km</Text>
+                {/* Distance in booking data might not be formatted, use fallback or generic string without appending duplicate unit if it already has one */}
+                <Text style={styles.statValue}>—</Text>
               </View>
             </View>
           )}

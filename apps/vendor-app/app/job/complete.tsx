@@ -1,16 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
-import { mockIncomingJob } from '../../constants/mock-data';
+
+import { updateBookingStatus, getBookingById, Booking } from '@omnigo/api';
+import { useLocalSearchParams } from 'expo-router';
 
 export default function CompleteScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const jobId = (params.id as string);
+  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+
   const [rating, setRating] = useState(0);
   const [notes, setNotes] = useState('');
+  const [booking, setBooking] = useState<Booking | null>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const b = await getBookingById(jobId);
+        setBooking(b);
+      } catch (e) { console.error(e); }
+    }
+    loadData();
+  }, [jobId]);
+
+  const handleSubmit = async () => {
+    try {
+      await updateBookingStatus(jobId, 'completed', {
+        driverRating: rating,
+        notes: notes
+      });
+      router.replace('/(tabs)');
+    } catch (e) {
+      console.error(e);
+      router.replace('/(tabs)');
+    }
+  };
+
+  const jobData = booking ? {
+    distance: booking.distance ? booking.distance + ' km' : '—',
+    duration: booking.estimatedETA ? booking.estimatedETA + ' mins' : '—',
+    driverEarnings: `₹${booking.finalPrice || booking.estimatedPrice || 0}`,
+    customerPayment: `₹${booking.estimatedPrice || 0}`,
+    baseFare: `₹${Math.round((booking.estimatedPrice || 0) * 0.7)}`,
+    distanceFare: `₹${Math.round((booking.estimatedPrice || 0) * 0.2)}`,
+    tip: '₹0',
+    platformCommissionRate: '10%',
+    platformFee: '₹0',
+    customerName: 'Customer'
+  } : null;
+
+  if (!jobData) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: '#fff' }}>Loading...</Text>
+      </View>
+    );
+  }
 
   const getRatingLabel = (val: number) => {
     switch(val) {
@@ -36,7 +87,7 @@ export default function CompleteScreen() {
 
         <BlurView intensity={20} tint="dark" style={styles.earningsCard}>
           <Text style={styles.earningsLabel}>Your Net Earnings (Take Home)</Text>
-          <Text style={styles.earningsAmount}>₹495.00</Text>
+          <Text style={styles.earningsAmount}>{jobData.driverEarnings}</Text>
 
           <View style={styles.walletCreditBadge}>
             <Ionicons name="wallet" size={16} color={THEME.colors.success} />
@@ -47,23 +98,23 @@ export default function CompleteScreen() {
           
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Customer Payment (Gross)</Text>
-            <Text style={[styles.breakdownValue, { fontFamily: THEME.fonts.inter.bold }]}>₹550.00</Text>
+            <Text style={[styles.breakdownValue, { fontFamily: THEME.fonts.inter.bold }]}>{jobData.customerPayment}</Text>
           </View>
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Base Fare</Text>
-            <Text style={styles.breakdownValue}>₹250.00</Text>
+            <Text style={styles.breakdownValue}>{jobData.baseFare}</Text>
           </View>
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Distance (3.1 km)</Text>
-            <Text style={styles.breakdownValue}>₹200.00</Text>
+            <Text style={styles.breakdownLabel}>Distance</Text>
+            <Text style={styles.breakdownValue}>{jobData.distanceFare}</Text>
           </View>
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Direct Customer Tip</Text>
-            <Text style={[styles.breakdownValue, { color: THEME.colors.success }]}>+₹100.00</Text>
+            <Text style={[styles.breakdownValue, { color: THEME.colors.success }]}>+{jobData.tip}</Text>
           </View>
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>OmniGo Platform Fee (10%)</Text>
-            <Text style={[styles.breakdownValue, { color: THEME.colors.danger }]}>-₹55.00</Text>
+            <Text style={styles.breakdownLabel}>OmniGo Platform Fee ({jobData.platformCommissionRate})</Text>
+            <Text style={[styles.breakdownValue, { color: THEME.colors.danger }]}>-{jobData.platformFee}</Text>
           </View>
           
           <View style={styles.divider} />
@@ -71,15 +122,15 @@ export default function CompleteScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Ionicons name="time-outline" size={16} color={THEME.colors.primary} />
-              <Text style={styles.statText}>14 min trip</Text>
+              <Text style={styles.statText}>{jobData.duration} trip</Text>
             </View>
             <View style={styles.statItem}>
               <Ionicons name="swap-horizontal-outline" size={16} color={THEME.colors.primary} />
-              <Text style={styles.statText}>3.1 km towed</Text>
+              <Text style={styles.statText}>{jobData.distance} towed</Text>
             </View>
             <View style={styles.statItem}>
               <Ionicons name="checkmark-done" size={16} color={THEME.colors.success} />
-              <Text style={[styles.statText, { color: THEME.colors.success }]}>Paid via UPI</Text>
+              <Text style={[styles.statText, { color: THEME.colors.success }]}>Paid via Gateway</Text>
             </View>
           </View>
         </BlurView>
@@ -93,7 +144,7 @@ export default function CompleteScreen() {
 
         <BlurView intensity={20} tint="dark" style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Rate Customer Experience</Text>
-          <Text style={styles.subtitle}>How courteous and cooperative was {mockIncomingJob.customerName}?</Text>
+          <Text style={styles.subtitle}>How courteous and cooperative was {jobData.customerName}?</Text>
           
           <View style={styles.starsRow}>
             {[1, 2, 3, 4, 5].map((star) => (
@@ -126,7 +177,7 @@ export default function CompleteScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity onPress={() => router.replace('/(tabs)')}>
+        <TouchableOpacity onPress={handleSubmit}>
           <LinearGradient
             colors={[THEME.colors.primary, THEME.colors.secondary]}
             style={styles.btn}

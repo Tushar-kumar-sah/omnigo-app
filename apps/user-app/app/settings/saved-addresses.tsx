@@ -25,32 +25,7 @@ interface Address {
   isDefault: boolean;
 }
 
-const initialAddresses: Address[] = [
-  {
-    id: '1',
-    label: 'Home',
-    address: '42, Shivaji Nagar, Pune 411005',
-    icon: 'home',
-    color: '#00FF97',
-    isDefault: true,
-  },
-  {
-    id: '2',
-    label: 'Office',
-    address: 'Tech Park, Hinjewadi Phase 1, Pune 411057',
-    icon: 'briefcase',
-    color: '#00CFFF',
-    isDefault: false,
-  },
-  {
-    id: '3',
-    label: 'Garage',
-    address: 'AutoFix Service Center, MG Road, Pune 411001',
-    icon: 'car',
-    color: '#FFB800', // amber
-    isDefault: false,
-  }
-];
+const initialAddresses: Address[] = [];
 
 export default function SavedAddressesScreen() {
   const router = useRouter();

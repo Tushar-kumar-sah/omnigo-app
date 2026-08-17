@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../../constants/theme';
+import { fetchCurrentUser, fetchUserBookings } from '../../lib/api';
 
 const AI_CAPTIONS = [
   "How can I help you?",
@@ -32,6 +33,29 @@ export default function HomeScreen() {
   const [captionIndex, setCaptionIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const waveAnim = useRef(new Animated.Value(0)).current;
+
+  const [user, setUser] = useState<any>(null);
+  const [recentBookings, setRecentBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const currentUser = await fetchCurrentUser();
+        setUser(currentUser);
+        if (currentUser?.id || currentUser?.uuid) {
+          const uid = currentUser.uuid || currentUser.id;
+          const bookingsData = await fetchUserBookings(uid);
+          setRecentBookings(bookingsData.slice(0, 3));
+        }
+      } catch (e) {
+        console.warn('[Home] data fetch error', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   useEffect(() => {
     // Waving animation loop for AI Mascot
@@ -74,6 +98,15 @@ export default function HomeScreen() {
     outputRange: [0.96, 1.0, 1.08],
   });
 
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+        <Text style={{ color: '#00CFFF', fontFamily: 'Outfit_600SemiBold' }}>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Background Deep Cyber Dark */}
@@ -94,7 +127,7 @@ export default function HomeScreen() {
             </View>
             <View>
               <Text style={styles.greetingText}>Good Morning</Text>
-              <Text style={styles.welcomeText}>Welcome back! 👋</Text>
+              <Text style={styles.welcomeText}>Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}! 👋</Text>
             </View>
           </View>
 
@@ -247,74 +280,33 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Activity Item 1 */}
-        <TouchableOpacity style={styles.activityItemTouch} activeOpacity={0.8} onPress={() => router.push('/(tabs)/bookings')}>
-          <BlurView intensity={75} tint="dark" style={styles.activityItem}>
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.08)', 'rgba(0, 207, 255, 0.03)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <View style={[styles.activityIconBadge, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]}>
-              <Ionicons name="car-sport" size={20} color="#00CFFF" />
-            </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Tow Service Completed</Text>
-              <Text style={styles.activitySubtitle}>MG Road — Anand Nagar</Text>
-            </View>
-            <View style={styles.activityRight}>
-              <Text style={styles.activityAmount}>₹1,250</Text>
-              <Text style={styles.activityTime}>2 hours ago</Text>
-            </View>
-          </BlurView>
-        </TouchableOpacity>
-
-        {/* Activity Item 2 */}
-        <TouchableOpacity style={styles.activityItemTouch} activeOpacity={0.8} onPress={() => router.push('/(tabs)/bookings')}>
-          <BlurView intensity={75} tint="dark" style={styles.activityItem}>
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 179, 0, 0.03)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <View style={[styles.activityIconBadge, { backgroundColor: 'rgba(255, 179, 0, 0.15)' }]}>
-              <Ionicons name="settings-outline" size={20} color="#FFB300" />
-            </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Engine Diagnostic Report</Text>
-              <Text style={styles.activitySubtitle}>Vehicle: Honda City 2023</Text>
-            </View>
-            <View style={styles.activityRight}>
-              <Text style={styles.activityWarningStatus}>3 Issues Found</Text>
-              <Text style={styles.activityTime}>Yesterday</Text>
-            </View>
-          </BlurView>
-        </TouchableOpacity>
-
-        {/* Activity Item 3 */}
-        <TouchableOpacity style={styles.activityItemTouch} activeOpacity={0.8} onPress={() => router.push('/(tabs)/bookings')}>
-          <BlurView intensity={75} tint="dark" style={styles.activityItem}>
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.08)', 'rgba(0, 255, 151, 0.03)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <View style={[styles.activityIconBadge, { backgroundColor: 'rgba(0, 255, 151, 0.15)' }]}>
-              <Ionicons name="flash-outline" size={20} color="#00FF97" />
-            </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Battery Replacement</Text>
-              <Text style={styles.activitySubtitle}>Kothrud Service Center</Text>
-            </View>
-            <View style={styles.activityRight}>
-              <Text style={styles.activityAmount}>₹4,500</Text>
-              <Text style={styles.activityTime}>3 days ago</Text>
-            </View>
-          </BlurView>
-        </TouchableOpacity>
+        {recentBookings.map((booking, idx) => (
+          <TouchableOpacity key={booking.id || booking.uuid || idx} style={styles.activityItemTouch} activeOpacity={0.8} onPress={() => router.push('/(tabs)/bookings')}>
+            <BlurView intensity={75} tint="dark" style={styles.activityItem}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.08)', 'rgba(0, 207, 255, 0.03)', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={[styles.activityIconBadge, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]}>
+                <Ionicons name="car-sport" size={20} color="#00CFFF" />
+              </View>
+              <View style={styles.activityInfo}>
+                <Text style={styles.activityTitle}>{booking.service_type || booking.service || 'Tow Service'}</Text>
+                <Text style={styles.activitySubtitle}>
+                  {booking.pickup ||
+                    (typeof booking.pickup_location === 'object' ? booking.pickup_location?.address : null) ||
+                    'Unknown Location'}
+                </Text>
+              </View>
+              <View style={styles.activityRight}>
+                <Text style={styles.activityAmount}>₹{booking.price || booking.estimatedPrice || booking.fare || 0}</Text>
+                <Text style={styles.activityTime}>{booking.status}</Text>
+              </View>
+            </BlurView>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
     </View>
   );

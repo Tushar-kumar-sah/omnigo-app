@@ -25,23 +25,31 @@ export default function DataTable({ columns, data }: { columns: string[], data: 
             </tr>
           </thead>
           <tbody>
-            {data.map((row, i) => (
-              <tr
-                key={i}
-                style={{
-                  borderBottom: '1px solid var(--glass-border-subtle)',
-                  transition: 'background 0.15s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                {Object.values(row).map((val: any, j) => (
-                  <td key={j} style={{ padding: '0.95rem 1.25rem', fontSize: '0.86rem', color: 'var(--text-primary)' }}>
-                    {val}
-                  </td>
-                ))}
+            {data.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  No active dispatches or bookings recorded.
+                </td>
               </tr>
-            ))}
+            ) : (
+              data.map((row, i) => (
+                <tr
+                  key={i}
+                  style={{
+                    borderBottom: '1px solid var(--glass-border-subtle)',
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  {Object.values(row).map((val: any, j) => (
+                    <td key={j} style={{ padding: '0.95rem 1.25rem', fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+                      {val}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

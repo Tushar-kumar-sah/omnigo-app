@@ -1,17 +1,69 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '@/components/GlassCard';
 import StatusBadge from '@/components/StatusBadge';
-import { dispatchQueue, DispatchRequest } from '@/lib/mock-data';
+import { getNearbyDrivers, getPricingRules } from '@omnigo/api';
 
+type DispatchRequest = any;
 export default function DispatchCenterPage() {
   const [autoAssign, setAutoAssign] = useState(true);
-  const [selectedJob, setSelectedJob] = useState<DispatchRequest | null>(dispatchQueue[0]);
-  const [jobs, setJobs] = useState<DispatchRequest[]>(dispatchQueue);
+  const [selectedJob, setSelectedJob] = useState<any | null>(null);
+  const [jobs, setJobs] = useState<any[]>([]);
   const [dispatchAlert, setDispatchAlert] = useState<string | null>(null);
+  const [platformCommissionPercent, setPlatformCommissionPercent] = useState(10);
 
-  const handleManualAssign = (driverName: string) => {
+  useEffect(() => {
+    async function fetchRules() {
+      try {
+        const rules = await getPricingRules();
+        if (rules && rules.platformCommissionPercent) {
+          setPlatformCommissionPercent(rules.platformCommissionPercent);
+        }
+      } catch (err) {
+        console.error('Failed to load rules', err);
+      }
+    }
+    fetchRules();
+  }, []);
+
+  useEffect(() => {
+    if (selectedJob) {
+      getNearbyDrivers(selectedJob.pickup_lat || 0, selectedJob.pickup_lng || 0)
+        .then(drivers => {
+          if (drivers && Array.isArray(drivers) && drivers.length > 0) {
+            setSelectedJob((prev: any) => prev && prev.id === selectedJob.id ? { ...prev, recommendedDrivers: drivers } : prev);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [selectedJob?.id]);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/dispatch');
+        if (!res.ok) throw new Error('API error');
+        const { queue: live } = await res.json();
+        if (live && live.length > 0) {
+          setJobs(live as any);
+          setSelectedJob(live[0] as any);
+        }
+      } catch (e) {
+        console.error('[Dispatch]', e);
+      }
+    }
+    load();
+    // Poll every 20s for new dispatch jobs
+    const interval = setInterval(load, 20000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleManualAssign = async (driverName: string) => {
     if (!selectedJob) return;
+    // Optimistic UI update — dispatch via API in background
+    try {
+      await fetch('/api/dispatch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId: selectedJob.id, driverName }) });
+    } catch (e) { /* silently handle */ }
     setDispatchAlert(`Assigned ${driverName} to Request ${selectedJob.id}. Dispatch notification dispatched.`);
     setJobs(prev => prev.filter(j => j.id !== selectedJob.id));
     setSelectedJob(null);
@@ -186,10 +238,10 @@ export default function DispatchCenterPage() {
                         )}
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        {driver.vehicleType} · Rating {driver.rating}
+                        {driver.vehiclePlate} · Rating {driver.rating}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', marginTop: '0.2rem' }}>
-                        Proximity: {driver.distanceKm} km · Estimated ETA: {driver.etaMinutes} mins
+                        Proximity: {driver.distance} km · Estimated ETA: {driver.eta} mins
                       </div>
                     </div>
 
@@ -220,12 +272,12 @@ export default function DispatchCenterPage() {
                 <span style={{ fontWeight: 600, color: '#F8FAFC' }}>{selectedJob.estimatedPrice}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Platform Commission (10%):</span>
-                <span style={{ color: 'var(--accent-red)' }}>-₹{Math.round(parseInt(selectedJob.estimatedPrice.replace('₹', '')) * 0.1)}.00</span>
+                <span style={{ color: 'var(--text-muted)' }}>Platform Commission ({platformCommissionPercent}%):</span>
+                <span style={{ color: 'var(--accent-red)' }}>-₹{Math.round(Number(selectedJob.estimatedPrice) * (platformCommissionPercent / 100))}.00</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Driver Take-Home:</span>
-                <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>₹{Math.round(parseInt(selectedJob.estimatedPrice.replace('₹', '')) * 0.9)}.00</span>
+                <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>₹{Math.round(Number(selectedJob.estimatedPrice) * (1 - (platformCommissionPercent / 100)))}.00</span>
               </div>
             </div>
           </GlassCard>

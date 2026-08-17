@@ -4,11 +4,13 @@ import {
   Modal, TextInput, Animated, Easing, ImageBackground, Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { theme } from '../../constants/theme';
+import { fetchBookingById, fetchDriverById } from '../../lib/api';
+import { subscribeToDriverLocation } from '@omnigo/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -35,14 +37,83 @@ const CANCEL_REASONS = [
 export default function TrackingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { bookingId, driverId } = useLocalSearchParams<{ bookingId?: string; driverId?: string }>();
+
+  const [pickupOtp, setPickupOtp] = useState('— — — —');
+  const [completionOtp, setCompletionOtp] = useState('— — — —');
+  const [driverName, setDriverName] = useState('—');
+  const [driverVehicle, setDriverVehicle] = useState('—');
+  const [driverPlate, setDriverPlate] = useState('—');
+  const [pickupAddr, setPickupAddr] = useState('Fetching...');
+  const [dropoffAddr, setDropoffAddr] = useState('Fetching...');
+  const [booking, setBooking] = useState<any>(null);
+  const [driver, setDriver] = useState<any>(null);
+
+  useEffect(() => {
+    if (bookingId) {
+      const interval = setInterval(async () => {
+        try {
+          const b = await fetchBookingById(bookingId);
+          if (b) {
+            setBooking(b);
+            const status = (b.status || b.bookingStatus || '').toLowerCase();
+            if (status === 'completed') setCurrentStep(6);
+            else if (status === 'towing') setCurrentStep(4);
+            else if (status === 'at_pickup' || status === 'arrived') setCurrentStep(2);
+            else if (status === 'driver_arriving' || status === 'enroute') setCurrentStep(1);
+
+            if (b.pickupOtp) setPickupOtp(b.pickupOtp.toString().split('').join(' '));
+            if (b.dropoffOtp) setCompletionOtp(b.dropoffOtp.toString().split('').join(' '));
+            
+            setDriverName(b.driverName || b.driver || '—');
+            setDriverPlate(b.vehiclePlate || '—');
+            setDriverVehicle(b.driverVehicle || b.vehicle || '—');
+            
+            if (b.pickup && typeof b.pickup === 'string') setPickupAddr(b.pickup);
+            else if (b.pickup?.address) setPickupAddr(b.pickup.address);
+            else if (b.pickup_location?.address) setPickupAddr(b.pickup_location.address);
+            
+            if (b.dropoff && typeof b.dropoff === 'string') setDropoffAddr(b.dropoff);
+            else if (b.dropoff?.address) setDropoffAddr(b.dropoff.address);
+            else if (b.dropoff_location?.address) setDropoffAddr(b.dropoff_location.address);
+          }
+        } catch (e) {
+          console.warn('[Tracking] poll booking error', e);
+        }
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [bookingId]);
+
+  useEffect(() => {
+    let unsub: any = null;
+    if (driverId) {
+      const setup = async () => {
+        try {
+          const d = await fetchDriverById(driverId);
+          if (d) setDriver(d);
+          unsub = await subscribeToDriverLocation(driverId, (payload: any) => {
+            if (payload?.speed) setSpeedVal(payload.speed);
+          });
+        } catch (e) {
+          console.warn('[Tracking] poll driver error', e);
+        }
+      }
+      setup();
+    }
+    return () => {
+      if (unsub) {
+        if (typeof unsub === 'function') unsub();
+        else if (typeof unsub.unsubscribe === 'function') unsub.unsubscribe();
+      }
+    };
+  }, [driverId]);
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [showChat, setShowChat] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [chatMsg, setChatMsg] = useState('');
-  const [chatHistory, setChatHistory] = useState([
-    { from: 'driver', text: 'On my way! Following the GPS navigation route.' },
-  ]);
+  const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [showPlateVerify, setShowPlateVerify] = useState(false);
   const [plateInput, setPlateInput] = useState('');
@@ -56,10 +127,7 @@ export default function TrackingScreen() {
   const radarAnim = useRef(new Animated.Value(0)).current;
   const beaconAnim = useRef(new Animated.Value(0)).current;
 
-  // Pickup and Completion OTPs
-  const PICKUP_OTP = '7 4 2 9';
-  const COMPLETION_OTP = '3 8 5 1';
-  const DRIVER_PLATE = 'MH 02 AB 1234';
+
 
   // Continuous loop animation of the Tow Truck gliding along the GPS route line
   useEffect(() => {
@@ -117,21 +185,7 @@ export default function TrackingScreen() {
     };
   }, []);
 
-  // Update real-time speed simulation
-  useEffect(() => {
-    const speedInterval = setInterval(() => {
-      setSpeedVal(Math.floor(38 + Math.random() * 12));
-    }, 2000);
-    return () => clearInterval(speedInterval);
-  }, []);
 
-  // Dynamic step auto-progression for demonstration
-  useEffect(() => {
-    if (currentStep < STEPS.length - 1) {
-      const t = setTimeout(() => setCurrentStep(s => s + 1), 7000);
-      return () => clearTimeout(t);
-    }
-  }, [currentStep]);
 
   // Show plate verification when driver arrives
   useEffect(() => {
@@ -148,7 +202,7 @@ export default function TrackingScreen() {
   };
 
   const handleVerifyPlate = () => {
-    if (plateInput.replace(/\s/g, '').toUpperCase() === DRIVER_PLATE.replace(/\s/g, '').toUpperCase()) {
+    if (plateInput.replace(/\s/g, '').toUpperCase() === driverPlate.replace(/\s/g, '').toUpperCase()) {
       setPlateVerified(true);
       setShowPlateVerify(false);
     }
@@ -252,7 +306,7 @@ export default function TrackingScreen() {
                   <View style={[styles.dotSmall, { backgroundColor: '#00FF97' }]} />
                   <Text style={styles.waypointTitle}>PICKUP (A)</Text>
                 </View>
-                <Text style={styles.waypointAddress} numberOfLines={1}>MG Road, Andheri W.</Text>
+                <Text style={styles.waypointAddress} numberOfLines={1}>{pickupAddr}</Text>
               </View>
             </View>
 
@@ -266,7 +320,7 @@ export default function TrackingScreen() {
                   <View style={[styles.dotSmall, { backgroundColor: '#F43F5E' }]} />
                   <Text style={[styles.waypointTitle, { color: '#F43F5E' }]}>DROP-OFF (B)</Text>
                 </View>
-                <Text style={styles.waypointAddress} numberOfLines={1}>AutoFix Garage, Bandra</Text>
+                <Text style={styles.waypointAddress} numberOfLines={1}>{dropoffAddr}</Text>
               </View>
             </View>
 
@@ -301,7 +355,7 @@ export default function TrackingScreen() {
 
               {/* Live Driver Tag on Truck */}
               <View style={styles.truckFloatingTag}>
-                <Text style={styles.truckTagText}>Rajesh · Bolero Tow</Text>
+                <Text style={styles.truckTagText}>{driverName} · {driverVehicle}</Text>
               </View>
             </Animated.View>
 
@@ -310,7 +364,7 @@ export default function TrackingScreen() {
               <View style={styles.mapEtaPill}>
                 <Ionicons name="navigate" size={14} color="#38BDF8" />
                 <Text style={styles.mapEtaText}>
-                  {currentStep < 3 ? '2.4 km to Pickup' : '6.8 km to Garage'}
+                  {booking?.distanceKm ? booking.distanceKm + ' km' : '—'}
                 </Text>
               </View>
               <View style={styles.mapEtaTimePill}>
@@ -388,12 +442,12 @@ export default function TrackingScreen() {
               <Text style={styles.driverAvatarText}>R</Text>
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.driverName}>Rajesh Kumar</Text>
+              <Text style={styles.driverName}>{driverName}</Text>
               <View style={styles.ratingRow}>
                 <Ionicons name="star" size={12} color="#FFD60A" />
-                <Text style={styles.ratingText}>4.9 · 1,420 completed tows</Text>
+                <Text style={styles.ratingText}>{driver?.rating ? driver.rating + ' · ' + (driver.totalTrips || 0) + ' trips' : '—'}</Text>
               </View>
-              <Text style={styles.driverPlate}>🚛 Mahindra Bolero · {DRIVER_PLATE}</Text>
+              <Text style={styles.driverPlate}>🚛 {driverVehicle} · {driverPlate}</Text>
             </View>
             <View style={styles.driverActions}>
               <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
@@ -418,13 +472,13 @@ export default function TrackingScreen() {
               <Text style={styles.otpTitle}>Pickup Verification OTP</Text>
             </View>
             <View style={styles.otpDigits}>
-              {PICKUP_OTP.split(' ').map((d, i) => (
+              {pickupOtp.split(' ').map((d, i) => (
                 <View key={i} style={styles.otpDigitBox}>
                   <Text style={styles.otpDigit}>{d}</Text>
                 </View>
               ))}
             </View>
-            <Text style={styles.otpHint}>Share this secret OTP with driver Rajesh to verify vehicle handover</Text>
+            <Text style={styles.otpHint}>Share this OTP with your driver to verify vehicle handover</Text>
           </BlurView>
         )}
 
@@ -436,7 +490,7 @@ export default function TrackingScreen() {
               <Text style={[styles.otpTitle, { color: '#00FF97' }]}>Drop-off Delivery OTP</Text>
             </View>
             <View style={styles.otpDigits}>
-              {COMPLETION_OTP.split(' ').map((d, i) => (
+              {completionOtp.split(' ').map((d, i) => (
                 <View key={i} style={[styles.otpDigitBox, { borderColor: '#00FF97' }]}>
                   <Text style={[styles.otpDigit, { color: '#00FF97' }]}>{d}</Text>
                 </View>
@@ -465,8 +519,8 @@ export default function TrackingScreen() {
           <BlurView intensity={40} tint="dark" style={styles.chatSheet}>
             <View style={styles.chatHeader}>
               <View>
-                <Text style={styles.chatTitle}>Chat with Rajesh Kumar</Text>
-                <Text style={styles.chatSub}>Mahindra Bolero Tow Truck · {DRIVER_PLATE}</Text>
+                <Text style={styles.chatTitle}>Chat with Driver</Text>
+                <Text style={styles.chatSub}>{driverVehicle} · {driverPlate}</Text>
               </View>
               <TouchableOpacity onPress={() => setShowChat(false)} style={styles.closeCircle}>
                 <Ionicons name="close" size={18} color="#fff" />
@@ -549,7 +603,7 @@ export default function TrackingScreen() {
             </View>
             <Text style={styles.plateTitle}>Driver Has Arrived</Text>
             <Text style={styles.plateDesc}>
-              Before handing over your vehicle, verify the tow truck number plate ({DRIVER_PLATE}).
+              Before handing over your vehicle, verify the tow truck number plate ({driverPlate}).
             </Text>
             <TextInput
               style={styles.plateInput}

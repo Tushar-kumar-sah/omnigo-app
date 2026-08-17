@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { THEME } from '../../constants/theme';
-import { INSPECTION_STEPS, mockIncomingJob } from '../../constants/mock-data';
+import { INSPECTION_STEPS } from '../../constants/app-config';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function PreInspectionScreen() {
@@ -17,9 +17,12 @@ export default function PreInspectionScreen() {
   const step = INSPECTION_STEPS[currentStepIndex];
   const isCaptured = !!captures[step.id];
 
+  const params = useLocalSearchParams();
+  const jobId = params.id as string || '';
+
   const now = new Date();
   const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-  const watermarkText = `GPS: 18.5204°N, 73.8567°E | ${timestamp} | DRV-2024-0847 | ${mockIncomingJob.id}`;
+  const watermarkText = `GPS: ... | ${timestamp} | Driver | ${jobId}`;
 
   // Recording timer effect
   useEffect(() => {
@@ -60,7 +63,7 @@ export default function PreInspectionScreen() {
         if (currentStepIndex < INSPECTION_STEPS.length - 1) {
           setCurrentStepIndex(prev => prev + 1);
         } else {
-          router.push('/job/condition-report');
+          router.push({ pathname: '/job/condition-report', params: { id: jobId } });
         }
       }, 350);
     });
@@ -84,7 +87,7 @@ export default function PreInspectionScreen() {
         if (currentStepIndex < INSPECTION_STEPS.length - 1) {
           setCurrentStepIndex(prev => prev + 1);
         } else {
-          router.push('/job/condition-report');
+          router.push({ pathname: '/job/condition-report', params: { id: jobId } });
         }
       }, 350);
     });
@@ -120,7 +123,7 @@ export default function PreInspectionScreen() {
     if (currentStepIndex < INSPECTION_STEPS.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
     } else {
-      router.push('/job/condition-report');
+      router.push({ pathname: '/job/condition-report', params: { id: jobId } });
     }
   };
 

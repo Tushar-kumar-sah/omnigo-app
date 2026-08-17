@@ -1,10 +1,11 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StatsCard from '@/components/StatsCard';
 import GlassCard from '@/components/GlassCard';
 import StatusBadge from '@/components/StatusBadge';
-import { revenueData } from '@/lib/mock-data';
+
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from '@/components/Charts';
+import { createSettlement } from '@omnigo/api';
 
 interface AuditRow {
   bookingId: string;
@@ -22,98 +23,83 @@ interface AuditRow {
   route: string;
 }
 
-const AUDIT_DATA: AuditRow[] = [
-  {
-    bookingId: 'JOB-7821',
-    customerName: 'Rahul Sharma',
-    paymentId: 'PAY-OMNI-7821',
-    gatewayMethod: 'UPI (GPay)',
-    customerPaid: '₹850.00',
-    commission: '₹85.00 (10%)',
-    partnerEarning: '₹765.00',
-    tip: '₹150.00',
-    settlementId: 'SETTLE-8910',
-    payoutStatus: 'Pending Clearance',
-    utr: 'Scheduled Tuesday',
-    date: '15 Aug 2026, 14:30',
-    route: 'MG Road ➔ Whitefield, Bangalore',
-  },
-  {
-    bookingId: 'JOB-7802',
-    customerName: 'Priya Sharma',
-    paymentId: 'PAY-OMNI-7802',
-    gatewayMethod: 'Card (Visa ••4012)',
-    customerPaid: '₹1,200.00',
-    commission: '₹120.00 (10%)',
-    partnerEarning: '₹1,080.00',
-    tip: '₹0.00',
-    settlementId: 'SETTLE-8821',
-    payoutStatus: 'Settled & Paid',
-    utr: 'UTR9928172648',
-    date: '14 Aug 2026, 10:15',
-    route: 'Pimpri ➔ Hinjawadi, Pune',
-  },
-  {
-    bookingId: 'JOB-7798',
-    customerName: 'Sneha Patil',
-    paymentId: 'PAY-OMNI-7798',
-    gatewayMethod: 'UPI (PhonePe)',
-    customerPaid: '₹950.00',
-    commission: '₹95.00 (10%)',
-    partnerEarning: '₹855.00',
-    tip: '₹100.00',
-    settlementId: 'SETTLE-8821',
-    payoutStatus: 'Settled & Paid',
-    utr: 'UTR9928172648',
-    date: '13 Aug 2026, 16:45',
-    route: 'Koregaon Park ➔ Hadapsar',
-  },
-  {
-    bookingId: 'JOB-7750',
-    customerName: 'Amit Verma',
-    paymentId: 'PAY-OMNI-7750',
-    gatewayMethod: 'Card (Mastercard)',
-    customerPaid: '₹2,400.00',
-    commission: '₹240.00 (10%)',
-    partnerEarning: '₹2,160.00',
-    tip: '₹200.00',
-    settlementId: 'SETTLE-8821',
-    payoutStatus: 'Settled & Paid',
-    utr: 'UTR9928172648',
-    date: '12 Aug 2026, 11:20',
-    route: 'Viman Nagar ➔ Baner',
-  },
-  {
-    bookingId: 'JOB-7710',
-    customerName: 'Karan Mehra',
-    paymentId: 'PAY-OMNI-7710',
-    gatewayMethod: 'UPI (Paytm)',
-    customerPaid: '₹3,200.00',
-    commission: '₹320.00 (10%)',
-    partnerEarning: '₹2,880.00',
-    tip: '₹0.00',
-    settlementId: 'SETTLE-8821',
-    payoutStatus: 'Settled & Paid',
-    utr: 'UTR9928172648',
-    date: '11 Aug 2026, 18:10',
-    route: 'Aundh ➔ Urse Toll Plaza',
-  },
-];
-
 export default function RevenuePage() {
   const [selectedAudit, setSelectedAudit] = useState<AuditRow | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'settled'>('all');
   const [settlementNotice, setSettlementNotice] = useState<string | null>(null);
+  const [auditData, setAuditData] = useState<AuditRow[]>([]);
+  const [revData, setRevData] = useState<any[]>([]);
+  const [summary, setSummary] = useState<{ totalGMV: number; omniGoRevenue: number; driverPayouts: number; pendingEscrow: number } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const filteredData = AUDIT_DATA.filter(row => {
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/revenue');
+        if (!res.ok) throw new Error('API error');
+        const { entries, summary: sum } = await res.json();
+        
+        if (entries && Array.isArray(entries)) {
+          const mapped: AuditRow[] = entries.map((e: any) => ({
+            bookingId: e.bookingId || e.booking_id || e.booking_number || '—',
+            customerName: e.customerName || e.customer_name || '—',
+            paymentId: e.paymentId || e.payment_id || '—',
+            gatewayMethod: e.gatewayMethod || e.payment_method || 'UPI (Escrow)',
+            customerPaid: typeof e.customerPaid === 'string' ? e.customerPaid : `₹${Number(e.gross_customer_fare || 0).toLocaleString('en-IN')}`,
+            commission: typeof e.omniGoTake === 'string' ? e.omniGoTake : typeof e.commission === 'string' ? e.commission : `₹${Number(e.commission_amount || 0).toLocaleString('en-IN')}`,
+            partnerEarning: typeof e.partnerPayable === 'string' ? e.partnerPayable : typeof e.partnerEarning === 'string' ? e.partnerEarning : `₹${Number(e.driver_net_earning || 0).toLocaleString('en-IN')}`,
+            tip: typeof e.tip === 'string' ? e.tip : `₹${Number(e.customer_tip || 0).toLocaleString('en-IN')}`,
+            settlementId: e.ledgerNumber || e.ledger_number || e.settlementId || '—',
+            payoutStatus: (e.payoutStatus || (e.settlement_status === 'settled' ? 'Settled & Paid' : 'Pending Clearance')) as any,
+            utr: e.utrNumber || e.utr || '—',
+            date: e.date || (e.created_at ? new Date(e.created_at).toLocaleDateString('en-IN') : '—'),
+            route: e.route || (e.pickup_address && e.dropoff_address ? `${e.pickup_address} ➔ ${e.dropoff_address}` : '—'),
+          }));
+          setAuditData(mapped);
+        } else {
+          setAuditData([]);
+        }
+
+        if (sum) {
+          setSummary({
+            totalGMV: Number(sum.totalGMV || 0),
+            omniGoRevenue: Number(sum.omniGoRevenue || 0),
+            driverPayouts: Number(sum.driverPayouts || 0),
+            pendingEscrow: Number(sum.pendingEscrow || 0),
+          });
+        }
+
+        // Also fetch revenue chart data
+        const statsRes = await fetch('/api/stats');
+        if (statsRes.ok) {
+          const { revenue: rData } = await statsRes.json();
+          if (rData && Array.isArray(rData)) setRevData(rData);
+        }
+      } catch (e) {
+        console.error('[Revenue]', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const filteredData = auditData.filter(row => {
     if (filter === 'pending') return row.payoutStatus === 'Pending Clearance';
     if (filter === 'settled') return row.payoutStatus === 'Settled & Paid';
     return true;
   });
 
-  const handleTriggerSettlement = () => {
-    setSettlementNotice('Batch Settlement Triggered: ₹915.00 scheduled for automated IMPS disbursement.');
-    setTimeout(() => setSettlementNotice(null), 5000);
+  const handleTriggerSettlement = async () => {
+    try {
+      await createSettlement({ type: 'batch' });
+      setSettlementNotice('Batch Settlement Processed: Triggered clearance check on all pending escrow entries.');
+      setTimeout(() => setSettlementNotice(null), 5000);
+    } catch (err) {
+      setSettlementNotice('Failed to trigger settlement batch.');
+      setTimeout(() => setSettlementNotice(null), 5000);
+    }
   };
 
   return (
@@ -181,12 +167,12 @@ export default function RevenuePage() {
         </div>
       </GlassCard>
 
-      {/* KPI Stats Cards */}
+      {/* KPI Stats Cards - Real Data from DB */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-        <StatsCard title="Gross Gateway Volume" value="₹12,45,000" trend="+15% (100% Gateway)" />
-        <StatsCard title="OmniGo Net Commission" value="₹1,85,000" trend="+12.4% Revenue" />
-        <StatsCard title="Partner Settlements Paid" value="₹9,98,000" trend="Automated IMPS/NEFT" />
-        <StatsCard title="Active Escrow In-Transit" value="₹84,200" trend="Held for Verification" />
+        <StatsCard title="Gross Gateway Volume" value={`₹${(summary?.totalGMV ?? 0).toLocaleString('en-IN')}`} trend="Live Gateway Volume" />
+        <StatsCard title="OmniGo Net Commission" value={`₹${(summary?.omniGoRevenue ?? 0).toLocaleString('en-IN')}`} trend="Platform Net Revenue" />
+        <StatsCard title="Partner Settlements Paid" value={`₹${(summary?.driverPayouts ?? 0).toLocaleString('en-IN')}`} trend="Disbursed to Partners" />
+        <StatsCard title="Active Escrow In-Transit" value={`₹${(summary?.pendingEscrow ?? 0).toLocaleString('en-IN')}`} trend="Pending Clearance" />
       </div>
 
       {/* Revenue Trend Chart */}
@@ -196,17 +182,23 @@ export default function RevenuePage() {
             <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 600 }}>Daily Gross vs Commission Volume</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '2px' }}>100% processed through OmniGo Master Escrow</p>
           </div>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-green)' }}>100% Ingestion</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-green)' }}>Live Ingestion</span>
         </div>
         <div style={{ height: '280px' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={revenueData}>
-              <XAxis dataKey="name" stroke="#475569" fontSize={12} tickLine={false} />
-              <YAxis stroke="#475569" fontSize={12} tickLine={false} />
-              <Tooltip contentStyle={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} />
-              <Line type="monotone" dataKey="revenue" stroke="var(--accent-cyan)" strokeWidth={2.5} name="Total Volume (₹)" dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          {revData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={revData}>
+                <XAxis dataKey="name" stroke="#475569" fontSize={12} tickLine={false} />
+                <YAxis stroke="#475569" fontSize={12} tickLine={false} />
+                <Tooltip contentStyle={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} />
+                <Line type="monotone" dataKey="revenue" stroke="var(--accent-cyan)" strokeWidth={2.5} name="Total Volume (₹)" dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              No historical revenue entries recorded yet in ledger
+            </div>
+          )}
         </div>
       </GlassCard>
 
@@ -234,7 +226,7 @@ export default function RevenuePage() {
                 cursor: 'pointer',
               }}
             >
-              All ({AUDIT_DATA.length})
+              All ({auditData.length})
             </button>
             <button
               onClick={() => setFilter('pending')}
@@ -284,50 +276,58 @@ export default function RevenuePage() {
               </tr>
             </thead>
             <tbody>
-              {filteredData.map((row) => (
-                <tr
-                  key={row.bookingId}
-                  style={{ borderBottom: '1px solid var(--glass-border-subtle)', transition: 'background 0.15s ease' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600, fontSize: '0.86rem', color: '#F8FAFC' }}>{row.bookingId}</td>
-                  <td style={{ padding: '0.95rem 1.25rem', color: 'var(--accent-cyan)', fontSize: '0.82rem', fontFamily: 'monospace' }}>
-                    {row.paymentId}
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{row.gatewayMethod}</div>
-                  </td>
-                  <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600, fontSize: '0.88rem', fontVariantNumeric: 'tabular-nums' }}>{row.customerPaid}</td>
-                  <td style={{ padding: '0.95rem 1.25rem', color: 'var(--accent-red)', fontWeight: 600, fontSize: '0.84rem', fontVariantNumeric: 'tabular-nums' }}>-{row.commission}</td>
-                  <td style={{ padding: '0.95rem 1.25rem', color: 'var(--accent-green)', fontWeight: 600, fontSize: '0.88rem', fontVariantNumeric: 'tabular-nums' }}>
-                    {row.partnerEarning}
-                    {row.tip !== '₹0.00' && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}> (+{row.tip} tip)</span>}
-                  </td>
-                  <td style={{ padding: '0.95rem 1.25rem', fontSize: '0.8rem', fontFamily: 'monospace', color: '#E2E8F0' }}>{row.settlementId}</td>
-                  <td style={{ padding: '0.95rem 1.25rem' }}>
-                    <StatusBadge status={row.payoutStatus} />
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'monospace' }}>
-                      {row.utr}
-                    </div>
-                  </td>
-                  <td style={{ padding: '0.95rem 1.25rem' }}>
-                    <button
-                      onClick={() => setSelectedAudit(row)}
-                      style={{
-                        padding: '0.35rem 0.8rem',
-                        borderRadius: '6px',
-                        background: 'rgba(56,189,248,0.08)',
-                        border: '1px solid rgba(56,189,248,0.25)',
-                        color: 'var(--accent-cyan)',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Audit Trail
-                    </button>
+              {filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    {loading ? 'Fetching ledger records from database...' : 'No ledger transactions recorded in database yet.'}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredData.map((row) => (
+                  <tr
+                    key={row.bookingId + row.paymentId}
+                    style={{ borderBottom: '1px solid var(--glass-border-subtle)', transition: 'background 0.15s ease' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600, fontSize: '0.86rem', color: '#F8FAFC' }}>{row.bookingId}</td>
+                    <td style={{ padding: '0.95rem 1.25rem', color: 'var(--accent-cyan)', fontSize: '0.82rem', fontFamily: 'monospace' }}>
+                      {row.paymentId}
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{row.gatewayMethod}</div>
+                    </td>
+                    <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600, fontSize: '0.88rem', fontVariantNumeric: 'tabular-nums' }}>{row.customerPaid}</td>
+                    <td style={{ padding: '0.95rem 1.25rem', color: 'var(--accent-red)', fontWeight: 600, fontSize: '0.84rem', fontVariantNumeric: 'tabular-nums' }}>-{row.commission}</td>
+                    <td style={{ padding: '0.95rem 1.25rem', color: 'var(--accent-green)', fontWeight: 600, fontSize: '0.88rem', fontVariantNumeric: 'tabular-nums' }}>
+                      {row.partnerEarning}
+                      {row.tip !== '₹0' && row.tip !== '₹0.00' && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}> (+{row.tip} tip)</span>}
+                    </td>
+                    <td style={{ padding: '0.95rem 1.25rem', fontSize: '0.8rem', fontFamily: 'monospace', color: '#E2E8F0' }}>{row.settlementId}</td>
+                    <td style={{ padding: '0.95rem 1.25rem' }}>
+                      <StatusBadge status={row.payoutStatus} />
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'monospace' }}>
+                        {row.utr}
+                      </div>
+                    </td>
+                    <td style={{ padding: '0.95rem 1.25rem' }}>
+                      <button
+                        onClick={() => setSelectedAudit(row)}
+                        style={{
+                          padding: '0.35rem 0.8rem',
+                          borderRadius: '6px',
+                          background: 'rgba(56,189,248,0.08)',
+                          border: '1px solid rgba(56,189,248,0.25)',
+                          color: 'var(--accent-cyan)',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Audit Trail
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

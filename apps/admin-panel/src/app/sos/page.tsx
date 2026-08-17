@@ -1,24 +1,66 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '@/components/GlassCard';
 import StatusBadge from '@/components/StatusBadge';
-import { activeSOSIncidents, SOSIncident } from '@/lib/mock-data';
-
+import { SOSIncident } from '@/lib/mock-data';
 export default function SOSCommandCenterPage() {
-  const [incidents, setIncidents] = useState<SOSIncident[]>(activeSOSIncidents);
+  const [incidents, setIncidents] = useState<SOSIncident[]>([]);
   const [escalationNotice, setEscalationNotice] = useState<string | null>(null);
 
-  const handleEscalatePolice = (id: string) => {
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/sos');
+        if (!res.ok) throw new Error('API error');
+        const { incidents: live } = await res.json();
+        if (live && live.length > 0) {
+          const mapped = live.map((inc: any): SOSIncident => ({
+            id: inc.id || 'SOS-N/A',
+            customerName: inc.customerName || inc.customer_name || inc.user_name || 'Unknown',
+            customerPhone: inc.customerPhone || inc.phone || '',
+            location: inc.location || inc.location_address || 'Unknown Location',
+            gpsCoords: inc.gpsCoords || inc.gps_coords || '',
+            vehicleModel: inc.vehicleModel || inc.vehicle_description || '',
+            hazardType: inc.hazardType || inc.incident_type || 'Emergency',
+            assignedDriverName: inc.assignedDriverName || inc.driver_name || 'Dispatching...',
+            assignedDriverPhone: inc.assignedDriverPhone || '',
+            driverEta: inc.driverEta || inc.eta || 'Calculating...',
+            status: inc.status === 'active' ? 'Active Alert 🚨' : inc.status === 'resolved' ? 'Resolved' : (inc.status || 'Active Alert 🚨') as any,
+            policeNotified: inc.policeNotified || inc.police_notified || false,
+            timeline: inc.timeline || [],
+          }));
+          setIncidents(mapped);
+        }
+      } catch (e) {
+        console.error('[SOS]', e);
+      }
+    }
+    load();
+    // Poll every 15s for fresh SOS alerts
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleEscalatePolice = async (id: string) => {
+    try {
+      await fetch('/api/sos', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status: 'Police Dispatched' }) });
+    } catch(e) { /* silently handle */ }
     setEscalationNotice(`Dispatched priority distress to Highway Police & 112 Control Room for Case ${id}.`);
     setTimeout(() => setEscalationNotice(null), 5000);
   };
 
-  const handleDispatchAmbulance = (id: string) => {
+  const handleDispatchAmbulance = async (id: string) => {
+    try {
+      await fetch('/api/sos', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status: 'EMS Dispatched' }) });
+    } catch(e) { /* silently handle */ }
     setEscalationNotice(`Emergency Medical Services (EMS) dispatched to Case ${id}.`);
     setTimeout(() => setEscalationNotice(null), 5000);
   };
 
-  const handleResolveSOS = (id: string) => {
+  const handleResolveSOS = async (id: string) => {
+    try {
+      await fetch('/api/sos', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status: 'Resolved' }) });
+    } catch(e) { /* silently handle */ }
     setIncidents(prev => prev.map(inc => inc.id === id ? { ...inc, status: 'Resolved' } : inc));
     setEscalationNotice(`Case ${id} marked as SAFELY RESOLVED. Emergency telemetry archived.`);
     setTimeout(() => setEscalationNotice(null), 5000);

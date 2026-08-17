@@ -1,16 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { THEME } from '../../constants/theme';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { mockEarnings, mockDriver, mockPayoutHistory, mockJobs } from '../../constants/mock-data';
+import { getDriverEarnings, getBookingsByDriver, getDriverById, getPayouts, getDriverLedger, createSettlement, Driver, Booking, DriverEarnings, PayoutRecord } from '@omnigo/api';
 
 export default function EarningsScreen() {
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [activeTab, setActiveTab] = useState<'overview' | 'wallet' | 'payouts'>('overview');
 
-  const currentData = mockEarnings[period];
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [jobs, setJobs] = useState<Booking[]>([]);
+  const [earnings, setEarnings] = useState<DriverEarnings | null>(null);
+  const [payouts, setPayouts] = useState<PayoutRecord[]>([]);
+  const [ledger, setLedger] = useState<any[]>([]);
+
+  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const d = await getDriverById(DRIVER_ID);
+        setDriver(d);
+        const j = await getBookingsByDriver(DRIVER_ID);
+        setJobs(j);
+        const e = await getDriverEarnings(DRIVER_ID);
+        setEarnings(e);
+        const p = await getPayouts(DRIVER_ID);
+        setPayouts(p);
+        const l = await getDriverLedger(DRIVER_ID);
+        setLedger(l);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadData();
+  }, [DRIVER_ID]);
+
+  const earningsAmount = earnings
+    ? period === 'today' ? earnings.today
+    : period === 'week' ? earnings.thisWeek
+    : earnings.thisMonth
+    : 0;
+  const currentData = {
+    amount: `₹${earningsAmount}`,
+    trips: jobs.length,
+    online: '0h',
+    distance: '0 km'
+  };
+
+  const driverData = (driver || {}) as any;
+  const jobsData = jobs.map(j => {
+    const entry = ledger.find((l: any) => l.booking_id === j.id) || {};
+    return {
+      id: j.id,
+      vehicleMake: j.customerVehicle?.brand || 'Unknown',
+      vehicleModel: j.customerVehicle?.model || '',
+      vehicleType: j.vehicleTypeId || 'Car',
+      date: new Date(j.createdAt).toLocaleDateString(),
+      distance: j.distance ? j.distance + ' km' : '—',
+      driverEarnings: `₹${j.finalPrice || j.estimatedPrice || 0}`,
+      price: `₹${j.estimatedPrice || 0}`,
+      platformFee: '₹' + Math.round((entry as any).commission_amount || 0),
+      tip: '₹' + Math.round((entry as any).customer_tip || 0)
+    };
+  });
+
+  const payoutsData = payouts.map(p => ({
+    id: p.payoutId,
+    amount: `₹${p.amount}`,
+    date: new Date(p.disbursedAt).toLocaleDateString(),
+    status: p.status,
+    utr: p.utrNumber || 'N/A',
+    bank: p.bankName || 'Bank'
+  }));
 
   const periods = [
     { id: 'today', label: 'Today' },
@@ -19,12 +83,28 @@ export default function EarningsScreen() {
   ] as const;
 
   const handleInstantPayout = () => {
+    const availableBalance = driverData.wallet?.balance || earningsAmount || 0;
     Alert.alert(
       'Instant Payout',
-      `Transfer ${mockDriver.wallet.availableBalance} to ${mockDriver.bank.bankName} (${mockDriver.bank.accountNumber})?`,
+      `Transfer ₹${availableBalance} to ${driverData.bank_name || driverData.bankName || 'Bank'} (${driverData.bank_account_number || driverData.bankAccountNumber || ''})?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Confirm Transfer', onPress: () => Alert.alert('Success', 'Transfer initiated! Funds will reflect in 15 minutes.') }
+        { text: 'Confirm Transfer', onPress: async () => {
+            try {
+              await createSettlement({
+                driverId: DRIVER_ID,
+                driverName: 'Rajesh Kumar',
+                bookingIds: [],
+                grossAmount: availableBalance,
+                totalCommissionDeducted: 0,
+                netPayable: availableBalance
+              });
+              Alert.alert('Success', 'Transfer initiated! Funds will reflect in 15 minutes.');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to initiate transfer.');
+            }
+          }
+        }
       ]
     );
   };
@@ -124,7 +204,7 @@ export default function EarningsScreen() {
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Ionicons name="checkmark-done" size={18} color={THEME.colors.primary} />
-                <Text style={styles.statBoxValue}>{mockDriver.acceptanceRate}%</Text>
+                <Text style={styles.statBoxValue}>{driverData.acceptance_rate || driverData.acceptanceRate || 100}%</Text>
                 <Text style={styles.statBoxLabel}>Acceptance</Text>
               </View>
             </View>
@@ -135,15 +215,15 @@ export default function EarningsScreen() {
           <BlurView intensity={20} tint="dark" style={styles.breakdownCard}>
             <View style={styles.feeRow}>
               <Text style={styles.feeLabel}>Gross Customer Payments</Text>
-              <Text style={styles.feeValue}>₹{period === 'today' ? '1,580' : period === 'week' ? '9,720' : '38,000'}</Text>
+              <Text style={styles.feeValue}>₹0</Text>
             </View>
             <View style={styles.feeRow}>
               <Text style={styles.feeLabel}>OmniGo Platform Commission (10%)</Text>
-              <Text style={[styles.feeValue, { color: THEME.colors.danger }]}>-₹{period === 'today' ? '155' : period === 'week' ? '970' : '3,800'}</Text>
+              <Text style={[styles.feeValue, { color: THEME.colors.danger }]}>-₹0</Text>
             </View>
             <View style={styles.feeRow}>
               <Text style={styles.feeLabel}>Customer Tips Received (100% to Driver)</Text>
-              <Text style={[styles.feeValue, { color: THEME.colors.success }]}>+₹{period === 'today' ? '100' : period === 'week' ? '450' : '1,800'}</Text>
+              <Text style={[styles.feeValue, { color: THEME.colors.success }]}>+₹0</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.feeRow}>
@@ -154,7 +234,7 @@ export default function EarningsScreen() {
 
           {/* Recent Trip Earnings List */}
           <Text style={styles.sectionTitle}>Recent Trip Earnings</Text>
-          {mockJobs.map((job) => (
+          {jobsData.map((job) => (
             <BlurView key={job.id} intensity={20} tint="dark" style={styles.tripCard}>
               <View style={styles.tripCardHeader}>
                 <View style={styles.tripLeft}>
@@ -173,7 +253,7 @@ export default function EarningsScreen() {
               </View>
 
               <View style={styles.tripDetailsPill}>
-                <Text style={styles.tripPillText}>Customer: {job.price}  |  OmniGo Fee: -{job.platformFee}  |  Driver Net: {job.driverEarnings}</Text>
+                <Text style={styles.tripPillText}>Customer: {job.price}  |  OmniGo Fee: -{job.platformFee}  |  Tip: {job.tip}  |  Driver Net: {job.driverEarnings}</Text>
               </View>
             </BlurView>
           ))}
@@ -189,11 +269,11 @@ export default function EarningsScreen() {
               style={StyleSheet.absoluteFillObject}
             />
             <Text style={styles.walletLabel}>Available Wallet Balance</Text>
-            <Text style={styles.walletBalanceBig}>{mockDriver.wallet.availableBalance}</Text>
+            <Text style={styles.walletBalanceBig}>₹{driverData.wallet?.balance || earningsAmount || 0}</Text>
             
             <View style={styles.pendingRow}>
               <Ionicons name="hourglass-outline" size={15} color={THEME.colors.warning} />
-              <Text style={styles.pendingText}>Pending Balance: <Text style={{ color: '#fff', fontFamily: THEME.fonts.inter.bold }}>{mockDriver.wallet.pendingBalance}</Text> (settles in 2h)</Text>
+              <Text style={styles.pendingText}>Pending Balance: <Text style={{ color: '#fff', fontFamily: THEME.fonts.inter.bold }}>₹{driverData.wallet?.pendingBalance || 0}</Text> (settles in 2h)</Text>
             </View>
 
             <TouchableOpacity style={styles.payoutBtnTouch} onPress={handleInstantPayout} activeOpacity={0.85}>
@@ -216,8 +296,8 @@ export default function EarningsScreen() {
                 <Ionicons name="business" size={22} color={THEME.colors.primary} />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.bankName}>{mockDriver.bank.bankName}</Text>
-                <Text style={styles.bankAccountNo}>{mockDriver.bank.accountNumber}</Text>
+                <Text style={styles.bankName}>{driverData.bank_name || driverData.bankName || 'Your Bank'}</Text>
+                <Text style={styles.bankAccountNo}>{driverData.bank_account_number || driverData.bankAccountNumber || 'XXXX XXXX'}</Text>
               </View>
               <View style={styles.approvedBadge}>
                 <Ionicons name="checkmark-circle" size={14} color={THEME.colors.success} />
@@ -229,19 +309,19 @@ export default function EarningsScreen() {
 
             <View style={styles.bankInfoRow}>
               <Text style={styles.bankInfoLabel}>Account Holder</Text>
-              <Text style={styles.bankInfoVal}>{mockDriver.bank.accountName}</Text>
+              <Text style={styles.bankInfoVal}>{driverData.name || 'Driver Name'}</Text>
             </View>
             <View style={styles.bankInfoRow}>
               <Text style={styles.bankInfoLabel}>IFSC Code</Text>
-              <Text style={styles.bankInfoVal}>{mockDriver.bank.ifsc}</Text>
+              <Text style={styles.bankInfoVal}>{driverData.bank_ifsc || driverData.bankIfsc || '—'}</Text>
             </View>
             <View style={styles.bankInfoRow}>
-              <Text style={styles.bankInfoLabel}>Branch</Text>
-              <Text style={styles.bankInfoVal}>{mockDriver.bank.branch}</Text>
+              <Text style={styles.bankInfoLabel}>Vehicle</Text>
+              <Text style={styles.bankInfoVal}>{driverData.vehicle_number || driverData.vehicleNumber || '—'}</Text>
             </View>
             <View style={styles.bankInfoRow}>
-              <Text style={styles.bankInfoLabel}>Direct UPI ID</Text>
-              <Text style={[styles.bankInfoVal, { color: THEME.colors.primary }]}>{mockDriver.bank.upiId}</Text>
+              <Text style={styles.bankInfoLabel}>Phone</Text>
+              <Text style={[styles.bankInfoVal, { color: THEME.colors.primary }]}>{driverData.phone || '—'}</Text>
             </View>
           </BlurView>
         </>
@@ -253,7 +333,7 @@ export default function EarningsScreen() {
           <Text style={styles.sectionTitle}>Completed Bank Transfers</Text>
           <Text style={styles.sectionSub}>All funds are deposited directly to your verified bank account.</Text>
 
-          {mockPayoutHistory.map((payout) => (
+          {payoutsData.map((payout) => (
             <BlurView key={payout.id} intensity={20} tint="dark" style={styles.payoutCard}>
               <View style={styles.payoutTop}>
                 <View style={styles.payoutIconCircle}>

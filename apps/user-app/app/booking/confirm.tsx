@@ -3,11 +3,15 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { theme } from '../../constants/theme';
+import { createNewBooking, fetchCurrentUser } from '../../lib/api';
+import { getPricingRules } from '@omnigo/api';
+
+const USER_ID = 'a0000000-0000-0000-0000-000000000001';
 
 const PAYMENT_METHODS = [
   { id: 'upi',  icon: 'qrcode-scan',       label: 'UPI',         sub: 'GPay · PhonePe · Paytm',  color: '#4CAF50' },
@@ -23,15 +27,32 @@ export default function ConfirmBookingScreen() {
   const [selectedPayment, setSelectedPayment] = useState<PaymentId>('upi');
   const [promoCode, setPromoCode]             = useState('');
   const [promoApplied, setPromoApplied]       = useState(false);
+  const [pricingRules, setPricingRules]       = useState<any>(null);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const rules = await getPricingRules();
+        setPricingRules(rules);
+      } catch (e) {}
+    })();
+  }, []);
+
+  const params = useLocalSearchParams();
+  const vehicleName = params.vehicleName as string || '—';
+  const vehiclePlate = params.vehiclePlate as string || '—';
+  const pickupAddr = params.pickup as string || '—';
+  const dropoffAddr = params.dropoff as string || '—';
+  const distanceVal = parseFloat(params.distance as string) || 0;
 
   // Fare values (₹)
-  const baseFare     = 500;
-  const distanceFee  = 128;  // 8.5 km × ₹15
-  const platformFee  = 25;
+  const baseFare     = parseFloat(params.baseFare as string) || 0;
+  const distanceFee  = parseFloat(params.distanceFee as string) || 0;
+  const platformFee  = baseFare > 0 ? (pricingRules?.platformFee || 25) : 0;
   const subtotal     = baseFare + distanceFee + platformFee;
-  const gst          = Math.round(subtotal * 0.18);
-  const discount     = promoApplied ? 50 : 0;
-  const total        = subtotal + gst - discount;
+  const gst          = Math.round(subtotal * (pricingRules?.gstRate ? pricingRules.gstRate / 100 : 0.18));
+  const discount     = promoApplied ? (subtotal > 50 ? 50 : 0) : 0;
+  const total        = subtotal > 0 ? subtotal + gst - discount : 0;
 
   const handleApplyPromo = () => {
     if (promoCode.trim().toUpperCase() === 'OMNI50') {
@@ -39,8 +60,26 @@ export default function ConfirmBookingScreen() {
     }
   };
 
-  const handleConfirm = () => {
-    router.push('/booking/tracking');
+  const handleConfirm = async () => {
+    try {
+      const user = await fetchCurrentUser();
+      const booking = await createNewBooking({
+        userId: user?.uuid || user?.id || USER_ID,
+        vehicleTypeId: 'flatbed',
+        customerVehicle: { make: '—', model: vehicleName, plate: vehiclePlate, color: '—' },
+        pickup: { address: pickupAddr, coordinates: { latitude: 0, longitude: 0 } },
+        dropoff: { address: dropoffAddr, coordinates: { latitude: 0, longitude: 0 } },
+        estimatedPrice: total,
+        distance: distanceVal,
+        paymentMethod: selectedPayment,
+      });
+      const bId = booking?.id || booking?.uuid || `b_${Date.now()}`;
+      router.push({ pathname: '/booking/searching', params: { bookingId: bId } });
+    } catch (e) {
+      console.warn('[Confirm] create booking error', e);
+      // fallback
+      router.push('/booking/searching');
+    }
   };
 
   return (
@@ -65,8 +104,8 @@ export default function ConfirmBookingScreen() {
           <View style={styles.cardHeader}>
             <MaterialCommunityIcons name="tow-truck" size={22} color={theme.colors.primary} />
             <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.cardTitle}>Flatbed Tow · Maruti Swift</Text>
-              <Text style={styles.cardSub}>KA 01 MH 4521 · White</Text>
+              <Text style={styles.cardTitle}>{vehicleName}</Text>
+              <Text style={styles.cardSub}>{vehiclePlate}</Text>
             </View>
             <View style={styles.etaChip}>
               <Ionicons name="time-outline" size={12} color={theme.colors.primary} />
@@ -86,11 +125,11 @@ export default function ConfirmBookingScreen() {
             <View style={{ flex: 1, gap: 10 }}>
               <View>
                 <Text style={styles.routeLabel}>PICKUP</Text>
-                <Text style={styles.routeAddr}>MG Road, Near Brigade Gateway, Bangalore</Text>
+                <Text style={styles.routeAddr}>{pickupAddr}</Text>
               </View>
               <View>
                 <Text style={styles.routeLabel}>DROP-OFF</Text>
-                <Text style={styles.routeAddr}>AutoFix Garage, Whitefield, Bangalore</Text>
+                <Text style={styles.routeAddr}>{dropoffAddr}</Text>
               </View>
             </View>
           </View>
@@ -98,7 +137,7 @@ export default function ConfirmBookingScreen() {
           <View style={styles.metaRow}>
             <View style={styles.metaChip}>
               <Ionicons name="navigate-outline" size={13} color={theme.colors.primary} />
-              <Text style={styles.metaText}>8.5 km</Text>
+              <Text style={styles.metaText}>{distanceVal > 0 ? `${distanceVal} km` : '—'}</Text>
             </View>
             <View style={styles.metaChip}>
               <Ionicons name="time-outline" size={13} color={theme.colors.primary} />
@@ -113,24 +152,7 @@ export default function ConfirmBookingScreen() {
 
         {/* Driver Card */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
-          <Text style={styles.sectionTitle}>Assigned Driver</Text>
-          <View style={styles.driverRow}>
-            <View style={styles.driverAvatar}>
-              <Text style={styles.driverAvatarText}>R</Text>
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.driverName}>Rajesh Kumar</Text>
-              <View style={styles.driverMeta}>
-                <Ionicons name="star" size={13} color="#FFD60A" />
-                <Text style={styles.driverRating}>4.8 · 1,240 trips</Text>
-              </View>
-              <Text style={styles.driverVehicle}>Mahindra Bolero · MH 02 AB 1234</Text>
-            </View>
-            <View style={styles.driverEtaBox}>
-              <Text style={styles.driverEtaNum}>12</Text>
-              <Text style={styles.driverEtaUnit}>min</Text>
-            </View>
-          </View>
+          <Text style={styles.sectionTitle}>Searching for nearby drivers...</Text>
         </BlurView>
 
         {/* Fare Breakdown */}
@@ -142,7 +164,7 @@ export default function ConfirmBookingScreen() {
             <Text style={styles.fareValue}>₹{baseFare}</Text>
           </View>
           <View style={styles.fareRow}>
-            <Text style={styles.fareLabel}>Distance Fee  <Text style={styles.fareSub}>(8.5 km × ₹15)</Text></Text>
+            <Text style={styles.fareLabel}>Distance Fee</Text>
             <Text style={styles.fareValue}>₹{distanceFee}</Text>
           </View>
           <View style={styles.fareRow}>
@@ -181,7 +203,7 @@ export default function ConfirmBookingScreen() {
           <Ionicons name="pricetag-outline" size={18} color={theme.colors.primary} style={{ marginTop: 2 }} />
           <TextInput
             style={styles.promoInput}
-            placeholder="Enter promo code (try OMNI50)"
+            placeholder="Enter promo code"
             placeholderTextColor="rgba(255,255,255,0.3)"
             value={promoCode}
             onChangeText={setPromoCode}

@@ -1,9 +1,15 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '@/components/GlassCard';
 
 export default function SettingsPage() {
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  const [config, setConfig] = useState<any>({ platformCommissionPercent: 10 });
+
+  useEffect(() => {
+    // Platform settings use local state (no DB table configured yet)
+    // Future: fetch from /api/settings when settings table is ready
+  }, []);
 
   const handleSave = () => {
     setSavedNotice('System configuration synchronized across cluster.');
@@ -61,7 +67,7 @@ export default function SettingsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Default Platform Commission Take (%)</label>
-              <input type="number" defaultValue={10} />
+              <input type="number" defaultValue={config.platformCommissionPercent || 10} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Auto-Assignment Proximity Radius (km)</label>

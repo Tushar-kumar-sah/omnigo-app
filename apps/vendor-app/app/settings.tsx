@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { THEME } from '../constants/theme';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { SETTINGS_ITEMS } from '../constants/mock-data';
+import { SETTINGS_ITEMS } from '../constants/app-config';
 import { useRouter } from 'expo-router';
 
 export default function SettingsScreen() {

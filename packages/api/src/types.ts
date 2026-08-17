@@ -4,18 +4,20 @@
 
 export interface User {
   id: string;
+  uuid?: string;
   name: string;
   phone: string;
   email: string;
   avatar: string;
   isVerified: boolean;
-  membershipTier: 'none' | 'silver' | 'gold' | 'platinum';
+  membershipTier: 'none' | 'silver' | 'gold' | 'platinum' | string;
   walletBalance: number;
   createdAt: string;
 }
 
 export interface Driver {
   id: string;
+  uuid?: string;
   name: string;
   phone: string;
   email: string;
@@ -62,6 +64,8 @@ export interface Location {
 
 export interface Booking {
   id: string;
+  uuid?: string;
+  bookingStatus?: string;
   userId: string;
   driverId?: string;
   vehicleTypeId: string;
@@ -146,9 +150,19 @@ export interface AdminStats {
   totalBookings: number;
   activeBookings: number;
   totalRevenue: number;
-  todayRevenue: number;
-  onlineDrivers: number;
-  averageRating: number;
+  todayRevenue?: number;
+  onlineDrivers?: number;
+  averageRating?: number;
+
+  // Operational Telemetry KPIs
+  todaysBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  gmv: number;
+  omniGoRevenue: number;
+  driversOnline: number;
+  availableTrucks: number;
+  averageEta: string;
 }
 
 export interface RevenueDataPoint {
@@ -247,3 +261,15 @@ export interface PaymentAuditTrail {
   settlement: PartnerSettlement;
   payout: PayoutRecord;
 }
+
+// ─── Status Display Config (UI utility) ─────────────────────
+export const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
+  pending: { label: 'Pending', color: '#FFB800', bg: 'rgba(255, 184, 0, 0.15)' },
+  searching: { label: 'Searching', color: '#00CFFF', bg: 'rgba(0, 207, 255, 0.15)' },
+  driver_assigned: { label: 'Driver Assigned', color: '#0CF2FF', bg: 'rgba(12, 242, 255, 0.15)' },
+  driver_arriving: { label: 'Driver Arriving', color: '#0CF2FF', bg: 'rgba(12, 242, 255, 0.15)' },
+  at_pickup: { label: 'At Pickup', color: '#00FF97', bg: 'rgba(0, 255, 151, 0.15)' },
+  towing: { label: 'Towing', color: '#00FF97', bg: 'rgba(0, 255, 151, 0.15)' },
+  completed: { label: 'Completed', color: '#00FF97', bg: 'rgba(0, 255, 151, 0.15)' },
+  cancelled: { label: 'Cancelled', color: '#FF3B3B', bg: 'rgba(255, 59, 59, 0.15)' },
+};

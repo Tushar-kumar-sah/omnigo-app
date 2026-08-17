@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
+  getDriverById,
+  getBookingsByDriver,
+  toggleDriverOnline,
+  updateDriverLocation,
+  subscribeToIncomingJobs,
+  Driver,
+  Booking
+} from '@omnigo/api';
+import * as Location from 'expo-location';
+import {
   View,
   Text,
   StyleSheet,
@@ -18,20 +28,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const INCOMING_JOB = {
-  id: 'JOB-7821',
-  customerName: 'Rahul Sharma',
-  vehicleType: 'Sedan — Honda City',
-  vehicleColor: 'White',
-  plateNo: 'KA 01 MH 4521',
-  issue: 'Flat tyre — needs towing',
-  pickupAddress: 'MG Road, Near Brigade Gateway, Bangalore',
-  dropAddress: 'AutoFix Garage, Whitefield, Bangalore',
-  distance: '4.2 km',
-  estimatedEarning: '₹475',
-  estimatedTime: '15 min',
-};
-
 export default function HomeScreen() {
   const [isOnline, setIsOnline] = useState(false);
   const [showJobPopup, setShowJobPopup] = useState(false);
@@ -40,23 +36,104 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [todayJobs, setTodayJobs] = useState<Booking[]>([]);
+  const [incomingJob, setIncomingJob] = useState<any>(null);
+  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+
+  // Fetch initial data
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const d = await getDriverById(DRIVER_ID);
+        setDriver(d);
+        const jobs = await getBookingsByDriver(DRIVER_ID);
+        const completed = jobs.filter(j => j.status === 'completed');
+        setTodayJobs(completed);
+        
+        if (d) {
+          setIsOnline(d.isOnline);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadData();
+  }, [DRIVER_ID]);
+
+  // Live GPS Tracking & Broadcast to Supabase when Online
+  useEffect(() => {
+    let locationSub: Location.LocationSubscription | null = null;
+    let isMounted = true;
+
+    if (isOnline) {
+      async function startTracking() {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') return;
+
+          locationSub = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.Balanced,
+              timeInterval: 5000,
+              distanceInterval: 10,
+            },
+            (loc) => {
+              if (!isMounted) return;
+              const { latitude, longitude, heading, speed } = loc.coords;
+              updateDriverLocation(
+                DRIVER_ID,
+                latitude,
+                longitude,
+                heading || 0,
+                speed ? Math.max(0, Math.round(speed * 3.6)) : 0
+              ).catch(console.warn);
+            }
+          );
+        } catch (e) {
+          console.warn('[Live GPS Streaming]', e);
+        }
+      }
+
+      startTracking();
+    }
+
+    return () => {
+      isMounted = false;
+      if (locationSub) {
+        locationSub.remove();
+      }
+    };
+  }, [isOnline, DRIVER_ID]);
+
+  // Subscribe to real incoming jobs
+  useEffect(() => {
+    if (isOnline) {
+      const sub = subscribeToIncomingJobs(DRIVER_ID, (job: any) => {
+        setIncomingJob({
+          id: job.id,
+          customerName: 'Customer',
+          customerRating: '5.0',
+          vehicleModel: 'Vehicle',
+          issue: job.serviceType || 'Towing',
+          pickupAddress: job.pickup?.address || job.pickup_address || 'Pickup Location',
+          dropAddress: job.dropoff?.address || job.dropoff_address || 'Drop Location',
+          distance: '—',
+          estimatedEarning: `₹${job.estimated_price || job.estimatedPrice || 0}`,
+          estimatedTime: '—'
+        });
+        setShowJobPopup(true);
+        setCountdown(20);
+        Vibration.vibrate([0, 400, 200, 400]);
+      });
+      return () => sub?.unsubscribe?.();
+    }
+  }, [isOnline, DRIVER_ID]);
+
   // Animations
   const slideAnim = useRef(new Animated.Value(300)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(1)).current;
-
-  // Show popup 3 seconds after going online
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    if (isOnline && !jobAccepted) {
-      timeout = setTimeout(() => {
-        setShowJobPopup(true);
-        setCountdown(20);
-        Vibration.vibrate([0, 400, 200, 400]);
-      }, 3000);
-    }
-    return () => clearTimeout(timeout);
-  }, [isOnline, jobAccepted]);
 
   // Slide in animation
   useEffect(() => {
@@ -114,8 +191,9 @@ export default function HomeScreen() {
     setCountdown(20);
   };
 
-  const handleToggleOnline = (value: boolean) => {
+  const handleToggleOnline = async (value: boolean) => {
     setIsOnline(value);
+    await toggleDriverOnline(DRIVER_ID, value);
     if (!value) {
       setShowJobPopup(false);
       setJobAccepted(false);
@@ -170,19 +248,19 @@ export default function HomeScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Ionicons name="wallet-outline" size={22} color="#00FF97" />
-              <Text style={styles.statValue}>₹1,425</Text>
+              <Text style={styles.statValue}>₹{(driver as any)?.wallet?.balance || driver?.earnings?.today || 0}</Text>
               <Text style={styles.statLabel}>Earnings</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
               <Ionicons name="car-outline" size={22} color={THEME.colors.primary} />
-              <Text style={styles.statValue}>3</Text>
+              <Text style={styles.statValue}>{todayJobs.length}</Text>
               <Text style={styles.statLabel}>Jobs Done</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
               <Ionicons name="star" size={22} color="#FFD60A" />
-              <Text style={styles.statValue}>4.8</Text>
+              <Text style={styles.statValue}>{driver?.rating || 0}</Text>
               <Text style={styles.statLabel}>Rating</Text>
             </View>
           </View>
@@ -226,28 +304,34 @@ export default function HomeScreen() {
 
         {/* Recent Job */}
         <Text style={styles.sectionTitleStandalone}>Recent Job</Text>
-        <BlurView intensity={20} tint="dark" style={styles.recentCard}>
-          <View style={styles.recentTop}>
-            <View style={styles.recentBadge}><Text style={styles.recentBadgeText}>COMPLETED</Text></View>
-            <Text style={styles.recentEarning}>+₹475</Text>
-          </View>
-          <View style={styles.recentRoute}>
-            <View style={styles.routeDots}>
-              <View style={styles.greenDot} />
-              <View style={styles.dashedLine} />
-              <View style={styles.redDot} />
+        {todayJobs.length > 0 ? (
+          <BlurView intensity={20} tint="dark" style={styles.recentCard}>
+            <View style={styles.recentTop}>
+              <View style={styles.recentBadge}><Text style={styles.recentBadgeText}>COMPLETED</Text></View>
+              <Text style={styles.recentEarning}>+₹{todayJobs[0].finalPrice || todayJobs[0].estimatedPrice || 0}</Text>
             </View>
-            <View style={styles.routeTexts}>
-              <Text style={styles.routeText}>MG Road, Bangalore</Text>
-              <Text style={[styles.routeText, { marginTop: 18 }]}>Whitefield, Bangalore</Text>
+            <View style={styles.recentRoute}>
+              <View style={styles.routeDots}>
+                <View style={styles.greenDot} />
+                <View style={styles.dashedLine} />
+                <View style={styles.redDot} />
+              </View>
+              <View style={styles.routeTexts}>
+                <Text style={styles.routeText}>{todayJobs[0].pickup?.address || '—'}</Text>
+                <Text style={[styles.routeText, { marginTop: 18 }]}>{todayJobs[0].dropoff?.address || '—'}</Text>
+              </View>
             </View>
-          </View>
-          <View style={styles.recentMeta}>
-            <View style={styles.metaItem}><Ionicons name="navigate-outline" size={14} color={THEME.colors.textSecondary} /><Text style={styles.metaText}>12.5 km</Text></View>
-            <View style={styles.metaItem}><Ionicons name="time-outline" size={14} color={THEME.colors.textSecondary} /><Text style={styles.metaText}>35 min</Text></View>
-            <View style={styles.metaItem}><Ionicons name="star" size={14} color="#FFD60A" /><Text style={styles.metaText}>5.0</Text></View>
-          </View>
-        </BlurView>
+            <View style={styles.recentMeta}>
+              <View style={styles.metaItem}><Ionicons name="navigate-outline" size={14} color={THEME.colors.textSecondary} /><Text style={styles.metaText}>—</Text></View>
+              <View style={styles.metaItem}><Ionicons name="time-outline" size={14} color={THEME.colors.textSecondary} /><Text style={styles.metaText}>—</Text></View>
+              <View style={styles.metaItem}><Ionicons name="star" size={14} color="#FFD60A" /><Text style={styles.metaText}>—</Text></View>
+            </View>
+          </BlurView>
+        ) : (
+          <BlurView intensity={20} tint="dark" style={[styles.recentCard, { alignItems: 'center', paddingVertical: 30 }]}>
+            <Text style={{ color: 'rgba(255,255,255,0.5)' }}>No recent jobs</Text>
+          </BlurView>
+        )}
 
         {/* Tip */}
         <BlurView intensity={15} tint="dark" style={styles.tipCard}>
@@ -286,7 +370,7 @@ export default function HomeScreen() {
                 </View>
                 <View>
                   <Text style={popup.headerTitle}>New Job Request!</Text>
-                  <Text style={popup.headerId}>{INCOMING_JOB.id}</Text>
+                  <Text style={popup.headerId}>{incomingJob?.id}</Text>
                 </View>
               </View>
               <View style={popup.timerBox}>
@@ -297,7 +381,7 @@ export default function HomeScreen() {
             {/* Earning */}
             <Animated.View style={[popup.earningRow, { transform: [{ scale: pulseAnim }] }]}>
               <Text style={popup.earningLabel}>Estimated Earning</Text>
-              <Text style={popup.earningValue}>{INCOMING_JOB.estimatedEarning}</Text>
+              <Text style={popup.earningValue}>{incomingJob?.estimatedEarning}</Text>
             </Animated.View>
 
             {/* Job Details */}
@@ -306,21 +390,21 @@ export default function HomeScreen() {
               <View style={popup.detailRow}>
                 <Ionicons name="person-outline" size={16} color={THEME.colors.primary} />
                 <Text style={popup.detailLabel}>Customer</Text>
-                <Text style={popup.detailValue}>{INCOMING_JOB.customerName}</Text>
+                <Text style={popup.detailValue}>{incomingJob?.customerName}</Text>
               </View>
 
               {/* Vehicle */}
               <View style={popup.detailRow}>
                 <Ionicons name="car-outline" size={16} color={THEME.colors.primary} />
                 <Text style={popup.detailLabel}>Vehicle</Text>
-                <Text style={popup.detailValue}>{INCOMING_JOB.vehicleType}</Text>
+                <Text style={popup.detailValue}>{incomingJob?.vehicleType}</Text>
               </View>
 
               {/* Issue */}
               <View style={popup.detailRow}>
                 <Ionicons name="warning-outline" size={16} color="#FFD60A" />
                 <Text style={popup.detailLabel}>Issue</Text>
-                <Text style={popup.detailValue}>{INCOMING_JOB.issue}</Text>
+                <Text style={popup.detailValue}>{incomingJob?.issue}</Text>
               </View>
 
               {/* Pickup */}
@@ -328,7 +412,7 @@ export default function HomeScreen() {
                 <View style={popup.routeIcon}><View style={popup.greenDotSmall} /></View>
                 <View style={popup.routeContent}>
                   <Text style={popup.routeLabel}>PICKUP</Text>
-                  <Text style={popup.routeAddress}>{INCOMING_JOB.pickupAddress}</Text>
+                  <Text style={popup.routeAddress}>{incomingJob?.pickupAddress}</Text>
                 </View>
               </View>
 
@@ -337,7 +421,7 @@ export default function HomeScreen() {
                 <View style={popup.routeIcon}><View style={popup.redDotSmall} /></View>
                 <View style={popup.routeContent}>
                   <Text style={popup.routeLabel}>DROP</Text>
-                  <Text style={popup.routeAddress}>{INCOMING_JOB.dropAddress}</Text>
+                  <Text style={popup.routeAddress}>{incomingJob?.dropAddress}</Text>
                 </View>
               </View>
             </View>
@@ -346,15 +430,15 @@ export default function HomeScreen() {
             <View style={popup.tagsRow}>
               <View style={popup.tag}>
                 <Ionicons name="navigate-outline" size={14} color={THEME.colors.primary} />
-                <Text style={popup.tagText}>{INCOMING_JOB.distance} away</Text>
+                <Text style={popup.tagText}>{incomingJob?.distance} away</Text>
               </View>
               <View style={popup.tag}>
                 <Ionicons name="time-outline" size={14} color={THEME.colors.primary} />
-                <Text style={popup.tagText}>~{INCOMING_JOB.estimatedTime}</Text>
+                <Text style={popup.tagText}>~{incomingJob?.estimatedTime}</Text>
               </View>
               <View style={popup.tag}>
                 <Ionicons name="car-sport-outline" size={14} color={THEME.colors.primary} />
-                <Text style={popup.tagText}>{INCOMING_JOB.vehicleColor}</Text>
+                <Text style={popup.tagText}>{incomingJob?.vehicleColor}</Text>
               </View>
             </View>
 

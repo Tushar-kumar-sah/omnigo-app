@@ -1,17 +1,21 @@
 'use client';
-import * as Recharts from 'recharts';
+import dynamic from 'next/dynamic';
 import React from 'react';
 
-export const ResponsiveContainer: React.ComponentType<any> = Recharts.ResponsiveContainer as any;
-export const LineChart: React.ComponentType<any> = Recharts.LineChart as any;
-export const Line: React.ComponentType<any> = Recharts.Line as any;
-export const XAxis: React.ComponentType<any> = Recharts.XAxis as any;
-export const YAxis: React.ComponentType<any> = Recharts.YAxis as any;
-export const Tooltip: React.ComponentType<any> = Recharts.Tooltip as any;
-export const BarChart: React.ComponentType<any> = Recharts.BarChart as any;
-export const Bar: React.ComponentType<any> = Recharts.Bar as any;
-export const AreaChart: React.ComponentType<any> = Recharts.AreaChart as any;
-export const Area: React.ComponentType<any> = Recharts.Area as any;
-export const PieChart: React.ComponentType<any> = Recharts.PieChart as any;
-export const Pie: React.ComponentType<any> = Recharts.Pie as any;
-export const Cell: React.ComponentType<any> = Recharts.Cell as any;
+// Recharts does not support SSR — use dynamic imports to avoid prerender crash
+const LazyLoad = (importFn: () => Promise<any>, exportName: string) =>
+  dynamic(() => importFn().then((mod: any) => ({ default: mod[exportName] })), { ssr: false });
+
+export const ResponsiveContainer = LazyLoad(() => import('recharts'), 'ResponsiveContainer');
+export const LineChart = LazyLoad(() => import('recharts'), 'LineChart');
+export const Line = LazyLoad(() => import('recharts'), 'Line');
+export const XAxis = LazyLoad(() => import('recharts'), 'XAxis');
+export const YAxis = LazyLoad(() => import('recharts'), 'YAxis');
+export const Tooltip = LazyLoad(() => import('recharts'), 'Tooltip');
+export const BarChart = LazyLoad(() => import('recharts'), 'BarChart');
+export const Bar = LazyLoad(() => import('recharts'), 'Bar');
+export const AreaChart = LazyLoad(() => import('recharts'), 'AreaChart');
+export const Area = LazyLoad(() => import('recharts'), 'Area');
+export const PieChart = LazyLoad(() => import('recharts'), 'PieChart');
+export const Pie = LazyLoad(() => import('recharts'), 'Pie');
+export const Cell = LazyLoad(() => import('recharts'), 'Cell');

@@ -2,15 +2,36 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable, ScrollView } from 'react-native';
 import { THEME } from '../../constants/theme';
 import { BlurView } from 'expo-blur';
-import { mockIncomingJob, VEHICLE_TYPES } from '../../constants/mock-data';
+
+import { getBookingById, assignDriver, updateBookingStatus, Booking, getPricingRules } from '@omnigo/api';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function IncomingJobScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [timeLeft, setTimeLeft] = useState(20);
   const [showEarningsBreakdown, setShowEarningsBreakdown] = useState(false);
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [pricingRules, setPricingRules] = useState<any>(null);
+
+  const jobId = (params.id as string);
+  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const b = await getBookingById(jobId);
+        setBooking(b);
+        const p = await getPricingRules();
+        setPricingRules(p);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadData();
+  }, [jobId]);
 
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -21,16 +42,52 @@ export default function IncomingJobScreen() {
     return () => clearInterval(timer);
   }, [timeLeft, router]);
 
-  const handleAccept = () => {
-    router.replace('/job/navigation');
+  const handleAccept = async () => {
+    try {
+      await assignDriver(jobId, DRIVER_ID);
+      await updateBookingStatus(jobId, 'driver_assigned');
+      router.replace({ pathname: '/job/navigation', params: { id: jobId } });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleDecline = () => {
     router.back();
   };
 
-  const vType = VEHICLE_TYPES.find(v => v.label.toLowerCase() === mockIncomingJob.vehicleType.toLowerCase());
-  const vehicleIcon = vType ? vType.icon : 'car-outline';
+  const jobData = booking ? {
+    eta: booking.estimatedETA ? `${booking.estimatedETA} mins` : '—',
+    pickupDistance: booking.distance ? `${booking.distance} km` : '—',
+    driverEarnings: `₹${booking.finalPrice || booking.estimatedPrice || 0}`,
+    customerPayment: `₹${booking.finalPrice || booking.estimatedPrice || 0}`,
+    platformFee: '₹0',
+    baseFare: `₹${Math.round((booking.estimatedPrice || 0) * 0.7)}`,
+    distanceFare: `₹${Math.round((booking.estimatedPrice || 0) * 0.2)}`,
+    tip: '₹0',
+    platformCommissionRate: '10%',
+    customerName: 'Customer',
+    vehicleMake: booking.customerVehicle?.brand || '',
+    vehicleModel: booking.customerVehicle?.model || '',
+    vehicleColor: 'White',
+    vehiclePlate: booking.customerVehicle?.number || '—',
+    vehicleType: booking.vehicleTypeId || '—',
+    pickup: booking.pickup?.address || '—',
+    drop: booking.dropoff?.address || '—',
+    distance: booking.distance ? `${booking.distance} km` : '—',
+    waitingChargeRule: pricingRules?.waitingChargePerMin ? `₹${pricingRules.waitingChargePerMin} per minute` : '₹50 for every 15 mins',
+    cancellationPenaltyRule: '₹100 if cancelled after 5 mins'
+  } : null;
+
+  if (!jobData) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: '#fff' }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  const vehicleIcon = 'car-outline';
 
   return (
     <View style={styles.container}>
@@ -48,8 +105,8 @@ export default function IncomingJobScreen() {
           <View style={styles.card}>
             <View style={styles.header}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.etaText}>Pickup in {mockIncomingJob.eta}</Text>
-                <Text style={styles.pickupDistText}>{mockIncomingJob.pickupDistance} away</Text>
+                <Text style={styles.etaText}>Pickup in {jobData.eta}</Text>
+                <Text style={styles.pickupDistText}>{jobData.pickupDistance} away</Text>
               </View>
             </View>
 
@@ -57,11 +114,11 @@ export default function IncomingJobScreen() {
             <Pressable onPress={() => setShowEarningsBreakdown(!showEarningsBreakdown)} style={styles.fareSummaryBar}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fareSummaryLabel}>Your Net Earnings</Text>
-                <Text style={styles.priceText}>{mockIncomingJob.driverEarnings}</Text>
+                <Text style={styles.priceText}>{jobData.driverEarnings}</Text>
               </View>
               <View style={{ alignItems: 'flex-end', flexShrink: 1, marginLeft: 8 }}>
-                <Text style={styles.customerPayText}>Customer: {mockIncomingJob.customerPayment}</Text>
-                <Text style={styles.platformFeeText}>Fee: -{mockIncomingJob.platformFee}</Text>
+                <Text style={styles.customerPayText}>Customer: {jobData.customerPayment}</Text>
+                <Text style={styles.platformFeeText}>Fee: -{jobData.platformFee}</Text>
               </View>
             </Pressable>
 
@@ -69,28 +126,28 @@ export default function IncomingJobScreen() {
               <View style={styles.breakdownBox}>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Customer Total Payment</Text>
-                  <Text style={styles.breakdownVal}>{mockIncomingJob.customerPayment}</Text>
+                  <Text style={styles.breakdownVal}>{jobData.customerPayment}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Base Towing Fare</Text>
-                  <Text style={styles.breakdownVal}>{mockIncomingJob.baseFare}</Text>
+                  <Text style={styles.breakdownVal}>{jobData.baseFare}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Distance (3.1 km)</Text>
-                  <Text style={styles.breakdownVal}>{mockIncomingJob.distanceFare}</Text>
+                  <Text style={styles.breakdownLabel}>Distance</Text>
+                  <Text style={styles.breakdownVal}>{jobData.distanceFare}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Direct Customer Tip</Text>
-                  <Text style={[styles.breakdownVal, { color: THEME.colors.success }]}>+{mockIncomingJob.tip}</Text>
+                  <Text style={[styles.breakdownVal, { color: THEME.colors.success }]}>+{jobData.tip}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>OmniGo Fee ({mockIncomingJob.platformCommissionRate})</Text>
-                  <Text style={[styles.breakdownVal, { color: THEME.colors.danger }]}>-{mockIncomingJob.platformFee}</Text>
+                  <Text style={styles.breakdownLabel}>OmniGo Fee ({jobData.platformCommissionRate})</Text>
+                  <Text style={[styles.breakdownVal, { color: THEME.colors.danger }]}>-{jobData.platformFee}</Text>
                 </View>
                 <View style={styles.breakdownDivider} />
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownTotalLabel}>Net Take-Home Earnings</Text>
-                  <Text style={styles.breakdownTotalVal}>{mockIncomingJob.driverEarnings}</Text>
+                  <Text style={styles.breakdownTotalVal}>{jobData.driverEarnings}</Text>
                 </View>
               </View>
             )}
@@ -99,11 +156,11 @@ export default function IncomingJobScreen() {
             
             <View style={styles.customerRow}>
               <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={styles.customerName}>{mockIncomingJob.customerName}</Text>
+                <Text style={styles.customerName}>{jobData.customerName}</Text>
                 <Text style={styles.vehicleDetails}>
-                  {mockIncomingJob.vehicleMake} {mockIncomingJob.vehicleModel} • {mockIncomingJob.vehicleColor}
+                  {jobData.vehicleMake} {jobData.vehicleModel} • {jobData.vehicleColor}
                 </Text>
-                <Text style={styles.vehiclePlate}>{mockIncomingJob.vehiclePlate}</Text>
+                <Text style={styles.vehiclePlate}>{jobData.vehiclePlate}</Text>
               </View>
               <View style={styles.vehicleTypeBadge}>
                 <Ionicons name={vehicleIcon as any} size={20} color={THEME.colors.primary} />
@@ -113,7 +170,7 @@ export default function IncomingJobScreen() {
             <View style={styles.locationContainer}>
               <View style={styles.locRow}>
                 <Ionicons name="radio-button-on" size={18} color={THEME.colors.primary} />
-                <Text style={styles.locText} numberOfLines={1}>{mockIncomingJob.pickup}</Text>
+                <Text style={styles.locText} numberOfLines={1}>{jobData.pickup}</Text>
               </View>
               <View style={styles.locLineContainer}>
                 <View style={styles.locDot} />
@@ -122,24 +179,24 @@ export default function IncomingJobScreen() {
               </View>
               <View style={styles.locRow}>
                 <Ionicons name="location" size={18} color={THEME.colors.danger} />
-                <Text style={styles.locText} numberOfLines={1}>{mockIncomingJob.drop}</Text>
+                <Text style={styles.locText} numberOfLines={1}>{jobData.drop}</Text>
               </View>
             </View>
             
             <View style={styles.distanceBox}>
               <Ionicons name="navigate-outline" size={15} color={THEME.colors.textSecondary} />
-              <Text style={styles.distanceText}>Total Trip Distance: {mockIncomingJob.distance}</Text>
+              <Text style={styles.distanceText}>Total Trip Distance: {jobData.distance}</Text>
             </View>
 
             {/* Cancellation Rules & Waiting-Time Notice */}
             <View style={styles.policyNoticeBox}>
               <View style={styles.policyRow}>
                 <Ionicons name="time-outline" size={13} color={THEME.colors.primary} style={{ marginTop: 2 }} />
-                <Text style={styles.policyText}><Text style={{ color: '#fff', fontFamily: THEME.fonts.inter.bold }}>Waiting:</Text> {mockIncomingJob.waitingChargeRule}</Text>
+                <Text style={styles.policyText}><Text style={{ color: '#fff', fontFamily: THEME.fonts.inter.bold }}>Waiting:</Text> {jobData.waitingChargeRule}</Text>
               </View>
               <View style={[styles.policyRow, { marginTop: 6 }]}>
                 <Ionicons name="shield-checkmark-outline" size={13} color={THEME.colors.warning} style={{ marginTop: 2 }} />
-                <Text style={styles.policyText}><Text style={{ color: '#fff', fontFamily: THEME.fonts.inter.bold }}>Rules:</Text> {mockIncomingJob.cancellationPenaltyRule}</Text>
+                <Text style={styles.policyText}><Text style={{ color: '#fff', fontFamily: THEME.fonts.inter.bold }}>Rules:</Text> {jobData.cancellationPenaltyRule}</Text>
               </View>
             </View>
             

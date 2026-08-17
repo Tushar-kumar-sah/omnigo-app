@@ -5,78 +5,48 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../../constants/theme';
+import { fetchCurrentUser, fetchUserBookings, fetchUserWallet } from '../../lib/api';
 
-// ─── Mock Ride Data ──────────────────────────────────────────
-const PAST_RIDES = [
-  {
-    id: 'OMG-7821',
-    status: 'Completed',
-    date: '12 Aug 2026, 10:45 AM',
-    service: 'Flatbed Tow',
-    vehicle: 'Maruti Swift · KA 01 MH 4521',
-    pickup: 'MG Road, Bangalore',
-    drop: 'AutoFix Garage, Whitefield',
-    driver: 'Rajesh Kumar',
-    driverRating: '4.8',
-    driverPlate: 'MH 02 AB 1234',
-    distance: '8.5 km',
-    duration: '32 min',
-    fare: { base: 500, distance: 128, platform: 25, gst: 117, discount: 50, total: 720 },
-    payment: 'UPI',
-    refundStatus: null,
-  },
-  {
-    id: 'OMG-7654',
-    status: 'Cancelled',
-    date: '9 Aug 2026, 3:20 PM',
-    service: 'Wheel Lift Tow',
-    vehicle: 'Honda City · KA 05 AB 8923',
-    pickup: 'Koramangala, Bangalore',
-    drop: 'Honda Service, Indiranagar',
-    driver: 'Anil Patil',
-    driverRating: '4.6',
-    driverPlate: 'KA 01 XY 7890',
-    distance: '5.2 km',
-    duration: '—',
-    fare: { base: 1200, distance: 78, platform: 25, gst: 236, discount: 0, total: 1539 },
-    payment: 'Card',
-    refundStatus: 'Refund Processed · ₹1,539 credited back',
-  },
-  {
-    id: 'OMG-7510',
-    status: 'Completed',
-    date: '5 Aug 2026, 8:15 AM',
-    service: 'Battery Jumpstart',
-    vehicle: 'Hyundai Creta · DL 10 CR 3344',
-    pickup: 'Connaught Place, Delhi',
-    drop: 'On-site (No tow)',
-    driver: 'Suresh Nair',
-    driverRating: '4.9',
-    driverPlate: 'DL 01 AB 5544',
-    distance: '3.1 km',
-    duration: '18 min',
-    fare: { base: 350, distance: 47, platform: 25, gst: 76, discount: 0, total: 498 },
-    payment: 'Cash',
-    refundStatus: null,
-  },
-  {
-    id: 'OMG-7402',
-    status: 'Completed',
-    date: '28 Jul 2026, 6:30 PM',
-    service: 'Flatbed Tow',
-    vehicle: 'Kia Seltos · MH 12 AB 6789',
-    pickup: 'Kothrud, Pune',
-    drop: 'Kia Service Center, Baner',
-    driver: 'Mahesh Joshi',
-    driverRating: '4.7',
-    driverPlate: 'MH 12 CD 4567',
-    distance: '12.4 km',
-    duration: '45 min',
-    fare: { base: 600, distance: 186, platform: 25, gst: 146, discount: 100, total: 857 },
-    payment: 'UPI',
-    refundStatus: null,
-  },
-];
+const mapToUIRide = (b: any) => {
+  const estPrice = Number(b.finalPrice || b.final_price || b.estimatedPrice || b.estimated_price || b.price || b.fare?.total || b.fare?.estimated || 0);
+  const base = Number(b.baseFare || b.base_fare || Math.round(estPrice * 0.7) || 0);
+  const distance = Number(b.distanceFare || b.distance_fare || Math.round(estPrice * 0.2) || 0);
+  const platform = Number(b.platformFee || b.platform_fee || Math.round(estPrice * 0.05) || 0);
+  const gst = Number(b.gstAmount || b.gst_amount || Math.round(estPrice * 0.05) || 0);
+  const discount = Number(b.promoDiscount || b.promo_discount || 0);
+  const total = Number(b.finalPrice || b.final_price || estPrice || 0);
+
+  return {
+    id: b.id || (b.uuid ? `JOB-${b.uuid.substring(0, 4).toUpperCase()}` : 'JOB-0000'),
+    status: b.status === 'completed' || b.status === 'Completed' ? 'Completed'
+          : b.status === 'cancelled' || b.status === 'Cancelled' ? 'Cancelled'
+          : 'Active',
+    date: new Date(b.created_at || b.createdAt || Date.now()).toLocaleString('en-IN'),
+    service: b.service_type || b.service || 'Flatbed Tow',
+    vehicle: b.vehicle || 'User Vehicle',
+    pickup: b.pickup ||
+      (typeof b.pickup_location === 'object' && b.pickup_location ? b.pickup_location?.address : null) ||
+      'Unknown Location',
+    drop: b.drop || b.dropoff?.address ||
+      (typeof b.dropoff_location === 'object' && b.dropoff_location ? b.dropoff_location?.address : null) ||
+      'Unknown Location',
+    driver: b.driver || (b.driver_id ? 'Driver Assigned' : 'Unassigned'),
+    driverRating: b.driver?.rating ? b.driver.rating.toString() : '—',
+    driverPlate: b.vehiclePlate || '—',
+    distance: b.distanceKm ? b.distanceKm + ' km' : (b.distance ? b.distance + ' km' : '—'),
+    duration: b.durationMin ? b.durationMin + ' min' : (b.estimatedETA ? b.estimatedETA + ' min' : '—'),
+    fare: {
+      base: Math.round(base),
+      distance: Math.round(distance),
+      platform: Math.round(platform),
+      gst: Math.round(gst),
+      discount: Math.round(discount),
+      total: Math.round(total),
+    },
+    payment: b.paymentMethod ? b.paymentMethod.toUpperCase() : 'UPI',
+    refundStatus: (b.status === 'cancelled' || b.status === 'Cancelled') ? 'Refund Processed' : null,
+  };
+};
 
 const STATUS_COLOR: Record<string, string> = {
   Completed: '#00FF97',
@@ -85,7 +55,38 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
-  const [selectedRide, setSelectedRide] = useState<typeof PAST_RIDES[0] | null>(null);
+  const [selectedRide, setSelectedRide] = useState<any | null>(null);
+  const [rides, setRides] = useState<any[]>([]);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const user = await fetchCurrentUser();
+        if (user?.id || user?.uuid) {
+          const uid = user.uuid || user.id;
+          const [apiRides, walletData] = await Promise.all([
+            fetchUserBookings(uid),
+            fetchUserWallet(uid),
+          ]);
+          if (apiRides) setRides(apiRides.map(mapToUIRide));
+          if (walletData) {
+            setWalletBalance(walletData.balance ?? 0);
+            if (walletData.transactions) {
+              setTransactions(walletData.transactions);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Wallet]', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -98,7 +99,7 @@ export default function WalletScreen() {
       </View>
 
       <ScrollView contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom + 90, 110) }]} showsVerticalScrollIndicator={false}>
-        {PAST_RIDES.map((ride) => (
+        {rides.map((ride) => (
           <TouchableOpacity key={ride.id} onPress={() => setSelectedRide(ride)} activeOpacity={0.85} style={styles.cardTouch}>
             <BlurView intensity={85} tint="dark" style={styles.card}>
               <LinearGradient

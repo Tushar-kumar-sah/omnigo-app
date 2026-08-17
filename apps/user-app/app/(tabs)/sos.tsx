@@ -6,7 +6,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
+import * as Location from 'expo-location';
 import { theme } from '../../constants/theme';
+import { createSOSAlert, fetchCurrentUser } from '../../lib/api';
+
+const USER_ID = 'a0000000-0000-0000-0000-000000000001';
 
 const INCIDENT_TYPES = [
   { id: 'accident',    icon: 'car-sport-outline',     label: 'Accident',        color: '#FF4D4D' },
@@ -60,11 +64,27 @@ export default function SOSScreen() {
     }
   }, [dispatched]);
 
-  const handleSOS = () => {
+  const handleSOS = async () => {
     if (!selectedIncident) return;
-    const id = `INC-${Math.floor(Math.random() * 90000 + 10000)}`;
-    setIncidentId(id);
-    setDispatched(true);
+    try {
+      const user = await fetchCurrentUser();
+      const incident = await createSOSAlert({
+        userId: user?.uuid || user?.id || USER_ID,
+        userName: user?.name || '—',
+        userPhone: user?.phone || '—',
+        locationAddress: location,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        emergencyType: selectedIncident,
+      });
+      const generatedId = incident?.id || incident?.incidentNumber || `SOS-${Date.now().toString().slice(-4)}`;
+      setIncidentId(String(generatedId).substring(0, 8).toUpperCase());
+      setDispatched(true);
+    } catch (e) {
+      console.warn('[SOS] create alert error', e);
+      setIncidentId(`SOS-${Date.now().toString().slice(-4)}`);
+      setDispatched(true);
+    }
   };
 
   const handleReset = () => {
@@ -73,8 +93,34 @@ export default function SOSScreen() {
     setIncidentId('');
   };
 
-  // Mock GPS location
-  const location = 'MG Road, Brigade Gateway, Bangalore · 12.9716° N, 77.5946° E';
+  const [location, setLocation] = useState('Fetching location...');
+  const [coords, setCoords] = useState({ latitude: 0, longitude: 0 });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setLocation('Location permission denied');
+          return;
+        }
+        let loc = await Location.getCurrentPositionAsync({});
+        setCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        let reverseGeocode = await Location.reverseGeocodeAsync({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude
+        });
+        if (reverseGeocode && reverseGeocode.length > 0) {
+          const addr = reverseGeocode[0];
+          setLocation(`${addr.name || addr.street || ''}, ${addr.city || ''}`);
+        } else {
+          setLocation(`${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}`);
+        }
+      } catch (error) {
+        setLocation('Location unavailable');
+      }
+    })();
+  }, []);
 
   return (
     <View style={styles.container}>

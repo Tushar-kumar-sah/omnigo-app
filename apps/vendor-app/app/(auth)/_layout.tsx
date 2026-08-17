@@ -7,6 +7,7 @@ export default function AuthLayout() {
       <Stack.Screen name="login" />
       <Stack.Screen name="otp-verify" />
       <Stack.Screen name="register" />
+      <Stack.Screen name="driver-verification" />
       <Stack.Screen name="under-review" />
     </Stack>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getNotifications, markNotificationAsRead, Notification } from '@omnigo/api';
 
 type NotificationCategory = 'all' | 'earnings' | 'jobs' | 'compliance';
 type NotificationType = 'success' | 'job' | 'info' | 'payment' | 'warning';
@@ -28,89 +29,43 @@ interface DriverNotification {
   actionRoute?: string;
 }
 
-const INITIAL_NOTIFICATIONS: DriverNotification[] = [
-  {
-    id: 'notif-1',
-    category: 'earnings',
-    title: 'Weekly Payout Processed',
-    body: '₹8,750 transferred successfully to HDFC Bank (A/C ••4589).',
-    time: '5 min ago',
-    type: 'payment',
-    read: false,
-    actionLabel: 'View Wallet',
-    actionRoute: '/(tabs)/earnings',
-  },
-  {
-    id: 'notif-2',
-    category: 'jobs',
-    title: 'High Demand Surge Active 🔥',
-    body: '1.4x surge pricing now live in MG Road & Indiranagar. Go online to earn extra!',
-    time: '25 min ago',
-    type: 'job',
-    read: false,
-    actionLabel: 'Go Online',
-    actionRoute: '/(tabs)',
-  },
-  {
-    id: 'notif-3',
-    category: 'compliance',
-    title: 'Document Expiry Warning',
-    body: 'Your Vehicle Fitness Certificate expires in 14 days. Upload a new copy to avoid job pause.',
-    time: '2 hours ago',
-    type: 'warning',
-    read: false,
-    actionLabel: 'Update Document',
-    actionRoute: '/(tabs)/profile',
-  },
-  {
-    id: 'notif-4',
-    category: 'jobs',
-    title: '5-Star Trip Rating! ⭐',
-    body: 'Customer Rahul S. rated you 5 stars: "Driver arrived quickly and handled loading very smoothly!"',
-    time: 'Yesterday',
-    type: 'success',
-    read: true,
-    actionLabel: 'View History',
-    actionRoute: '/(tabs)/history',
-  },
-  {
-    id: 'notif-5',
-    category: 'earnings',
-    title: 'Daily Bonus Unlocked 🎁',
-    body: 'Completed 3 tows today! ₹350 daily performance incentive added to your pending balance.',
-    time: 'Yesterday',
-    type: 'payment',
-    read: true,
-    actionLabel: 'View Earnings',
-    actionRoute: '/(tabs)/earnings',
-  },
-  {
-    id: 'notif-6',
-    category: 'compliance',
-    title: 'Safety Inspection Passed',
-    body: 'Pre-tow vs post-tow vehicle inspection checklist verified with 0 damages reported on Job #7821.',
-    time: '2 days ago',
-    type: 'info',
-    read: true,
-  },
-  {
-    id: 'notif-7',
-    category: 'compliance',
-    title: 'Driver Account Verified ✓',
-    body: 'Commercial Heavy Driving License (DL) successfully verified by OmniGo Verification Team.',
-    time: '3 days ago',
-    type: 'success',
-    read: true,
-    actionLabel: 'Check Status',
-    actionRoute: '/(tabs)/profile',
-  },
-];
+
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [notifications, setNotifications] = useState<DriverNotification[]>(INITIAL_NOTIFICATIONS);
+  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+
+  const [notifications, setNotifications] = useState<DriverNotification[]>([]);
   const [activeTab, setActiveTab] = useState<NotificationCategory>('all');
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const notifs = await getNotifications({ driverId: DRIVER_ID });
+        // Map API notifications to UI format
+        const mapped: DriverNotification[] = notifs.map(n => {
+          const category: 'earnings' | 'jobs' | 'compliance' = 
+            n.type === 'booking' ? 'jobs' : n.type === 'promotion' ? 'earnings' : 'compliance';
+          const type: NotificationType =
+            n.type === 'booking' ? 'job' : n.type === 'promotion' ? 'payment' : 'info';
+          return {
+            id: n.id,
+            category,
+            title: n.title,
+            body: n.message,
+            time: new Date(n.createdAt).toLocaleDateString(),
+            type,
+            read: n.isRead,
+            actionLabel: undefined,
+            actionRoute: undefined,
+          };
+        });
+        if (mapped.length > 0) setNotifications(mapped);
+      } catch (err) { console.error(err); }
+    }
+    loadData();
+  }, [DRIVER_ID]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -118,10 +73,13 @@ export default function NotificationsScreen() {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const toggleNotificationRead = (id: string) => {
+  const toggleNotificationRead = async (id: string) => {
     setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: !n.read } : n))
+      prev.map(n => (n.id === id ? { ...n, read: true } : n)) // only mark read on tap
     );
+    try {
+      await markNotificationAsRead(id);
+    } catch(e) {}
   };
 
   const deleteNotification = (id: string) => {

@@ -1,11 +1,44 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '@/components/GlassCard';
 import StatusBadge from '@/components/StatusBadge';
-import { partnerList, PartnerRecord, DocumentItem } from '@/lib/mock-data';
+import { createNotification } from '@omnigo/api';
 
+type DocumentItem = { name: string; docNumber: string; issuedDate: string; expiryDate: string; status: 'Pending' | 'Verified' | 'Rejected'; notes?: string };
+type PartnerRecord = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  city: string;
+  address: string;
+  pincode: string;
+  dob: string;
+  emergencyContact: { name: string; relation: string; phone: string };
+  aadharNumber: string;
+  panNumber: string;
+  bankDetails: { accountHolder: string; bankName: string; accountNumber: string; ifsc: string; payoutUpi?: string };
+  kycStatus: string;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  vehicleType: string;
+  vehiclePlate: string;
+  vehicleChassis: string;
+  vehicleEngine: string;
+  vehicleModelYear: string;
+  vehicleCapacity: string;
+  documents: Record<string, DocumentItem>;
+  totalTrips: number;
+  acceptanceRate: number;
+  cancellationRate: number;
+  onlineHours: string;
+  rating: number;
+  walletBalance: string;
+  complaintsCount: number;
+  joinedDate: string;
+};
 export default function PartnerManagementPage() {
-  const [partners, setPartners] = useState<PartnerRecord[]>(partnerList);
+  const [partners, setPartners] = useState<PartnerRecord[]>([]);
   const [selectedPartner, setSelectedPartner] = useState<PartnerRecord | null>(null);
   const [previewPdfPartner, setPreviewPdfPartner] = useState<PartnerRecord | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'verified' | 'suspended'>('all');
@@ -17,6 +50,63 @@ export default function PartnerManagementPage() {
     whatsappText: string;
     pushText: string;
   } | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/drivers');
+        if (!res.ok) throw new Error('API error');
+        const { drivers: live } = await res.json();
+        if (live && live.length > 0) {
+          // Map DB driver shape to PartnerRecord shape for the UI
+          const mapped = live.map((d: any): PartnerRecord => ({
+            id: d.id || 'N/A',
+            name: d.name || 'Unknown',
+            phone: d.phone || '',
+            email: d.email || '',
+            city: d.city || 'Unknown',
+            address: d.address || '',
+            pincode: d.pincode || '',
+            dob: d.dob || '',
+            emergencyContact: d.emergencyContact || { name: '', relation: '', phone: '' },
+            aadharNumber: d.aadharNumber || '—',
+            panNumber: d.panNumber || '',
+            bankDetails: d.bankDetails || { accountHolder: '', bankName: '', accountNumber: '', ifsc: '', payoutUpi: '' },
+            kycStatus: d.kyc_status === 'verified' ? 'Verified' : d.kyc_status === 'pending' ? 'Pending Review' : d.kyc_status === 'rejected' ? 'Action Required' : (d.kycStatus || 'Pending Review'),
+            verifiedAt: d.verifiedAt || undefined,
+            verifiedBy: d.verifiedBy || undefined,
+            vehicleType: d.vehicleType || d.vehicle_type || 'Unknown',
+            vehiclePlate: d.vehiclePlate || d.vehicle_plate || '',
+            vehicleChassis: d.vehicleChassis || '',
+            vehicleEngine: d.vehicleEngine || '',
+            vehicleModelYear: d.vehicleModelYear || '',
+            vehicleCapacity: d.vehicleCapacity || '',
+            documents: d.documents || {
+              dl: { name: 'Commercial Driving License', docNumber: '', issuedDate: '', expiryDate: '', status: 'Pending' },
+              rc: { name: 'Registration Certificate', docNumber: '', issuedDate: '', expiryDate: '', status: 'Pending' },
+              insurance: { name: 'Commercial Insurance', docNumber: '', issuedDate: '', expiryDate: '', status: 'Pending' },
+              fitness: { name: 'Fitness Certificate', docNumber: '', issuedDate: '', expiryDate: '', status: 'Pending' },
+              puc: { name: 'PUC Certificate', docNumber: '', issuedDate: '', expiryDate: '', status: 'Pending' },
+              policeVerification: { name: 'Police Clearance', docNumber: '', issuedDate: '', expiryDate: '', status: 'Pending' },
+              truckInspection: { name: 'Vehicle Safety Audit', docNumber: '', issuedDate: '', expiryDate: '', status: 'Pending' },
+            },
+            totalTrips: d.totalTrips || d.total_trips || 0,
+            acceptanceRate: d.acceptanceRate || 0,
+            cancellationRate: d.cancellationRate || 0,
+            onlineHours: d.onlineHours || '0 hrs',
+            rating: Number(d.rating || 0),
+            walletBalance: d.walletBalance || `₹${Number(d.wallet_balance || 0).toLocaleString('en-IN')}`,
+            complaintsCount: d.complaintsCount || 0,
+            joinedDate: d.joinedDate || d.joined_date || '',
+          }));
+          setPartners(mapped);
+        }
+      } catch (e) {
+        console.error('[Drivers]', e);
+      }
+    }
+    load();
+  }, []);
 
   const filteredPartners = partners.filter(p => {
     const matchesSearch =
@@ -61,7 +151,7 @@ export default function PartnerManagementPage() {
   };
 
   // Final manual verification approval trigger
-  const handleApproveAndNotifyDriver = (partner: PartnerRecord) => {
+  const handleApproveAndNotifyDriver = async (partner: PartnerRecord) => {
     const timestamp = new Date().toLocaleString('en-IN', {
       day: '2-digit',
       month: 'short',
@@ -83,8 +173,14 @@ export default function PartnerManagementPage() {
 
     // Prepare simulated multi-channel dispatch notification
     const smsMessage = `🎉 Welcome to OmniGo Partner Network! Your partner account (${partner.id}) and vehicle (${partner.vehiclePlate}) have been VERIFIED and activated by OmniGo HQ. You can now open the OmniGo Driver App, toggle Online, and start accepting nearby towing jobs to earn!`;
-    const whatsappMessage = `🚗 *OmniGo Partner Activation Confirmation*\n\nHello *${partner.name}*,\n\nGreat news! Your KYC documents and vehicle inspection for *${partner.vehicleType} (${partner.vehiclePlate})* have been officially approved by HQ.\n\n✅ *Status:* ACTIVE & VERIFIED\n💰 *Payout Account:* ${partner.bankDetails.bankName} (A/C: ••••${partner.bankDetails.accountNumber.slice(-4)})\n\n👉 Open your OmniGo Driver App and turn ON your Online status to begin receiving dispatch alerts!`;
+    const whatsappMessage = `🚗 *OmniGo Partner Activation Confirmation*\n\nHello *${partner.name}*,\n\nGreat news! Your KYC documents and vehicle inspection for *${partner.vehicleType} (${partner.vehiclePlate})* have been officially approved by HQ.\n\n✅ *Status:* ACTIVE & VERIFIED\n💰 *Payout Account:* ${partner.bankDetails?.bankName} (A/C: ••••${partner.bankDetails?.accountNumber?.slice?.(-4) || '—'})\n\n👉 Open your OmniGo Driver App and turn ON your Online status to begin receiving dispatch alerts!`;
     const pushMessage = `✅ Account Verified! Your driver profile is now active. Tap here to go online and start earning today.`;
+
+    try {
+      await createNotification({ driverId: partner.id, title: 'Account Update', message: pushMessage, type: 'system' });
+    } catch (err) {
+      console.error(err);
+    }
 
     setNotificationModalData({
       partner: updated,
@@ -628,10 +724,17 @@ export default function PartnerManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredPartners.map((partner) => {
-                const verifiedCount = getVerifiedDocsCount(partner);
-                const isAllVerified = allDocsVerified(partner);
-                return (
+              {filteredPartners.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    No partner drivers found in database.
+                  </td>
+                </tr>
+              ) : (
+                filteredPartners.map((partner) => {
+                  const verifiedCount = getVerifiedDocsCount(partner);
+                  const isAllVerified = allDocsVerified(partner);
+                  return (
                   <tr
                     key={partner.id}
                     style={{ borderBottom: '1px solid var(--glass-border-subtle)', transition: 'background 0.15s ease' }}
@@ -713,7 +816,7 @@ export default function PartnerManagementPage() {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

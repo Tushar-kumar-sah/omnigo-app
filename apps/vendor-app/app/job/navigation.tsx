@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import { THEME } from '../../constants/theme';
 import { BlurView } from 'expo-blur';
-import { mockIncomingJob, CANCEL_REASONS } from '../../constants/mock-data';
+
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from 'expo-location';
+import { updateBookingStatus, updateDriverLocation, getBookingById, Booking, createSOSIncident } from '@omnigo/api';
 
 type NavState = 'EN_ROUTE_PICKUP' | 'AT_PICKUP';
 
@@ -19,12 +21,38 @@ const QUICK_CHATS = [
 
 export default function NavigationScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const jobId = (params.id as string);
+  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  const [booking, setBooking] = useState<Booking | null>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      if (!jobId) return;
+      try {
+        const b = await getBookingById(jobId);
+        setBooking(b);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadData();
+  }, [jobId]);
+
+  const CANCEL_REASONS = [
+    'Customer no-show',
+    'Customer requested cancellation',
+    'Vehicle issue',
+    'Safety concern',
+    'Other'
+  ];
+
   const [navState, setNavState] = useState<NavState>('EN_ROUTE_PICKUP');
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [sosModalVisible, setSosModalVisible] = useState(false);
   const [chatModalVisible, setChatModalVisible] = useState(false);
   const [chatMessages, setChatMessages] = useState<string[]>([
-    'Hello, this is Vikram from OmniGo Towing. I am on my way.',
+    'Hello, this is Rajesh Kumar from OmniGo Towing. I am on my way.',
   ]);
   const [chatInput, setChatInput] = useState('');
 
@@ -41,21 +69,85 @@ export default function NavigationScreen() {
     return () => clearInterval(interval);
   }, [navState]);
 
-  const handleMainAction = () => {
+  useEffect(() => {
+    let locationSub: Location.LocationSubscription | null = null;
+    let isMounted = true;
+
+    async function startNavigationGPS() {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+
+        locationSub = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 4000,
+            distanceInterval: 5,
+          },
+          (loc) => {
+            if (!isMounted) return;
+            const { latitude, longitude, heading, speed } = loc.coords;
+            updateDriverLocation(
+              DRIVER_ID,
+              latitude,
+              longitude,
+              heading || 0,
+              speed ? Math.max(0, Math.round(speed * 3.6)) : 0
+            ).catch(console.warn);
+          }
+        );
+      } catch (err) {
+        console.warn('[Navigation GPS]', err);
+      }
+    }
+
+    startNavigationGPS();
+
+    return () => {
+      isMounted = false;
+      if (locationSub) locationSub.remove();
+    };
+  }, [DRIVER_ID]);
+
+  // Mark driver arriving when screen mounts
+  useEffect(() => {
+    updateBookingStatus(jobId, 'driver_arriving').catch(console.error);
+  }, [jobId]);
+
+  const handleMainAction = async () => {
     if (navState === 'EN_ROUTE_PICKUP') {
+      try {
+        await updateBookingStatus(jobId, 'at_pickup');
+      } catch (e) { console.error(e); }
       setNavState('AT_PICKUP');
       setWaitSeconds(0);
     } else {
-      router.push('/job/arrival-verify');
+      router.push({ pathname: '/job/arrival-verify', params: { id: jobId } });
     }
   };
 
   const handleMaskedCall = () => {
     Alert.alert(
       'Masked Call Connected',
-      `Connecting to customer via OmniGo Privacy Proxy:\n${mockIncomingJob.customerMaskedPhone}\n\nYour actual phone number remains hidden.`,
+      `Connecting to customer via OmniGo Privacy Proxy...\n\nYour actual phone number remains hidden.`,
       [{ text: 'End Call' }]
     );
+  };
+
+  const handleSOS = async () => {
+    setSosModalVisible(true);
+    try {
+      await createSOSIncident({
+        incidentNumber: 'SOS-' + Date.now(),
+        customerId: '',
+        customerName: 'Driver SOS',
+        locationAddress: 'En Route',
+        hazardType: 'driver_sos',
+        status: 'active'
+      });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSendChat = (textToSend?: string) => {
@@ -73,7 +165,10 @@ export default function NavigationScreen() {
         { text: 'Keep Waiting', style: 'cancel' },
         {
           text: 'Confirm No-Show & Claim ₹150',
-          onPress: () => {
+          onPress: async () => {
+            try {
+              await updateBookingStatus(jobId, 'cancelled');
+            } catch (e) {}
             Alert.alert('No-Show Recorded', '₹150 has been added to your pending earnings.');
             router.replace('/(tabs)');
           },
@@ -82,8 +177,11 @@ export default function NavigationScreen() {
     );
   };
 
-  const handleCancelReason = (reason: string) => {
+  const handleCancelReason = async (reason: string) => {
     setCancelModalVisible(false);
+    try {
+      await updateBookingStatus(jobId, 'cancelled');
+    } catch(e) {}
     Alert.alert('Job Cancelled', `Reason recorded: ${reason}`);
     router.replace('/(tabs)');
   };
@@ -123,13 +221,13 @@ export default function NavigationScreen() {
                 {navState === 'EN_ROUTE_PICKUP' ? 'En Route to Pickup' : 'Arrived at Pickup Spot'}
               </Text>
               <Text style={styles.topBannerSub} numberOfLines={1}>
-                {navState === 'EN_ROUTE_PICKUP' ? `Head to ${mockIncomingJob.pickup}` : 'Wait for customer or complete OTP verification'}
+                {navState === 'EN_ROUTE_PICKUP' ? `Head to ${booking?.pickup?.address || 'Pickup'}` : 'Wait for customer or complete OTP verification'}
               </Text>
             </View>
           </View>
 
           {/* SOS Emergency Trigger */}
-          <TouchableOpacity style={styles.sosTopBtn} onPress={() => setSosModalVisible(true)} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.sosTopBtn} onPress={handleSOS} activeOpacity={0.8}>
             <LinearGradient colors={['#FF3366', '#CC0033']} style={styles.sosGradient}>
               <Ionicons name="warning" size={16} color="#fff" />
               <Text style={styles.sosText}>SOS</Text>
@@ -143,8 +241,8 @@ export default function NavigationScreen() {
         <BlurView intensity={80} tint="dark" style={styles.card}>
           <View style={styles.customerHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.customerName}>{mockIncomingJob.customerName}</Text>
-              <Text style={styles.customerPhone}>Masked: {mockIncomingJob.customerMaskedPhone}</Text>
+              <Text style={styles.customerName}>Customer</Text>
+              <Text style={styles.customerPhone}>Masked: Connected</Text>
             </View>
             <View style={styles.contactActions}>
               <TouchableOpacity style={[styles.circleBtn, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]} onPress={() => setChatModalVisible(true)}>
@@ -158,14 +256,14 @@ export default function NavigationScreen() {
 
           <View style={styles.vehicleChipsContainer}>
             <View style={styles.chip}>
-              <Text style={styles.chipText}>{mockIncomingJob.vehicleMake} {mockIncomingJob.vehicleModel}</Text>
+              <Text style={styles.chipText}>{booking?.customerVehicle?.brand || ''} {booking?.customerVehicle?.model || ''}</Text>
             </View>
             <View style={styles.chip}>
-              <Text style={styles.chipText}>{mockIncomingJob.vehicleColor}</Text>
+              <Text style={styles.chipText}>White</Text>
             </View>
             <View style={[styles.chip, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
               <Text style={[styles.chipText, { fontFamily: THEME.fonts.inter.bold }]}>
-                {mockIncomingJob.vehiclePlate}
+                {booking?.customerVehicle?.number || '—'}
               </Text>
             </View>
           </View>
@@ -175,7 +273,7 @@ export default function NavigationScreen() {
             <View style={styles.etaRow}>
               <Ionicons name="time-outline" size={18} color={THEME.colors.primary} />
               <Text style={styles.etaText}>
-                Arriving in {mockIncomingJob.eta} ({mockIncomingJob.pickupDistance})
+                {booking?.estimatedETA ? `Arriving in ${booking.estimatedETA} mins` : '—'} {booking?.distance ? `(${booking.distance} km)` : ''}
               </Text>
             </View>
           ) : (
@@ -280,7 +378,7 @@ export default function NavigationScreen() {
             <View style={styles.chatHeader}>
               <View>
                 <Text style={styles.modalTitle}>In-App Customer Chat</Text>
-                <Text style={styles.modalSub}>{mockIncomingJob.customerName} · Masked Channel</Text>
+                <Text style={styles.modalSub}>Customer · Masked Channel</Text>
               </View>
               <TouchableOpacity onPress={() => setChatModalVisible(false)}>
                 <Ionicons name="close-circle" size={26} color={THEME.colors.textSecondary} />

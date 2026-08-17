@@ -1,15 +1,76 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
-import { mockIncomingJob } from '../../constants/mock-data';
+
+import { updateBookingStatus, createLedgerEntry, getLedgerByBooking, getBookingById, Booking } from '@omnigo/api';
+import { useLocalSearchParams } from 'expo-router';
 
 export default function DropoffScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const jobId = (params.id as string);
+  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const b = await getBookingById(jobId);
+        setBooking(b);
+        const l = await getLedgerByBooking(jobId);
+        setLedgerEntries(l);
+      } catch (e) { console.error(e); }
+    }
+    loadData();
+  }, [jobId]);
+
   const canComplete = true;
+
+  const handleComplete = async () => {
+    try {
+      const totalAmount = booking?.finalPrice || booking?.estimatedPrice || 0;
+      await updateBookingStatus(jobId, 'completed', { finalPrice: totalAmount });
+      if (booking) {
+        await createLedgerEntry({
+          bookingId: jobId,
+          driverId: DRIVER_ID,
+          amount: totalAmount,
+          type: 'credit',
+          description: `Trip ${jobId} Net Earning`,
+          status: 'Completed'
+        });
+      }
+      router.push({ pathname: '/job/complete', params: { id: jobId } });
+    } catch (e) {
+      console.error(e);
+      router.push({ pathname: '/job/complete', params: { id: jobId } });
+    }
+  };
+
+  const jobData = booking ? {
+    distance: booking.distance ? `${booking.distance} km` : '—',
+    duration: booking.estimatedETA ? `${booking.estimatedETA} mins` : '—',
+    vehiclePlate: booking.customerVehicle?.number || '—',
+    customerPayment: `₹${booking.finalPrice || booking.estimatedPrice || 0}`,
+    platformFee: '₹0',
+    platformCommissionRate: '10%',
+    tip: '₹0',
+    driverEarnings: `₹${booking.finalPrice || booking.estimatedPrice || 0}`
+  } : null;
+
+  if (!jobData) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: '#fff' }}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -31,15 +92,15 @@ export default function DropoffScreen() {
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Distance</Text>
-              <Text style={styles.summaryValue}>{mockIncomingJob.distance}</Text>
+              <Text style={styles.summaryValue}>{jobData.distance}</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Duration</Text>
-              <Text style={styles.summaryValue}>{mockIncomingJob.duration}</Text>
+              <Text style={styles.summaryValue}>{jobData.duration}</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Vehicle</Text>
-              <Text style={styles.summaryValue}>{mockIncomingJob.vehiclePlate}</Text>
+              <Text style={styles.summaryValue}>{jobData.vehiclePlate}</Text>
             </View>
           </View>
         </BlurView>
@@ -59,28 +120,28 @@ export default function DropoffScreen() {
           <View style={styles.breakdownBox}>
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>1. Customer Payment (Gross)</Text>
-              <Text style={styles.breakdownVal}>{mockIncomingJob.customerPayment}</Text>
+              <Text style={styles.breakdownVal}>{jobData.customerPayment}</Text>
             </View>
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>2. Booking ID</Text>
-              <Text style={[styles.breakdownVal, { color: THEME.colors.text }]}>JOB-7821</Text>
+              <Text style={[styles.breakdownVal, { color: THEME.colors.text }]}>{jobId}</Text>
             </View>
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>3. Payment ID</Text>
-              <Text style={[styles.breakdownVal, { color: THEME.colors.primary }]}>PAY-OMNI-7821</Text>
+              <Text style={[styles.breakdownVal, { color: THEME.colors.primary }]}>{booking?.id ? 'PAY-' + booking.id.slice(0,8).toUpperCase() : 'PAY-PENDING'}</Text>
             </View>
             <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>4. OmniGo Commission ({mockIncomingJob.platformCommissionRate})</Text>
-              <Text style={[styles.breakdownVal, { color: THEME.colors.danger }]}>-{mockIncomingJob.platformFee}</Text>
+              <Text style={styles.breakdownLabel}>4. OmniGo Commission ({jobData.platformCommissionRate})</Text>
+              <Text style={[styles.breakdownVal, { color: THEME.colors.danger }]}>-{jobData.platformFee}</Text>
             </View>
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>5. Customer Direct Tip (100% Pass-through)</Text>
-              <Text style={[styles.breakdownVal, { color: THEME.colors.success }]}>+{mockIncomingJob.tip}</Text>
+              <Text style={[styles.breakdownVal, { color: THEME.colors.success }]}>+{jobData.tip}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownTotalLabel}>6. Net Credited to Partner Ledger</Text>
-              <Text style={styles.breakdownTotalVal}>{mockIncomingJob.driverEarnings}</Text>
+              <Text style={styles.breakdownTotalVal}>{jobData.driverEarnings}</Text>
             </View>
           </View>
 
@@ -96,7 +157,7 @@ export default function DropoffScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity onPress={() => router.push('/job/complete')} disabled={!canComplete}>
+        <TouchableOpacity onPress={handleComplete} disabled={!canComplete}>
           <LinearGradient
             colors={canComplete ? [THEME.colors.success, '#00CC7A'] : ['#333', '#222']}
             style={styles.btn}

@@ -2,13 +2,25 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { theme, glassStyle } from '../../constants/theme';
-import { drivers } from '../../constants/mock-data';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { fetchDriverById } from '../../lib/api';
+import { useLocalSearchParams } from 'expo-router';
 
 export default function DriverAssignedScreen() {
   const router = useRouter();
-  const driver = drivers[0];
+  const { driverId, bookingId } = useLocalSearchParams<{ driverId?: string; bookingId?: string }>();
+  const [driver, setDriver] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    if (driverId) {
+      fetchDriverById(driverId).then((d) => {
+        if (d) setDriver(d);
+      }).catch(err => {
+        console.warn('[DriverAssigned] fetch driver failed', err);
+      });
+    }
+  }, [driverId]);
 
   return (
     <View style={styles.container}>
@@ -17,24 +29,30 @@ export default function DriverAssignedScreen() {
       <View style={styles.overlay}>
         <View style={styles.card}>
           <Text style={styles.title}>Driver Assigned!</Text>
-          <View style={styles.driverInfo}>
-            <View style={styles.avatar}><Ionicons name="person" size={30} color="#fff" /></View>
-            <View style={styles.details}>
-              <Text style={styles.name}>{driver.name}</Text>
-              <Text style={styles.rating}><Ionicons name="star" size={14} color="#FFD700" /> {driver.rating}</Text>
-            </View>
-            <View style={styles.etaBox}><Text style={styles.etaLabel}>ETA</Text><Text style={styles.etaValue}>{driver.eta}</Text></View>
-          </View>
-          <View style={styles.vehicleInfo}>
-            <Text style={styles.vehicleText}>{driver.vehicle}</Text>
-          </View>
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.actionBtn}><Ionicons name="call" size={20} color={theme.colors.primary} /></TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}><Ionicons name="chatbubble" size={20} color={theme.colors.primary} /></TouchableOpacity>
-          </View>
+          {driver ? (
+            <>
+              <View style={styles.driverInfo}>
+                <View style={styles.avatar}><Ionicons name="person" size={30} color="#fff" /></View>
+                <View style={styles.details}>
+                  <Text style={styles.name}>{driver.name}</Text>
+                  <Text style={styles.rating}><Ionicons name="star" size={14} color="#FFD700" /> {driver.rating}</Text>
+                </View>
+                <View style={styles.etaBox}><Text style={styles.etaLabel}>ETA</Text><Text style={styles.etaValue}>{driver.eta}</Text></View>
+              </View>
+              <View style={styles.vehicleInfo}>
+                <Text style={styles.vehicleText}>{driver.vehicle}</Text>
+              </View>
+              <View style={styles.actions}>
+                <TouchableOpacity style={styles.actionBtn}><Ionicons name="call" size={20} color={theme.colors.primary} /></TouchableOpacity>
+                <TouchableOpacity style={styles.actionBtn}><Ionicons name="chatbubble" size={20} color={theme.colors.primary} /></TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.vehicleText}>Loading driver details...</Text>
+          )}
         </View>
         
-        <TouchableOpacity onPress={() => router.push('/booking/tracking')} style={styles.nextBtnContainer}>
+        <TouchableOpacity onPress={() => router.push({ pathname: '/booking/tracking', params: { bookingId, driverId } })} style={styles.nextBtnContainer}>
           <LinearGradient colors={['#00CFFF', '#0CF2FF']} style={styles.nextBtn}>
             <Text style={styles.nextBtnText}>TRACK LIVE</Text>
           </LinearGradient>

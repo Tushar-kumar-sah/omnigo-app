@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { THEME } from '../../constants/theme';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { mockDriver, mockPayoutHistory } from '../../constants/mock-data';
+import { getDriverById, getDriverLedger, createSettlement, Driver } from '@omnigo/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TransactionFilter = 'all' | 'credits' | 'withdrawals';
@@ -31,87 +31,58 @@ interface WalletTransaction {
   refNo?: string;
 }
 
-const WALLET_TRANSACTIONS: WalletTransaction[] = [
-  {
-    id: 'tx-1',
-    title: 'Trip #7821 Net Earning',
-    subtitle: 'Honda City Tow • 5.2 km',
-    amount: '+₹765',
-    isCredit: true,
-    date: 'Today, 2:30 PM',
-    type: 'trip',
-    status: 'Completed',
-  },
-  {
-    id: 'tx-2',
-    title: 'Customer Direct Tip',
-    subtitle: 'Received from Rahul S.',
-    amount: '+₹150',
-    isCredit: true,
-    date: 'Today, 2:30 PM',
-    type: 'tip',
-    status: 'Completed',
-  },
-  {
-    id: 'tx-3',
-    title: 'Weekly Automated Payout',
-    subtitle: 'Direct Transfer to HDFC Bank',
-    amount: '-₹8,750',
-    isCredit: false,
-    date: '12 Aug 2026',
-    type: 'payout',
-    status: 'Completed',
-    refNo: 'UTR-9821472910',
-  },
-  {
-    id: 'tx-4',
-    title: 'Daily Performance Bonus',
-    subtitle: '3 Tows Milestone Achieved',
-    amount: '+₹350',
-    isCredit: true,
-    date: '11 Aug 2026',
-    type: 'bonus',
-    status: 'Completed',
-  },
-  {
-    id: 'tx-5',
-    title: 'Instant Bank Withdrawal',
-    subtitle: 'IMPS to HDFC Bank (••4589)',
-    amount: '-₹3,000',
-    isCredit: false,
-    date: '08 Aug 2026',
-    type: 'payout',
-    status: 'Completed',
-    refNo: 'UTR-8712940123',
-  },
-  {
-    id: 'tx-6',
-    title: 'Trip #7802 Net Earning',
-    subtitle: 'Toyota Fortuner Tow • 12.4 km',
-    amount: '+₹1,080',
-    isCredit: true,
-    date: '08 Aug 2026',
-    type: 'trip',
-    status: 'Completed',
-  },
-];
+const WALLET_TRANSACTIONS: WalletTransaction[] = [];
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<TransactionFilter>('all');
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [selectedAuditTx, setSelectedAuditTx] = useState<WalletTransaction | null>(null);
-  const [withdrawAmount, setWithdrawAmount] = useState('4250');
-  const [availableBalance, setAvailableBalance] = useState(4250);
-  const [pendingBalance, setPendingBalance] = useState(1120);
+  const [withdrawAmount, setWithdrawAmount] = useState('0');
 
-  const filteredTransactions = WALLET_TRANSACTIONS.filter(tx => {
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [apiTransactions, setApiTransactions] = useState<any[]>([]);
+  // Use mock for audit since we just want to show UI for now
+  
+  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const d = await getDriverById(DRIVER_ID);
+        setDriver(d);
+        const txs = await getDriverLedger(DRIVER_ID);
+        setApiTransactions(txs);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadData();
+  }, [DRIVER_ID]);
+
+  const driverAny = driver as any;
+  const availableBalance = driverAny?.wallet?.balance ?? driverAny?.earnings?.total ?? 0;
+  const pendingBalance = driverAny?.wallet?.pendingBalance ?? 0;
+  
+  const displayTransactions = apiTransactions.map(tx => ({
+    id: tx.id,
+    title: tx.type === 'commission' ? 'Platform Fee' : (tx.type === 'payout' ? 'Payout' : 'Trip Payment'),
+    subtitle: tx.booking_id ? `Booking ${tx.booking_id.slice(0,8)}` : tx.type,
+    amount: tx.type === 'commission' || tx.type === 'payout' ? `-₹${Math.round(tx.amount || tx.commission_amount || 0)}` : `+₹${Math.round(tx.amount || tx.fare_amount || 0)}`,
+    isCredit: tx.type !== 'commission' && tx.type !== 'payout',
+    date: new Date(tx.created_at || tx.createdAt).toLocaleDateString(),
+    type: tx.type as any,
+    status: 'Completed' as any,
+    refNo: tx.reference || ''
+  }));
+
+  const filteredTransactions = displayTransactions.filter(tx => {
     if (filter === 'credits') return tx.isCredit;
     if (filter === 'withdrawals') return !tx.isCredit;
     return true;
   });
 
-  const handleConfirmWithdraw = () => {
+  const handleConfirmWithdraw = async () => {
     const amountNum = parseFloat(withdrawAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
       Alert.alert('Invalid Amount', 'Please enter a valid transfer amount.');
@@ -122,13 +93,24 @@ export default function WalletScreen() {
       return;
     }
 
-    setShowWithdrawModal(false);
-    setAvailableBalance(prev => prev - amountNum);
-    Alert.alert(
-      'Transfer Initiated! ⚡',
-      `₹${amountNum.toLocaleString('en-IN')} has been sent to your ${mockDriver.bank.bankName} account (••${mockDriver.bank.accountNumber.slice(-4)}). Funds will reflect within 15 minutes.`,
-      [{ text: 'Great' }]
-    );
+    try {
+      await createSettlement({
+        driverId: DRIVER_ID,
+        driverName: driver?.name || 'Rajesh Kumar',
+        bookingIds: [],
+        grossAmount: amountNum,
+        totalCommissionDeducted: 0,
+        netPayable: amountNum
+      });
+      setShowWithdrawModal(false);
+      Alert.alert(
+        'Transfer Initiated! ⚡',
+        `₹${amountNum.toLocaleString('en-IN')} has been sent to your ${driverAny?.bank_name || driverAny?.bankName || 'Bank'} account (••${(driverAny?.bank_account_number || driverAny?.bankAccountNumber || '0000').slice(-4)}). Funds will reflect within 15 minutes.`,
+        [{ text: 'Great' }]
+      );
+    } catch (err) {
+      Alert.alert('Error', 'Failed to initiate transfer.');
+    }
   };
 
   return (
@@ -209,14 +191,14 @@ export default function WalletScreen() {
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.bankName}>{mockDriver.bank.bankName}</Text>
+                <Text style={styles.bankName}>{driverAny?.bank_name || driverAny?.bankName || 'Your Bank'}</Text>
                 <View style={styles.approvedBadge}>
                   <Ionicons name="shield-checkmark" size={10} color={THEME.colors.success} />
                   <Text style={styles.approvedText}>Approved</Text>
                 </View>
               </View>
               <Text style={styles.bankAccountNo}>
-                •••• •••• {mockDriver.bank.accountNumber.slice(-4)}
+                •••• •••• {(driverAny?.bank_account_number || driverAny?.bankAccountNumber || '0000').slice(-4)}
               </Text>
             </View>
           </View>
@@ -225,11 +207,11 @@ export default function WalletScreen() {
 
           <View style={styles.bankInfoRow}>
             <Text style={styles.bankInfoLabel}>Account Holder</Text>
-            <Text style={styles.bankInfoVal}>{mockDriver.bank.accountName}</Text>
+            <Text style={styles.bankInfoVal}>{driverAny?.name || 'Driver Name'}</Text>
           </View>
           <View style={styles.bankInfoRow}>
             <Text style={styles.bankInfoLabel}>IFSC Code</Text>
-            <Text style={styles.bankInfoVal}>{mockDriver.bank.ifsc}</Text>
+            <Text style={styles.bankInfoVal}>{driverAny?.bank_ifsc || driverAny?.bankIfsc || 'IFSC000'}</Text>
           </View>
           <View style={styles.bankInfoRow}>
             <Text style={styles.bankInfoLabel}>Payout Method</Text>
@@ -350,82 +332,12 @@ export default function WalletScreen() {
               End-to-end trace from Customer Payment ➔ OmniGo Gateway ➔ Ledger ➔ Settlement ➔ Bank Payout.
             </Text>
 
-            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-              {/* Pipeline Step 1 */}
-              <View style={styles.pipelineStep}>
-                <View style={styles.pipelineIconBox}>
-                  <Ionicons name="card" size={14} color="#00FF97" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pipelineLabel}>1. Customer Payment</Text>
-                  <Text style={styles.pipelineVal}>₹850.00 via OmniGo Escrow Gateway</Text>
-                </View>
-              </View>
-
-              {/* Pipeline Step 2 */}
-              <View style={styles.pipelineStep}>
-                <View style={styles.pipelineIconBox}>
-                  <Ionicons name="document-text" size={14} color="#00CFFF" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pipelineLabel}>2. Booking ID</Text>
-                  <Text style={styles.pipelineVal}>JOB-7821 (Maruti Swift Flatbed Tow)</Text>
-                </View>
-              </View>
-
-              {/* Pipeline Step 3 */}
-              <View style={styles.pipelineStep}>
-                <View style={styles.pipelineIconBox}>
-                  <Ionicons name="shield-checkmark" size={14} color="#00CFFF" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pipelineLabel}>3. Gateway Payment ID</Text>
-                  <Text style={[styles.pipelineVal, { color: '#00CFFF' }]}>PAY-OMNI-7821 (Captured)</Text>
-                </View>
-              </View>
-
-              {/* Pipeline Step 4 */}
-              <View style={styles.pipelineStep}>
-                <View style={styles.pipelineIconBox}>
-                  <Ionicons name="pie-chart" size={14} color={THEME.colors.danger} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pipelineLabel}>4. OmniGo Commission Split</Text>
-                  <Text style={[styles.pipelineVal, { color: THEME.colors.danger }]}>-₹85.00 (10% Platform Fee + ₹15 GST)</Text>
-                </View>
-              </View>
-
-              {/* Pipeline Step 5 */}
-              <View style={styles.pipelineStep}>
-                <View style={styles.pipelineIconBox}>
-                  <Ionicons name="wallet" size={14} color="#00FF97" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pipelineLabel}>5. Partner Ledger Earning</Text>
-                  <Text style={[styles.pipelineVal, { color: '#00FF97' }]}>+₹765.00 (+₹150 Tip) ➔ ₹915.00 Total</Text>
-                </View>
-              </View>
-
-              {/* Pipeline Step 6 */}
-              <View style={styles.pipelineStep}>
-                <View style={styles.pipelineIconBox}>
-                  <Ionicons name="layers" size={14} color={THEME.colors.warning} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pipelineLabel}>6. Partner Settlement Batch</Text>
-                  <Text style={styles.pipelineVal}>SETTLE-8910 (Pending Clearance)</Text>
-                </View>
-              </View>
-
-              {/* Pipeline Step 7 */}
-              <View style={[styles.pipelineStep, { borderBottomWidth: 0 }]}>
-                <View style={styles.pipelineIconBox}>
-                  <Ionicons name="business" size={14} color="#00FF97" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pipelineLabel}>7. Bank Payout Disbursed</Text>
-                  <Text style={styles.pipelineVal}>State Bank of India (••6789) · UTR9928172648</Text>
-                </View>
+            <ScrollView style={{ maxHeight: 380, paddingVertical: 20 }} showsVerticalScrollIndicator={false}>
+              <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="document-text-outline" size={32} color="rgba(255,255,255,0.2)" />
+                <Text style={{ fontFamily: THEME.fonts.inter.medium, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>
+                  No audit details available for this transaction.
+                </Text>
               </View>
             </ScrollView>
 
@@ -480,7 +392,7 @@ export default function WalletScreen() {
             <View style={styles.targetBankRow}>
               <Ionicons name="business-outline" size={16} color={THEME.colors.primary} />
               <Text style={styles.targetBankText}>
-                Destination: {mockDriver.bank.bankName} (••{mockDriver.bank.accountNumber.slice(-4)})
+                Destination: {driverAny?.bank_name || driverAny?.bankName || 'Your Bank'} (••{(driverAny?.bank_account_number || driverAny?.bankAccountNumber || '0000').slice(-4)})
               </Text>
             </View>
 

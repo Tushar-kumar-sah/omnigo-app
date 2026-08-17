@@ -7,11 +7,13 @@
     "dev:user": "pnpm --filter user-app dev",
     "dev:vendor": "pnpm --filter vendor-app dev",
     "dev:admin": "pnpm --filter admin-panel dev",
+    "dev:api": "pnpm --filter api-server dev",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "build": "turbo build"
   },
   "dependencies": {
+    "pg": "^8.23.0",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },

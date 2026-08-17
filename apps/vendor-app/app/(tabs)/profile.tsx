@@ -1,13 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { THEME } from '../../constants/theme';
 import { BlurView } from 'expo-blur';
-import { mockDriver } from '../../constants/mock-data';
+import { getDriverById, getDriverDocuments, Driver } from '@omnigo/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const d = await getDriverById(DRIVER_ID);
+        setDriver(d);
+        const docs = await getDriverDocuments(DRIVER_ID);
+        setDocuments(docs || []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadData();
+  }, [DRIVER_ID]);
+
+  const displayDriver = driver || {} as any;
 
   const handleLogout = () => {
     router.replace('/(auth)/login');
@@ -27,42 +47,42 @@ export default function ProfileScreen() {
           <Ionicons name="person" size={40} color={THEME.colors.primary} />
           <View style={styles.onlineDot} />
         </View>
-        <Text style={styles.name}>{mockDriver.name}</Text>
-        <Text style={styles.phone}>{mockDriver.phone} · ID: {mockDriver.id}</Text>
+        <Text style={styles.name}>{displayDriver.name || displayDriver.user?.name}</Text>
+        <Text style={styles.phone}>{displayDriver.phone || displayDriver.user?.phone} · ID: {displayDriver.id}</Text>
         <View style={styles.ratingBadge}>
           <Ionicons name="star" size={16} color="#FFD700" />
-          <Text style={styles.ratingText}>{mockDriver.rating} Rating</Text>
+          <Text style={styles.ratingText}>{displayDriver.rating || displayDriver.performance?.rating || 0} Rating</Text>
         </View>
         
         {/* Performance & Operations Metrics */}
         <View style={styles.statsGrid}>
           <View style={styles.statCell}>
-            <Text style={styles.statValue}>{mockDriver.totalTrips}</Text>
+            <Text style={styles.statValue}>{displayDriver.totalTrips || displayDriver.performance?.totalTrips || 0}</Text>
             <Text style={styles.statLabel}>Trips</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statCell}>
-            <Text style={[styles.statValue, { color: THEME.colors.primary }]}>{mockDriver.acceptanceRate}%</Text>
+            <Text style={[styles.statValue, { color: THEME.colors.primary }]}>{displayDriver.acceptanceRate || displayDriver.performance?.acceptanceRate || 0}%</Text>
             <Text style={styles.statLabel}>Acceptance</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statCell}>
-            <Text style={[styles.statValue, { color: THEME.colors.success }]}>{mockDriver.completionRate}%</Text>
+            <Text style={[styles.statValue, { color: THEME.colors.success }]}>{displayDriver.completionRate != null ? displayDriver.completionRate + '%' : '—'}</Text>
             <Text style={styles.statLabel}>Completion</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statCell}>
-            <Text style={[styles.statValue, { color: THEME.colors.danger }]}>{mockDriver.cancellationRate}%</Text>
+            <Text style={[styles.statValue, { color: THEME.colors.danger }]}>{displayDriver.cancellationRate != null ? displayDriver.cancellationRate + '%' : '—'}</Text>
             <Text style={styles.statLabel}>Cancelled</Text>
           </View>
         </View>
 
         <View style={styles.onlineHoursRow}>
           <Ionicons name="timer-outline" size={15} color={THEME.colors.primary} />
-          <Text style={styles.onlineHoursText}>Total Online Hours: <Text style={{ color: '#fff', fontFamily: THEME.fonts.inter.bold }}>{mockDriver.onlineHours}</Text></Text>
+          <Text style={styles.onlineHoursText}>Total Online Hours: <Text style={{ color: '#fff', fontFamily: THEME.fonts.inter.bold }}>{displayDriver.onlineHours || '—'}</Text></Text>
         </View>
 
-        <Text style={styles.memberSince}>Partner since {mockDriver.memberSince}</Text>
+        <Text style={styles.memberSince}>Partner since {displayDriver.memberSince || '—'}</Text>
       </BlurView>
 
       {/* Vehicle Verification Details */}
@@ -70,29 +90,29 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Vehicle & Equipment Status</Text>
         <View style={styles.verifiedPill}>
           <Ionicons name="checkmark-circle" size={14} color={THEME.colors.success} />
-          <Text style={styles.verifiedPillText}>{mockDriver.vehicle.verificationStatus}</Text>
+          <Text style={styles.verifiedPillText}>{displayDriver.vehicle?.verificationStatus || displayDriver.verificationStatus || 'Verified'}</Text>
         </View>
       </View>
 
       <BlurView intensity={20} tint="dark" style={styles.infoCard}>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Vehicle Type</Text>
-          <Text style={styles.infoValue}>{mockDriver.vehicle.type}</Text>
+          <Text style={styles.infoValue}>{displayDriver.vehicle?.type || displayDriver.vehicleDetails?.type || 'Tow Truck'}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Make & Model</Text>
-          <Text style={styles.infoValue}>{mockDriver.vehicle.make} {mockDriver.vehicle.model} ({mockDriver.vehicle.year})</Text>
+          <Text style={styles.infoValue}>{displayDriver.vehicle?.make || displayDriver.vehicleDetails?.make} {displayDriver.vehicle?.model || displayDriver.vehicleDetails?.model} ({displayDriver.vehicle?.year || displayDriver.vehicleDetails?.year})</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Plate Number</Text>
-          <Text style={[styles.infoValue, { color: THEME.colors.primary, fontFamily: THEME.fonts.outfit.bold }]}>{mockDriver.vehicle.number}</Text>
+          <Text style={[styles.infoValue, { color: THEME.colors.primary, fontFamily: THEME.fonts.outfit.bold }]}>{displayDriver.vehicle?.number || displayDriver.vehicleDetails?.plateNumber}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Last Field Inspection</Text>
-          <Text style={styles.infoValue}>{mockDriver.vehicle.inspectionDate}</Text>
+          <Text style={styles.infoValue}>{displayDriver.vehicle?.inspectionDate || '—'}</Text>
         </View>
       </BlurView>
 
@@ -102,33 +122,31 @@ export default function ProfileScreen() {
       </View>
 
       <BlurView intensity={20} tint="dark" style={styles.infoCard}>
-        {Object.entries(mockDriver.documents).map(([key, doc], idx) => (
-          <React.Fragment key={key}>
-            {idx > 0 && <View style={styles.divider} />}
-            <View style={styles.docRow}>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={styles.docName}>{doc.name}</Text>
-                <View style={styles.docMetaRow}>
-                  <Text style={[styles.verifiedText, doc.expiresSoon && { color: THEME.colors.warning }]}>
-                    {doc.status} {doc.status === 'Verified' ? '✓' : '⚠️'}
-                  </Text>
-                  <Text style={styles.docExpiryText}> · Exp: {doc.expiry}</Text>
-                </View>
-                {doc.expiresSoon && 'daysLeft' in doc && (
-                  <View style={styles.expiryAlertBox}>
-                    <Ionicons name="warning" size={13} color={THEME.colors.warning} />
-                    <Text style={styles.expiryAlertText}>Expiring in {(doc as any).daysLeft} days. Tap update to renew.</Text>
+        {documents.length === 0 ? (
+          <View style={{ padding: 16, alignItems: 'center' }}>
+            <Text style={{ color: 'rgba(255,255,255,0.5)' }}>No documents found</Text>
+          </View>
+        ) : (
+          documents.map((doc, idx) => (
+            <React.Fragment key={idx}>
+              {idx > 0 && <View style={styles.divider} />}
+              <View style={styles.docRow}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.docName}>{doc.type || 'Document'}</Text>
+                  <View style={styles.docMetaRow}>
+                    <Text style={[styles.verifiedText, doc.status !== 'verified' && { color: THEME.colors.warning }]}>
+                      {doc.status} {doc.status === 'verified' ? '✓' : '⚠️'}
+                    </Text>
+                    {doc.expiryDate && <Text style={styles.docExpiryText}> · Exp: {new Date(doc.expiryDate).toLocaleDateString()}</Text>}
                   </View>
-                )}
+                </View>
+                <TouchableOpacity style={styles.updateBtn}>
+                  <Text style={styles.updateBtnText}>View</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity style={[styles.updateBtn, doc.expiresSoon && { borderColor: THEME.colors.warning, backgroundColor: 'rgba(255, 214, 10, 0.1)' }]}>
-                <Text style={[styles.updateBtnText, doc.expiresSoon && { color: THEME.colors.warning }]}>
-                  {doc.expiresSoon ? 'Renew' : 'View'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </React.Fragment>
-        ))}
+            </React.Fragment>
+          ))
+        )}
       </BlurView>
 
       {/* Bank Account */}
@@ -143,27 +161,27 @@ export default function ProfileScreen() {
       <BlurView intensity={20} tint="dark" style={styles.infoCard}>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Account Holder</Text>
-          <Text style={styles.infoValue}>{mockDriver.bank.accountName}</Text>
+          <Text style={styles.infoValue}>{displayDriver.bank?.accountName || displayDriver.bankDetails?.accountName}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Bank Name</Text>
-          <Text style={styles.infoValue}>{mockDriver.bank.bankName}</Text>
+          <Text style={styles.infoValue}>{displayDriver.bank?.bankName || displayDriver.bankDetails?.bankName}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Account Number</Text>
-          <Text style={styles.infoValue}>{mockDriver.bank.accountNumber}</Text>
+          <Text style={styles.infoValue}>{displayDriver.bank?.accountNumber || displayDriver.bankDetails?.accountNumber}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Branch & IFSC</Text>
-          <Text style={styles.infoValue}>{mockDriver.bank.ifsc}</Text>
+          <Text style={styles.infoValue}>{displayDriver.bank?.ifsc || displayDriver.bankDetails?.ifscCode}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Direct UPI ID</Text>
-          <Text style={[styles.infoValue, { color: THEME.colors.primary }]}>{mockDriver.bank.upiId}</Text>
+          <Text style={[styles.infoValue, { color: THEME.colors.primary }]}>{displayDriver.bank?.upiId || displayDriver.bankDetails?.upiId}</Text>
         </View>
       </BlurView>
 
