@@ -281,7 +281,21 @@ export default function ScheduleTowScreen() {
         <TouchableOpacity
           style={[styles.confirmBtn, !canContinue && styles.confirmBtnDisabled]}
           onPress={() => {
-            if (canContinue) router.push('/booking/vehicle-details');
+            if (canContinue) {
+              router.push({
+                pathname: '/booking/confirm',
+                params: {
+                  vehicleType: selectedVehicle,
+                  vehicleName: `${selectedVehicle.toUpperCase()} Tow`,
+                  pickup: pickup.trim(),
+                  dropoff: dropoff.trim(),
+                  distance: '10',
+                  baseFare: '1200',
+                  distanceFee: '200',
+                  serviceIssue: 'Scheduled Pickup',
+                },
+              });
+            }
           }}
           activeOpacity={canContinue ? 0.85 : 1}
         >

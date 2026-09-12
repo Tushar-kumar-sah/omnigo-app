@@ -93,7 +93,9 @@ export type BookingStatus =
   | 'driver_assigned'
   | 'driver_arriving'
   | 'at_pickup'
+  | 'vehicle_loaded'
   | 'towing'
+  | 'arriving_dropoff'
   | 'completed'
   | 'cancelled';
 

@@ -10,13 +10,16 @@ import {
   Alert,
   Platform,
   Linking,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { theme } from '../../constants/theme';
+import MapLocationPickerModal from '../../components/MapLocationPickerModal';
 
 const VEHICLE_IMAGES = {
   sedan: require('../../assets/vehicles/sedan.jpg'),
@@ -47,6 +50,10 @@ const COLORS = [
   { id: 'gold', color: '#FFB300', label: 'Gold' },
 ];
 
+const SERVICE_ISSUES = [
+  'Breakdown', 'Flat Tyre', 'Battery Dead', 'Engine Fault', 'Accident Tow', 'Stuck / Mud'
+];
+
 const PHOTO_LABELS = ['Front View', 'Rear View', 'Left Side', 'Right Side'];
 
 export default function SelectVehicleScreen() {
@@ -54,14 +61,23 @@ export default function SelectVehicleScreen() {
   const insets = useSafeAreaInsets();
 
   // Vehicle type
-  const [selectedType, setSelectedType] = useState('');
+  const [selectedType, setSelectedType] = useState('hatchback');
 
   // Vehicle details
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
   const [licensePlate, setLicensePlate] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedColor, setSelectedColor] = useState('white');
+
+  // Location & Service details
+  const [pickup, setPickup] = useState('');
+  const [dropoff, setDropoff] = useState('');
+  const [distanceKm, setDistanceKm] = useState('8');
+  const [issueReason, setIssueReason] = useState('Breakdown');
+  const [locatingGps, setLocatingGps] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapPickerType, setMapPickerType] = useState<'pickup' | 'dropoff'>('pickup');
 
   // Media
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null]);
@@ -70,14 +86,45 @@ export default function SelectVehicleScreen() {
   // Focus states
   const [focusedField, setFocusedField] = useState('');
 
+  // Auto GPS location on initial render if empty
+  React.useEffect(() => {
+    detectCurrentLocation();
+  }, []);
+
+  const detectCurrentLocation = async () => {
+    try {
+      setLocatingGps(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        try {
+          const geocode = await Location.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+          if (geocode && geocode.length > 0) {
+            const g = geocode[0];
+            const parts = [g.name, g.street, g.district || g.subregion, g.city].filter(Boolean);
+            setPickup(parts.join(', ') || `GPS (${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)})`);
+          } else {
+            setPickup(`GPS (${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)})`);
+          }
+        } catch {
+          setPickup(`GPS Location (${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)})`);
+        }
+      } else {
+        setPickup('Current Location (GPS)');
+      }
+    } catch (e) {
+      console.warn('Location detection', e);
+      setPickup('Current Location (GPS)');
+    } finally {
+      setLocatingGps(false);
+    }
+  };
+
   const photosUploaded = photos.filter(Boolean).length;
-  const canContinue =
-    selectedType !== '' &&
-    brand.trim().length > 0 &&
-    model.trim().length > 0 &&
-    licensePlate.trim().length > 0 &&
-    selectedColor !== '' &&
-    photosUploaded >= 4;
+  const canContinue = selectedType !== '';
 
   const pickPhoto = async (index: number) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -121,7 +168,6 @@ export default function SelectVehicleScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
       allowsEditing: true,
-      videoMaxDuration: 60,
       quality: 0.7,
     });
     if (!result.canceled && result.assets[0]) {
@@ -134,7 +180,7 @@ export default function SelectVehicleScreen() {
     if (status !== 'granted') {
       Alert.alert(
         'Permission Required',
-        'Camera access was denied. Please enable it in your device Settings.',
+        'Camera access was denied. Please enable it in your device Settings to take photos.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Open Settings', onPress: () => Linking.openSettings() },
@@ -163,7 +209,10 @@ export default function SelectVehicleScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
 
       {/* Header */}
@@ -334,17 +383,144 @@ export default function SelectVehicleScreen() {
           </ScrollView>
         </View>
 
-        {/* SECTION 3: Vehicle Photos */}
+        {/* SECTION 3: Pickup & Drop-Off Route */}
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionNumBadge}>
             <Text style={styles.sectionNumText}>3</Text>
           </View>
-          <Text style={styles.sectionTitle}>Vehicle Photos</Text>
-          <View style={styles.photoCountBadge}>
-            <Text style={styles.photoCountText}>{photosUploaded}/4</Text>
+          <Text style={styles.sectionTitle}>Pickup & Drop-off Route</Text>
+        </View>
+
+        {/* Pickup Input */}
+        <View style={styles.formGroup}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <Text style={styles.inputLabel}>Pickup Location</Text>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setMapPickerType('pickup');
+                  setShowMapPicker(true);
+                }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(0,207,255,0.1)', borderWidth: 1, borderColor: 'rgba(0,207,255,0.25)' }}
+              >
+                <Ionicons name="map" size={11} color="#00CFFF" />
+                <Text style={{ color: '#00CFFF', fontSize: 11, fontFamily: 'Outfit_600SemiBold' }}>
+                  Choose on Map
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={detectCurrentLocation} 
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(0,255,151,0.1)', borderWidth: 1, borderColor: 'rgba(0,255,151,0.25)' }}
+              >
+                <Ionicons name="navigate" size={11} color="#00FF97" />
+                <Text style={{ color: '#00FF97', fontSize: 11, fontFamily: 'Outfit_600SemiBold' }}>
+                  {locatingGps ? 'Locating...' : 'GPS Detect'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={[styles.locationInputBox, focusedField === 'pickup' && styles.inputFocused]}>
+            <View style={[styles.locationDot, { backgroundColor: '#00FF97' }]} />
+            <TextInput
+              style={styles.locationTextInput}
+              placeholder="Enter breakdown pickup address / landmark"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              value={pickup}
+              onChangeText={setPickup}
+              onFocus={() => setFocusedField('pickup')}
+              onBlur={() => setFocusedField('')}
+            />
           </View>
         </View>
-        <Text style={styles.sectionSubtitle}>Upload 4 clear photos of your vehicle from all sides</Text>
+
+        {/* Drop-off Destination Input */}
+        <View style={styles.formGroup}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <Text style={styles.inputLabel}>Drop-off Destination</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setMapPickerType('dropoff');
+                setShowMapPicker(true);
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(0,207,255,0.1)', borderWidth: 1, borderColor: 'rgba(0,207,255,0.25)' }}
+            >
+              <Ionicons name="map" size={11} color="#00CFFF" />
+              <Text style={{ color: '#00CFFF', fontSize: 11, fontFamily: 'Outfit_600SemiBold' }}>
+                Choose on Map
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.locationInputBox, focusedField === 'dropoff' && styles.inputFocused]}>
+            <View style={[styles.locationDot, { backgroundColor: '#FF3B30' }]} />
+            <TextInput
+              style={styles.locationTextInput}
+              placeholder="Type destination garage, workshop or home address"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              value={dropoff}
+              onChangeText={setDropoff}
+              onFocus={() => setFocusedField('dropoff')}
+              onBlur={() => setFocusedField('')}
+            />
+          </View>
+
+          {/* Quick Destination Chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            {[
+              { label: '🏢 Nearest Service Center', value: 'Nearest Authorized Service Center' },
+              { label: '🔧 Local Workshop', value: 'Nearest Multi-Brand Repair Workshop' },
+              { label: '🏠 Home / Residence', value: 'Home Address' },
+            ].map((dest) => (
+              <TouchableOpacity
+                key={dest.label}
+                onPress={() => setDropoff(dest.value)}
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderRadius: 8,
+                  backgroundColor: dropoff === dest.value ? 'rgba(0,207,255,0.2)' : 'rgba(255,255,255,0.06)',
+                  borderWidth: 1,
+                  borderColor: dropoff === dest.value ? '#00CFFF' : 'rgba(255,255,255,0.1)',
+                }}
+              >
+                <Text style={{ fontSize: 11, color: dropoff === dest.value ? '#00CFFF' : 'rgba(255,255,255,0.7)', fontFamily: 'Inter_500Medium' }}>
+                  {dest.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Breakdown Issue Reason Chips */}
+        <View style={styles.formGroup}>
+          <Text style={styles.inputLabel}>Reason for Tow / Breakdown</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorRow}>
+            {SERVICE_ISSUES.map((issue) => {
+              const isSelected = issue === issueReason;
+              return (
+                <TouchableOpacity
+                  key={issue}
+                  onPress={() => setIssueReason(issue)}
+                  style={[styles.issueChip, isSelected && styles.issueChipSelected]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.issueChipText, isSelected && styles.issueChipTextSelected]}>{issue}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* SECTION 4: Vehicle Photos */}
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionNumBadge}>
+            <Text style={styles.sectionNumText}>4</Text>
+          </View>
+          <Text style={styles.sectionTitle}>Vehicle Photos</Text>
+          <View style={styles.optionalBadge}>
+            <Text style={styles.optionalBadgeText}>Optional</Text>
+          </View>
+        </View>
+        <Text style={styles.sectionSubtitle}>Upload clear photos of your vehicle from all sides (optional)</Text>
 
         <View style={styles.photoGrid}>
           {PHOTO_LABELS.map((label, index) => (
@@ -387,10 +563,10 @@ export default function SelectVehicleScreen() {
           ))}
         </View>
 
-        {/* SECTION 4: 360° Video (Optional) */}
+        {/* SECTION 5: 360° Video (Optional) */}
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionNumBadge}>
-            <Text style={styles.sectionNumText}>4</Text>
+            <Text style={styles.sectionNumText}>5</Text>
           </View>
           <Text style={styles.sectionTitle}>360° Vehicle Video</Text>
           <View style={styles.optionalBadge}>
@@ -450,7 +626,34 @@ export default function SelectVehicleScreen() {
         <TouchableOpacity
           style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
           onPress={() => {
-            if (canContinue) router.push('/booking/confirm');
+            if (!canContinue) return;
+            const pricingMap: Record<string, { baseFare: number; perKmRate: number; baseKm: number }> = {
+              hatchback: { baseFare: 999, perKmRate: 40, baseKm: 5 },
+              sedan: { baseFare: 1299, perKmRate: 50, baseKm: 5 },
+              suv: { baseFare: 1499, perKmRate: 60, baseKm: 5 },
+              bike: { baseFare: 500, perKmRate: 20, baseKm: 5 },
+              truck: { baseFare: 4999, perKmRate: 150, baseKm: 5 },
+              bus: { baseFare: 1999, perKmRate: 75, baseKm: 5 },
+            };
+            const distNum = parseFloat(distanceKm) || 8;
+            const pricing = pricingMap[selectedType] || { baseFare: 999, perKmRate: 40, baseKm: 5 };
+            const extraKm = Math.max(0, distNum - pricing.baseKm);
+            const distanceFee = Math.round(extraKm * pricing.perKmRate);
+
+            router.push({
+              pathname: '/booking/confirm',
+              params: {
+                vehicleType: selectedType,
+                vehicleName: `${brand} ${model}`.trim() || 'Vehicle',
+                vehiclePlate: licensePlate || 'MH-12-AB-1234',
+                pickup: pickup.trim() || 'Current Location (GPS)',
+                dropoff: dropoff.trim() || 'Nearest Service Center / Workshop',
+                distance: distNum.toString(),
+                baseFare: pricing.baseFare.toString(),
+                distanceFee: distanceFee.toString(),
+                serviceIssue: issueReason,
+              },
+            });
           }}
           activeOpacity={canContinue ? 0.85 : 1}
         >
@@ -461,7 +664,7 @@ export default function SelectVehicleScreen() {
             style={styles.continueBtnGradient}
           >
             <Text style={[styles.continueBtnText, !canContinue && styles.continueBtnTextDisabled]}>
-              CONTINUE
+              CONTINUE TO CONFIRM
             </Text>
             <Ionicons
               name="arrow-forward"
@@ -484,7 +687,23 @@ export default function SelectVehicleScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+
+      {/* Interactive Map Location Picker */}
+      <MapLocationPickerModal
+        visible={showMapPicker}
+        onClose={() => setShowMapPicker(false)}
+        type={mapPickerType}
+        title={mapPickerType === 'pickup' ? 'Select Pickup on Map' : 'Select Drop-off on Map'}
+        initialAddress={mapPickerType === 'pickup' ? pickup : dropoff}
+        onSelectLocation={({ address, coordinates }) => {
+          if (mapPickerType === 'pickup') {
+            setPickup(address);
+          } else {
+            setDropoff(address);
+          }
+        }}
+      />
+    </KeyboardAvoidingView>
   );
 }
 
@@ -1024,10 +1243,49 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  checklistTitle: {
-    fontFamily: 'Outfit_600SemiBold',
+  // Location inputs & Issue chips
+  locationInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    backgroundColor: 'rgba(13, 20, 32, 0.55)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  locationDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  locationTextInput: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: '#FFFFFF',
+    padding: 0,
+  },
+  issueChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(13, 20, 32, 0.45)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  issueChipSelected: {
+    borderColor: '#00FF97',
+    backgroundColor: 'rgba(0, 255, 151, 0.1)',
+  },
+  issueChipText: {
+    fontFamily: 'Inter_500Medium',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    marginBottom: 8,
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  issueChipTextSelected: {
+    color: '#00FF97',
+    fontFamily: 'Outfit_600SemiBold',
   },
 });

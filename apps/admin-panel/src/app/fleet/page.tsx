@@ -34,19 +34,21 @@ export default function FleetMapPage() {
     async function load() {
       try {
         const res = await fetch('/api/drivers');
-        if (!res.ok) throw new Error('API error');
-        const { drivers: live } = await res.json();
-        if (live && live.length > 0) {
-          setDrivers(live);
-          setSelectedDriver((prev: any) => prev || live[0]);
+        if (res.ok) {
+          const data = await res.json();
+          const live = data?.drivers || [];
+          if (Array.isArray(live)) {
+            setDrivers(live);
+            setSelectedDriver((prev: any) => prev || live[0] || null);
+          }
         }
       } catch (e) {
-        console.error('[Fleet]', e);
+        console.warn('[Fleet] driver load notice:', e);
       }
     }
     load();
-    // Refresh list every 20 seconds
-    const interval = setInterval(load, 20000);
+    // Refresh list every 15 seconds
+    const interval = setInterval(load, 15000);
     return () => clearInterval(interval);
   }, []);
 

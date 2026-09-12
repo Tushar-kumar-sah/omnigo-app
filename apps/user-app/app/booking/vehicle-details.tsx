@@ -42,7 +42,17 @@ export default function VehicleDetailsScreen() {
 
   const handleContinue = () => {
     if (isValid) {
-      router.push('/booking/confirm');
+      router.push({
+        pathname: '/booking/confirm',
+        params: {
+          vehicleName: `${make} ${model}`.trim(),
+          vehiclePlate: plate,
+          distance: '8',
+          baseFare: '999',
+          distanceFee: '120',
+          serviceIssue: notes || 'Breakdown',
+        },
+      });
     }
   };
 

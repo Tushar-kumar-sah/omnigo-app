@@ -109,16 +109,19 @@ export default function HomeScreen() {
   // Subscribe to real incoming jobs
   useEffect(() => {
     if (isOnline) {
-      const sub = subscribeToIncomingJobs(DRIVER_ID, (job: any) => {
+      const sub = subscribeToIncomingJobs(DRIVER_ID, (rawJob: any) => {
+        const job = rawJob?.new || rawJob;
+        if (!job || !job.id) return;
+
         setIncomingJob({
           id: job.id,
-          customerName: 'Customer',
+          customerName: job.customer_vehicle?.model ? `Customer (${job.customer_vehicle.model})` : 'Customer',
           customerRating: '5.0',
-          vehicleModel: 'Vehicle',
-          issue: job.serviceType || 'Towing',
-          pickupAddress: job.pickup?.address || job.pickup_address || 'Pickup Location',
-          dropAddress: job.dropoff?.address || job.dropoff_address || 'Drop Location',
-          distance: '—',
+          vehicleModel: job.customer_vehicle?.model || 'Vehicle',
+          issue: job.service_type || 'Towing',
+          pickupAddress: job.pickup_address || (typeof job.pickup === 'object' ? job.pickup?.address : null) || 'Pickup Location',
+          dropAddress: job.dropoff_address || (typeof job.dropoff === 'object' ? job.dropoff?.address : null) || 'Drop Location',
+          distance: job.distance_km ? `${job.distance_km} km` : '—',
           estimatedEarning: `₹${job.estimated_price || job.estimatedPrice || 0}`,
           estimatedTime: '—'
         });
@@ -183,7 +186,11 @@ export default function HomeScreen() {
   const handleAccept = () => {
     setShowJobPopup(false);
     setJobAccepted(true);
-    router.push('/job/incoming');
+    if (incomingJob?.id) {
+      router.push({ pathname: '/job/incoming', params: { id: incomingJob.id } });
+    } else {
+      router.push('/job/incoming');
+    }
   };
 
   const handleDecline = () => {
@@ -194,7 +201,25 @@ export default function HomeScreen() {
   const handleToggleOnline = async (value: boolean) => {
     setIsOnline(value);
     await toggleDriverOnline(DRIVER_ID, value);
-    if (!value) {
+    if (value) {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          if (loc?.coords) {
+            await updateDriverLocation(
+              DRIVER_ID,
+              loc.coords.latitude,
+              loc.coords.longitude,
+              loc.coords.heading || 0,
+              loc.coords.speed ? Math.max(0, Math.round(loc.coords.speed * 3.6)) : 0
+            );
+          }
+        }
+      } catch (e) {
+        console.warn('[GPS initial update error]', e);
+      }
+    } else {
       setShowJobPopup(false);
       setJobAccepted(false);
       setCountdown(20);

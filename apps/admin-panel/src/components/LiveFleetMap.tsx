@@ -88,29 +88,41 @@ interface LiveFleetMapProps {
 
 export default function LiveFleetMap({ drivers, selectedDriver, onSelectDriver }: LiveFleetMapProps) {
   const [liveDrivers, setLiveDrivers] = useState<LiveDriverPin[]>([]);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 22.5726, lng: 88.3639 }); // Default Kolkata
+
+  // Auto-detect browser geolocation
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setMapCenter({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          });
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  }, []);
 
   // Map drivers to map pins
   useEffect(() => {
     if (drivers && drivers.length > 0) {
       const mapped = drivers.map((d: any, idx: number) => {
-        // Use real lat/lng if present, or assign realistic city center offsets
         let lat = d.location?.lat || d.location?.latitude || d.latitude;
         let lng = d.location?.lng || d.location?.longitude || d.longitude;
 
-        // Spread points near Delhi NCR if default 0,0
-        if (!lat || !lng || (lat === 28.6139 && lng === 77.209)) {
+        if (!lat || !lng) {
           const offsets = [
-            { dLat: 0.025, dLng: -0.015 },
-            { dLat: -0.018, dLng: 0.032 },
-            { dLat: 0.045, dLng: 0.021 },
-            { dLat: -0.035, dLng: -0.028 },
-            { dLat: 0.012, dLng: 0.048 },
-            { dLat: -0.052, dLng: 0.014 },
-            { dLat: 0.038, dLng: -0.042 },
+            { dLat: 0.015, dLng: -0.012 },
+            { dLat: -0.018, dLng: 0.022 },
+            { dLat: 0.025, dLng: 0.018 },
+            { dLat: -0.022, dLng: -0.019 },
           ];
           const offset = offsets[idx % offsets.length];
-          lat = 28.6139 + offset.dLat;
-          lng = 77.2090 + offset.dLng;
+          lat = 22.5726 + offset.dLat;
+          lng = 88.3639 + offset.dLng;
         }
 
         return {
@@ -118,7 +130,7 @@ export default function LiveFleetMap({ drivers, selectedDriver, onSelectDriver }
           name: d.name,
           status: d.status,
           vehicleType: d.vehicleType || 'Flatbed Tow',
-          vehiclePlate: d.vehiclePlate || d.vehicleNumber || 'DL-01-TOW',
+          vehiclePlate: d.vehiclePlate || d.vehicleNumber || 'WB-01-TOW',
           speed: d.speed || '0 km/h',
           heading: d.heading || 0,
           lat: Number(lat),
@@ -126,6 +138,11 @@ export default function LiveFleetMap({ drivers, selectedDriver, onSelectDriver }
         };
       });
       setLiveDrivers(mapped);
+
+      // If drivers exist and have valid coords, center to the first driver
+      if (mapped.length > 0 && mapped[0].lat && mapped[0].lng) {
+        setMapCenter({ lat: mapped[0].lat, lng: mapped[0].lng });
+      }
     }
   }, [drivers]);
 
@@ -140,6 +157,12 @@ export default function LiveFleetMap({ drivers, selectedDriver, onSelectDriver }
         if (updated.location && typeof updated.location === 'object' && Array.isArray(updated.location.coordinates)) {
           lng = updated.location.coordinates[0];
           lat = updated.location.coordinates[1];
+        } else if (typeof updated.location === 'string') {
+          const match = updated.location.match(/POINT\(([^ ]+)\s+([^)]+)\)/i);
+          if (match) {
+            lng = parseFloat(match[1]);
+            lat = parseFloat(match[2]);
+          }
         }
 
         if (lat && lng) {
@@ -166,15 +189,15 @@ export default function LiveFleetMap({ drivers, selectedDriver, onSelectDriver }
     };
   }, []);
 
-  const defaultCenter = useMemo(() => {
+  const activeCenter = useMemo(() => {
     if (selectedDriver && (selectedDriver.location?.lat || selectedDriver.latitude)) {
       return {
         lat: Number(selectedDriver.location?.lat || selectedDriver.latitude),
         lng: Number(selectedDriver.location?.lng || selectedDriver.longitude),
       };
     }
-    return { lat: 28.6139, lng: 77.2090 };
-  }, [selectedDriver]);
+    return mapCenter;
+  }, [selectedDriver, mapCenter]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -192,7 +215,8 @@ export default function LiveFleetMap({ drivers, selectedDriver, onSelectDriver }
     <div style={{ width: '100%', height: '100%', minHeight: '480px', position: 'relative', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
       <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
         <Map
-          defaultCenter={defaultCenter}
+          center={activeCenter}
+          defaultCenter={activeCenter}
           defaultZoom={12}
           mapId="DEMO_MAP_ID"
           styles={DARK_MAP_STYLE}

@@ -187,18 +187,39 @@ export async function getFraudIncidents(): Promise<any[]> {
   }
 }
 
+const DEFAULT_PRICING_RULES = {
+  nightChargeMultiplier: 1.25,
+  waitingChargePerMin: 5,
+  emergencySosCharge: 300,
+  platformCommissionPercent: 10,
+  gstRate: 18,
+  highwayTollPolicy: 'Actuals charged via FASTag / User Pass-through',
+  activeSurgeZones: [],
+};
+
 export async function getPricingRules(): Promise<any> {
-  if (!isSupabaseConfigured || !supabase) return {};
+  if (!isSupabaseConfigured || !supabase) return DEFAULT_PRICING_RULES;
   try {
     const { data, error } = await supabase
       .from('pricing_rules')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (error || !data) return {};
-    return data;
+    if (error || !data) return DEFAULT_PRICING_RULES;
+    return {
+      id: data.id,
+      nightChargeMultiplier: Number(data.night_charge_multiplier || 1.25),
+      waitingChargePerMin: Number(data.waiting_charge_per_min || 5),
+      emergencySosCharge: Number(data.emergency_sos_charge || 300),
+      platformCommissionPercent: Number(data.platform_commission_percent || 10),
+      gstRate: Number(data.gst_rate || 18),
+      highwayTollPolicy: data.highway_toll_policy || 'Actuals charged via FASTag / User Pass-through',
+      activeSurgeZones: data.surge_zones || [],
+    };
   } catch (err) {
-    return {};
+    return DEFAULT_PRICING_RULES;
   }
 }
 
@@ -216,5 +237,29 @@ export async function getVehicleTypes(): Promise<any[]> {
 }
 
 export async function updatePricingRules(data: any): Promise<any> {
-  return data;
+  if (!isSupabaseConfigured || !supabase) return data;
+  try {
+    const payload: any = {
+      night_charge_multiplier: data.nightChargeMultiplier,
+      waiting_charge_per_min: data.waitingChargePerMin,
+      emergency_sos_charge: data.emergencySosCharge,
+      platform_commission_percent: data.platformCommissionPercent,
+      gst_rate: data.gstRate,
+      highway_toll_policy: data.highwayTollPolicy,
+      surge_zones: data.activeSurgeZones || [],
+      updated_at: new Date().toISOString(),
+    };
+
+    // Check if a row already exists to update, or insert new
+    const { data: existing } = await supabase.from('pricing_rules').select('id').limit(1).maybeSingle();
+    if (existing && existing.id) {
+      await supabase.from('pricing_rules').update(payload).eq('id', existing.id);
+    } else {
+      await supabase.from('pricing_rules').insert([payload]);
+    }
+    return data;
+  } catch (err) {
+    console.warn('updatePricingRules error:', err);
+    return data;
+  }
 }

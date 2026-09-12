@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Modal, TextInput, Animated, Easing, ImageBackground, Dimensions,
+  Platform, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -10,7 +11,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { theme } from '../../constants/theme';
 import { fetchBookingById, fetchDriverById } from '../../lib/api';
-import { subscribeToDriverLocation } from '@omnigo/api';
+import { subscribeToDriverLocation, updateBookingDestination, subscribeToBooking } from '@omnigo/api';
+import MapLocationPickerModal from '../../components/MapLocationPickerModal';
+import LiveRouteMap from '../../components/LiveRouteMap';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -46,59 +49,118 @@ export default function TrackingScreen() {
   const [driverPlate, setDriverPlate] = useState('—');
   const [pickupAddr, setPickupAddr] = useState('Fetching...');
   const [dropoffAddr, setDropoffAddr] = useState('Fetching...');
+  const [pickupCoords, setPickupCoords] = useState({ latitude: 22.5515, longitude: 88.3524 });
+  const [dropoffCoords, setDropoffCoords] = useState({ latitude: 22.5735, longitude: 88.4331 });
+  const [driverCoords, setDriverCoords] = useState({ latitude: 22.5600, longitude: 88.3700 });
   const [booking, setBooking] = useState<any>(null);
   const [driver, setDriver] = useState<any>(null);
+  const [mapMode, setMapMode] = useState<'live_map' | 'radar'>('live_map');
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapPickerType, setMapPickerType] = useState<'pickup' | 'dropoff'>('dropoff');
+  const [showArrivalOtpModal, setShowArrivalOtpModal] = useState(false);
+  const arrivalAlertShownRef = useRef(false);
+
+  const syncBookingData = (b: any) => {
+    if (!b) return;
+    setBooking(b);
+    const status = (b.bookingStatus || b.status || '').toLowerCase();
+    
+    if (status === 'completed') {
+      setCurrentStep(6);
+    } else if (status === 'arriving_dropoff' || status === 'arriving') {
+      setCurrentStep(5);
+    } else if (status === 'towing') {
+      setCurrentStep(4);
+    } else if (status === 'vehicle_loaded' || status === 'loaded') {
+      setCurrentStep(3);
+      setShowArrivalOtpModal(false); // auto dismiss pickup OTP modal once driver verifies
+    } else if (status === 'at_pickup' || status === 'arrived') {
+      setCurrentStep(2);
+      if (!arrivalAlertShownRef.current) {
+        setShowArrivalOtpModal(true);
+        arrivalAlertShownRef.current = true;
+      }
+    } else if (status === 'driver_arriving' || status === 'enroute') {
+      setCurrentStep(1);
+    } else if (status === 'driver_assigned') {
+      setCurrentStep(0);
+    }
+
+    if (b.pickupOtp) setPickupOtp(b.pickupOtp.toString().split('').join(' '));
+    if (b.dropoffOtp) setCompletionOtp(b.dropoffOtp.toString().split('').join(' '));
+    
+    setDriverName(b.driverName || b.driver || '—');
+    setDriverPlate(b.vehiclePlate || '—');
+    setDriverVehicle(b.driverVehicle || b.vehicle || '—');
+    
+    if (b.pickup && typeof b.pickup === 'string') setPickupAddr(b.pickup);
+    else if (b.pickup?.address) setPickupAddr(b.pickup.address);
+    else if (b.pickup_location?.address) setPickupAddr(b.pickup_location.address);
+    
+    if (b.dropoff && typeof b.dropoff === 'string') setDropoffAddr(b.dropoff);
+    else if (b.dropoff?.address) setDropoffAddr(b.dropoff.address);
+    else if (b.dropoff_location?.address) setDropoffAddr(b.dropoff_location.address);
+
+    if (b.pickupCoords?.latitude) setPickupCoords(b.pickupCoords);
+    if (b.dropoffCoords?.latitude) setDropoffCoords(b.dropoffCoords);
+  };
 
   useEffect(() => {
     if (bookingId) {
+      // Immediate fetch on mount
+      fetchBookingById(bookingId).then(syncBookingData).catch(() => {});
+
+      // Polling every 2.5s
       const interval = setInterval(async () => {
         try {
           const b = await fetchBookingById(bookingId);
-          if (b) {
-            setBooking(b);
-            const status = (b.status || b.bookingStatus || '').toLowerCase();
-            if (status === 'completed') setCurrentStep(6);
-            else if (status === 'towing') setCurrentStep(4);
-            else if (status === 'at_pickup' || status === 'arrived') setCurrentStep(2);
-            else if (status === 'driver_arriving' || status === 'enroute') setCurrentStep(1);
-
-            if (b.pickupOtp) setPickupOtp(b.pickupOtp.toString().split('').join(' '));
-            if (b.dropoffOtp) setCompletionOtp(b.dropoffOtp.toString().split('').join(' '));
-            
-            setDriverName(b.driverName || b.driver || '—');
-            setDriverPlate(b.vehiclePlate || '—');
-            setDriverVehicle(b.driverVehicle || b.vehicle || '—');
-            
-            if (b.pickup && typeof b.pickup === 'string') setPickupAddr(b.pickup);
-            else if (b.pickup?.address) setPickupAddr(b.pickup.address);
-            else if (b.pickup_location?.address) setPickupAddr(b.pickup_location.address);
-            
-            if (b.dropoff && typeof b.dropoff === 'string') setDropoffAddr(b.dropoff);
-            else if (b.dropoff?.address) setDropoffAddr(b.dropoff.address);
-            else if (b.dropoff_location?.address) setDropoffAddr(b.dropoff_location.address);
-          }
+          syncBookingData(b);
         } catch (e) {
           console.warn('[Tracking] poll booking error', e);
         }
-      }, 5000);
-      return () => clearInterval(interval);
+      }, 2500);
+
+      // Real-time Supabase subscription
+      let unsubBooking: any = null;
+      try {
+        unsubBooking = subscribeToBooking(bookingId, (updated) => {
+          syncBookingData(updated);
+        });
+      } catch (e) {}
+
+      return () => {
+        clearInterval(interval);
+        if (unsubBooking) {
+          if (typeof unsubBooking === 'function') unsubBooking();
+          else if (typeof unsubBooking.unsubscribe === 'function') unsubBooking.unsubscribe();
+        }
+      };
     }
   }, [bookingId]);
 
   useEffect(() => {
     let unsub: any = null;
-    if (driverId) {
+    const activeDriverId = driverId || booking?.driverId || 'b0000000-0000-0000-0000-000000000001';
+    if (activeDriverId) {
       const setup = async () => {
         try {
-          const d = await fetchDriverById(driverId);
-          if (d) setDriver(d);
-          unsub = await subscribeToDriverLocation(driverId, (payload: any) => {
-            if (payload?.speed) setSpeedVal(payload.speed);
+          const d = await fetchDriverById(activeDriverId);
+          if (d) {
+            setDriver(d);
+            if (d.latitude && d.longitude) {
+              setDriverCoords({ latitude: d.latitude, longitude: d.longitude });
+            }
+          }
+          unsub = await subscribeToDriverLocation(activeDriverId, (payload: any) => {
+            if (payload?.speed != null) setSpeedVal(payload.speed);
+            if (payload?.latitude && payload?.longitude) {
+              setDriverCoords({ latitude: payload.latitude, longitude: payload.longitude });
+            }
           });
         } catch (e) {
           console.warn('[Tracking] poll driver error', e);
         }
-      }
+      };
       setup();
     }
     return () => {
@@ -107,7 +169,7 @@ export default function TrackingScreen() {
         else if (typeof unsub.unsubscribe === 'function') unsub.unsubscribe();
       }
     };
-  }, [driverId]);
+  }, [driverId, booking?.driverId]);
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [showChat, setShowChat] = useState(false);
@@ -208,6 +270,26 @@ export default function TrackingScreen() {
     }
   };
 
+  const handleLocationUpdate = async (data: { address: string; coordinates: { latitude: number; longitude: number } }) => {
+    setShowMapPicker(false);
+    const bId = bookingId || booking?.uuid || booking?.id;
+    if (mapPickerType === 'dropoff') {
+      setDropoffAddr(data.address);
+      setDropoffCoords(data.coordinates);
+      if (bId) {
+        try {
+          await updateBookingDestination(bId, data.address, data.coordinates);
+          Alert.alert('Destination Updated', `Drop-off changed to: ${data.address}`);
+        } catch (e) {
+          console.warn('[Tracking] update destination error', e);
+        }
+      }
+    } else {
+      setPickupAddr(data.address);
+      setPickupCoords(data.coordinates);
+    }
+  };
+
   // Interpolated GPS Coordinates along the map route
   // Starting at Pickup (18%, 82%) -> traveling through highway corridors -> ending at Drop-off (83%, 18%)
   const truckLeft = progressAnim.interpolate({
@@ -261,120 +343,99 @@ export default function TrackingScreen() {
         contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom + 120, 130) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ─── REAL-TIME GPS MAP WITH MOVING TOW TRUCK ─── */}
-        <View style={[styles.mapContainer, isMapExpanded && { height: 420 }]}>
-          <ImageBackground
-            source={require('../../assets/gps_live_map_bg.jpg')}
-            style={styles.mapImage}
-            resizeMode="cover"
+        {/* ─── REAL-TIME INTERACTIVE LIVE ROUTE GPS MAP (WEB & MOBILE) ─── */}
+        <View style={{ marginBottom: 14 }}>
+          <LiveRouteMap
+            driverCoords={driverCoords}
+            pickupCoords={pickupCoords}
+            dropoffCoords={dropoffCoords}
+            driverName={driverName}
+            driverVehicle={driverVehicle}
+            driverPlate={driverPlate}
+            pickupAddress={pickupAddr}
+            dropoffAddress={dropoffAddr}
+            speed={speedVal}
+            height={isMapExpanded ? 420 : 310}
+            interactive={true}
+          />
+          {/* Quick Expand Toggle Floating on map top-right */}
+          <TouchableOpacity
+            onPress={() => setIsMapExpanded(!isMapExpanded)}
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: 'rgba(7,12,24,0.85)',
+              borderWidth: 1,
+              borderColor: 'rgba(56,189,248,0.4)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 20,
+            }}
+            activeOpacity={0.8}
           >
-            {/* Subtle Gradient Overlays for High-Tech HUD look */}
-            <LinearGradient
-              colors={['rgba(4,7,17,0.7)', 'transparent', 'rgba(4,7,17,0.85)']}
-              style={StyleSheet.absoluteFillObject}
-            />
-
-            {/* Top Map HUD Telemetry Badges */}
-            <View style={styles.mapHudTop}>
-              <View style={styles.telemetryPill}>
-                <Ionicons name="speedometer-outline" size={14} color="#00FF97" />
-                <Text style={styles.telemetryText}>{speedVal} km/h · Smooth Traffic</Text>
-              </View>
-
-              <TouchableOpacity
-                onPress={() => setIsMapExpanded(!isMapExpanded)}
-                style={styles.mapExpandBtn}
-                activeOpacity={0.8}
-              >
-                <Ionicons name={isMapExpanded ? 'contract' : 'expand'} size={15} color="#38BDF8" />
-              </TouchableOpacity>
-            </View>
-
-            {/* 🟢 PICKUP LOCATION MARKER (MG Road) */}
-            <View style={[styles.waypointMarker, { left: '15%', top: '80%' }]}>
-              <Animated.View
-                style={[
-                  styles.radarRing,
-                  { borderColor: '#00FF97', transform: [{ scale: radarScale }], opacity: radarOpacity },
-                ]}
-              />
-              <View style={[styles.waypointPin, { backgroundColor: '#00FF97', shadowColor: '#00FF97' }]}>
-                <Ionicons name="pin" size={14} color="#000" />
-              </View>
-              <View style={styles.waypointLabelCard}>
-                <View style={styles.waypointLabelRow}>
-                  <View style={[styles.dotSmall, { backgroundColor: '#00FF97' }]} />
-                  <Text style={styles.waypointTitle}>PICKUP (A)</Text>
-                </View>
-                <Text style={styles.waypointAddress} numberOfLines={1}>{pickupAddr}</Text>
-              </View>
-            </View>
-
-            {/* 🔴 DROP-OFF DESTINATION MARKER (AutoFix Garage) */}
-            <View style={[styles.waypointMarker, { left: '80%', top: '16%' }]}>
-              <View style={[styles.waypointPin, { backgroundColor: '#F43F5E', shadowColor: '#F43F5E' }]}>
-                <Ionicons name="flag" size={13} color="#FFF" />
-              </View>
-              <View style={[styles.waypointLabelCard, { right: 0, left: undefined, transform: [{ translateX: -60 }] }]}>
-                <View style={styles.waypointLabelRow}>
-                  <View style={[styles.dotSmall, { backgroundColor: '#F43F5E' }]} />
-                  <Text style={[styles.waypointTitle, { color: '#F43F5E' }]}>DROP-OFF (B)</Text>
-                </View>
-                <Text style={styles.waypointAddress} numberOfLines={1}>{dropoffAddr}</Text>
-              </View>
-            </View>
-
-            {/* 🚚 LIVE ANIMATED TOW TRUCK GLIDING ALONG THE GPS ROUTE */}
-            <Animated.View
-              style={[
-                styles.truckMarkerContainer,
-                {
-                  left: truckLeft,
-                  top: truckTop,
-                  transform: [{ rotate: truckRotation }],
-                },
-              ]}
-            >
-              {/* Pulsing Radar Ring Behind Truck */}
-              <Animated.View
-                style={[
-                  styles.truckHalo,
-                  {
-                    transform: [{ scale: radarScale }],
-                    opacity: radarOpacity,
-                  },
-                ]}
-              />
-
-              {/* Tow Truck Vehicle Avatar */}
-              <View style={styles.truckAvatarBox}>
-                {/* Flashing Emergency Beacon Light */}
-                <Animated.View style={[styles.beaconLight, { opacity: beaconAnim }]} />
-                <MaterialCommunityIcons name="tow-truck" size={26} color="#38BDF8" />
-              </View>
-
-              {/* Live Driver Tag on Truck */}
-              <View style={styles.truckFloatingTag}>
-                <Text style={styles.truckTagText}>{driverName} · {driverVehicle}</Text>
-              </View>
-            </Animated.View>
-
-            {/* Bottom Floating Map Summary Bar */}
-            <View style={styles.mapBottomBar}>
-              <View style={styles.mapEtaPill}>
-                <Ionicons name="navigate" size={14} color="#38BDF8" />
-                <Text style={styles.mapEtaText}>
-                  {booking?.distanceKm ? booking.distanceKm + ' km' : '—'}
-                </Text>
-              </View>
-              <View style={styles.mapEtaTimePill}>
-                <Text style={styles.mapEtaTimeText}>
-                  ETA: {currentStep < 4 ? '12 min' : currentStep < 6 ? '5 min' : 'Arrived'}
-                </Text>
-              </View>
-            </View>
-          </ImageBackground>
+            <Ionicons name={isMapExpanded ? 'contract' : 'expand'} size={15} color="#38BDF8" />
+          </TouchableOpacity>
         </View>
+
+        {/* ─── LIVE ROUTE WAYPOINTS & LOCATION MANAGER CARD ─── */}
+        <BlurView intensity={20} tint="dark" style={styles.card}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="map" size={16} color="#38BDF8" />
+              <Text style={styles.cardTitle}>Live Route Waypoints</Text>
+            </View>
+            <View style={styles.liveSyncBadge}>
+              <View style={styles.liveDotSmall} />
+              <Text style={styles.liveSyncText}>GPS SYNCED</Text>
+            </View>
+          </View>
+
+          {/* Pickup Point Row */}
+          <View style={styles.routeWaypointItem}>
+            <View style={[styles.waypointDot, { backgroundColor: '#00FF97' }]} />
+            <View style={{ flex: 1, marginHorizontal: 10 }}>
+              <Text style={[styles.waypointItemLabel, { color: '#00FF97' }]}>PICKUP LOCATION (A)</Text>
+              <Text style={styles.waypointItemAddress} numberOfLines={2}>{pickupAddr}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                setMapPickerType('pickup');
+                setShowMapPicker(true);
+              }}
+              style={[styles.editLocationBtn, { borderColor: 'rgba(0,255,151,0.3)', backgroundColor: 'rgba(0,255,151,0.08)' }]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="map-outline" size={13} color="#00FF97" />
+              <Text style={[styles.editLocationBtnText, { color: '#00FF97' }]}>Change on Map</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.waypointConnectorLine} />
+
+          {/* Drop-off Point Row */}
+          <View style={styles.routeWaypointItem}>
+            <View style={[styles.waypointDot, { backgroundColor: '#F43F5E' }]} />
+            <View style={{ flex: 1, marginHorizontal: 10 }}>
+              <Text style={[styles.waypointItemLabel, { color: '#F43F5E' }]}>DROP-OFF DESTINATION (B)</Text>
+              <Text style={styles.waypointItemAddress} numberOfLines={2}>{dropoffAddr}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                setMapPickerType('dropoff');
+                setShowMapPicker(true);
+              }}
+              style={[styles.editLocationBtn, { borderColor: 'rgba(56,189,248,0.3)', backgroundColor: 'rgba(56,189,248,0.08)' }]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="navigate-outline" size={13} color="#38BDF8" />
+              <Text style={[styles.editLocationBtnText, { color: '#38BDF8' }]}>Change on Map</Text>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
 
         {/* ETA & Driver Fast Stats Banner */}
         <LinearGradient
@@ -594,6 +655,53 @@ export default function TrackingScreen() {
         </View>
       </Modal>
 
+      {/* ─── DRIVER ARRIVAL OTP POPUP MODAL ─── */}
+      <Modal visible={showArrivalOtpModal} animationType="fade" transparent>
+        <View style={styles.modalOverlayCenter}>
+          <BlurView intensity={60} tint="dark" style={styles.arrivalOtpModal}>
+            <LinearGradient
+              colors={['rgba(0,255,151,0.15)', 'rgba(4,7,17,0.95)']}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <View style={styles.arrivalIconBox}>
+              <Ionicons name="shield-checkmark" size={36} color="#00FF97" />
+            </View>
+            <Text style={styles.arrivalTitle}>Driver Has Arrived!</Text>
+            <Text style={styles.arrivalSubtitle}>
+              Share this 4-digit pickup code with {driverName} to verify and start vehicle loading:
+            </Text>
+            
+            <View style={styles.arrivalOtpRow}>
+              {pickupOtp.split(' ').map((digit, idx) => (
+                <View key={idx} style={styles.arrivalOtpBox}>
+                  <Text style={styles.arrivalOtpText}>{digit}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.arrivalNote}>
+              <Ionicons name="information-circle" size={13} color="#38BDF8" />
+              {' '}The driver will enter this code on their device before hooking up your vehicle.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.arrivalDoneBtn}
+              onPress={() => setShowArrivalOtpModal(false)}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#00FF97', '#00CFFF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.arrivalBtnGradient}
+              >
+                <Text style={styles.arrivalBtnText}>I'VE SHARED THIS CODE</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </BlurView>
+        </View>
+      </Modal>
+
       {/* ─── PLATE VERIFICATION MODAL ─── */}
       <Modal visible={showPlateVerify} animationType="fade" transparent>
         <View style={styles.modalOverlayCenter}>
@@ -630,6 +738,17 @@ export default function TrackingScreen() {
           </BlurView>
         </View>
       </Modal>
+
+      {/* ─── LIVE GPS MAP LOCATION PICKER MODAL (PICKUP / DROPOFF) ─── */}
+      <MapLocationPickerModal
+        visible={showMapPicker}
+        title={mapPickerType === 'pickup' ? 'Update Pickup Location' : 'Update Drop-off Destination'}
+        initialAddress={mapPickerType === 'pickup' ? pickupAddr : dropoffAddr}
+        initialCoordinates={mapPickerType === 'pickup' ? pickupCoords : dropoffCoords}
+        type={mapPickerType}
+        onClose={() => setShowMapPicker(false)}
+        onConfirmLocation={handleLocationUpdate}
+      />
     </View>
   );
 }
@@ -1315,6 +1434,101 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
+  // ─── ARRIVAL OTP MODAL ───
+  arrivalOtpModal: {
+    backgroundColor: '#0A101D',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,255,151,0.4)',
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 340,
+    overflow: 'hidden',
+    shadowColor: '#00FF97',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  arrivalIconBox: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: 'rgba(0,255,151,0.15)',
+    borderWidth: 1.5,
+    borderColor: '#00FF97',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  arrivalTitle: {
+    fontSize: 22,
+    fontFamily: 'Outfit_700Bold',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+    textAlign: 'center',
+  },
+  arrivalSubtitle: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
+    paddingHorizontal: 8,
+  },
+  arrivalOtpRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginVertical: 18,
+  },
+  arrivalOtpBox: {
+    width: 54,
+    height: 62,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,255,151,0.08)',
+    borderWidth: 2,
+    borderColor: '#00FF97',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#00FF97',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  arrivalOtpText: {
+    fontSize: 30,
+    fontFamily: 'Outfit_700Bold',
+    color: '#00FF97',
+  },
+  arrivalNote: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    color: '#38BDF8',
+    textAlign: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 12,
+  },
+  arrivalDoneBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  arrivalBtnGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  arrivalBtnText: {
+    color: '#040711',
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 13,
+    letterSpacing: 0.8,
+  },
+
   // ─── PLATE MODAL ───
   plateModal: {
     backgroundColor: '#0D1322',
@@ -1387,5 +1601,45 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: '800',
     fontSize: 12,
+  },
+
+  // ─── ROUTE WAYPOINT & LOCATION MANAGER STYLES ───
+  liveSyncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,255,151,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,151,0.3)',
+    gap: 4,
+  },
+  liveDotSmall: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#00FF97' },
+  liveSyncText: { fontFamily: 'Outfit_700Bold', fontSize: 9, color: '#00FF97', letterSpacing: 0.5 },
+  routeWaypointItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  waypointDot: { width: 10, height: 10, borderRadius: 5 },
+  waypointItemLabel: { fontFamily: 'Outfit_700Bold', fontSize: 10, letterSpacing: 0.5, marginBottom: 2 },
+  waypointItemAddress: { fontFamily: 'Inter_500Medium', fontSize: 12, color: '#FFFFFF', lineHeight: 16 },
+  editLocationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  editLocationBtnText: { fontFamily: 'Outfit_700Bold', fontSize: 11 },
+  waypointConnectorLine: {
+    width: 2,
+    height: 16,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginLeft: 4,
+    marginVertical: 2,
   },
 });

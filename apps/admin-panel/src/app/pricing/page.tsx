@@ -4,9 +4,18 @@ import GlassCard from '@/components/GlassCard';
 import { getPricingRules, updatePricingRules, supabase } from '@omnigo/api';
 
 type VehiclePricingTier = { category: string; baseFare: number; baseKmIncluded: number; perKmRate: number; heavyDutySurcharge: number; };
+const DEFAULT_TIERS: VehiclePricingTier[] = [
+  { category: 'Two Wheeler', baseFare: 500, baseKmIncluded: 5, perKmRate: 20, heavyDutySurcharge: 0 },
+  { category: 'Hatchback', baseFare: 999, baseKmIncluded: 5, perKmRate: 40, heavyDutySurcharge: 0 },
+  { category: 'Sedan', baseFare: 1299, baseKmIncluded: 5, perKmRate: 50, heavyDutySurcharge: 0 },
+  { category: 'SUV', baseFare: 1499, baseKmIncluded: 5, perKmRate: 60, heavyDutySurcharge: 0 },
+  { category: 'Commercial Van', baseFare: 1999, baseKmIncluded: 5, perKmRate: 75, heavyDutySurcharge: 200 },
+  { category: 'Heavy Truck', baseFare: 4999, baseKmIncluded: 5, perKmRate: 150, heavyDutySurcharge: 1000 },
+];
+
 export default function PricingEnginePage() {
-  const [tiers, setTiers] = useState<VehiclePricingTier[]>([]);
-  const [rules, setRules] = useState({ nightChargeMultiplier: 1.25, waitingChargePerMin: 5, emergencySosCharge: 300, highwayTollPolicy: '', platformCommissionPercent: 10, gstRate: 18, activeSurgeZones: [] as any[] });
+  const [tiers, setTiers] = useState<VehiclePricingTier[]>(DEFAULT_TIERS);
+  const [rules, setRules] = useState({ nightChargeMultiplier: 1.25, waitingChargePerMin: 5, emergencySosCharge: 300, highwayTollPolicy: 'Actuals charged via FASTag / User Pass-through', platformCommissionPercent: 10, gstRate: 18, activeSurgeZones: [] as any[] });
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -22,14 +31,16 @@ export default function PricingEnginePage() {
           });
         }
         const { data: vtData, error } = await supabase.from('vehicle_types').select('*');
-        if (vtData && !error) {
+        if (vtData && !error && vtData.length > 0) {
           setTiers(vtData.map(vt => ({
             category: vt.name,
-            baseFare: Number(vt.base_price),
-            baseKmIncluded: Number(vt.base_km_included),
-            perKmRate: Number(vt.price_per_km),
-            heavyDutySurcharge: Number(vt.heavy_duty_surcharge)
+            baseFare: Number(vt.base_price || 0),
+            baseKmIncluded: Number(vt.base_km_included || 5),
+            perKmRate: Number(vt.price_per_km || 0),
+            heavyDutySurcharge: Number(vt.heavy_duty_surcharge || 0)
           })));
+        } else {
+          setTiers(DEFAULT_TIERS);
         }
       } catch (err) {
         console.error('Error loading pricing data:', err);
@@ -41,7 +52,7 @@ export default function PricingEnginePage() {
   }, []);
 
   // Fare Simulator State
-  const [simCategory, setSimCategory] = useState('');
+  const [simCategory, setSimCategory] = useState('Hatchback');
   const [simDistance, setSimDistance] = useState(12); // km
   const [simIsNight, setSimIsNight] = useState(false);
   const [simWaitingMins, setSimWaitingMins] = useState(0);
@@ -57,7 +68,21 @@ export default function PricingEnginePage() {
   const handleSave = async () => {
     try {
       await updatePricingRules(rules);
-      setSaveNotice('Fare matrices and dynamic surcharge rules deployed to active dispatchers.');
+      
+      // Save vehicle types
+      for (const tier of tiers) {
+        const id = tier.category.toLowerCase().replace(/\s+/g, '_');
+        await supabase.from('vehicle_types').upsert({
+          id,
+          name: tier.category,
+          base_price: tier.baseFare,
+          base_km_included: tier.baseKmIncluded,
+          price_per_km: tier.perKmRate,
+          heavy_duty_surcharge: tier.heavyDutySurcharge,
+        });
+      }
+
+      setSaveNotice('Fare matrices and dynamic surcharge rules deployed to Supabase database.');
       setTimeout(() => setSaveNotice(null), 4000);
     } catch (err) {
       console.error(err);

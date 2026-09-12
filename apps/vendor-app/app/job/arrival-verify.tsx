@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
-import { getBookingById, Booking } from '@omnigo/api';
+import { getBookingById, verifyPickupOtp, Booking } from '@omnigo/api';
 import { useEffect } from 'react';
 
 export default function ArrivalVerifyScreen() {
@@ -16,6 +16,8 @@ export default function ArrivalVerifyScreen() {
   const params = useLocalSearchParams();
   const jobId = params.id as string;
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -35,12 +37,10 @@ export default function ArrivalVerifyScreen() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto-advance or dismiss keyboard on completion
     if (value && index < 3) {
       inputs.current[index + 1]?.focus();
     }
 
-    // If all 4 digits are entered, dismiss keyboard
     if (newOtp.filter(Boolean).length === 4) {
       inputs.current[index]?.blur();
       Keyboard.dismiss();
@@ -50,13 +50,6 @@ export default function ArrivalVerifyScreen() {
   const handleKeyPress = (e: any, index: number) => {
     if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
       inputs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleVerify = () => {
-    Keyboard.dismiss();
-    if (otp.join('').length === 4) {
-      router.push({ pathname: '/job/pre-inspection', params: { id: jobId } });
     }
   };
 
@@ -117,19 +110,27 @@ export default function ArrivalVerifyScreen() {
           {' '}This confirms you're at the correct vehicle
         </Text>
 
+        {errorMessage ? (
+          <View style={{ backgroundColor: 'rgba(255,59,48,0.15)', borderWidth: 1, borderColor: '#FF3B30', borderRadius: 10, padding: 10, marginTop: 12 }}>
+            <Text style={{ color: '#FF3B30', fontSize: 13, textAlign: 'center', fontFamily: THEME.fonts.inter.medium }}>
+              {errorMessage}
+            </Text>
+          </View>
+        ) : null}
+
         <TouchableOpacity 
-          style={[styles.verifyBtn, !isComplete && styles.verifyBtnDisabled]} 
+          style={[styles.verifyBtn, (!isComplete || verifying) && styles.verifyBtnDisabled]} 
           onPress={handleVerify}
-          disabled={!isComplete}
+          disabled={!isComplete || verifying}
         >
           <LinearGradient
-            colors={isComplete ? [THEME.colors.success, '#00CC7A'] : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.1)']}
+            colors={isComplete && !verifying ? [THEME.colors.success, '#00CC7A'] : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.1)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.btnGradient}
           >
-            <Text style={[styles.verifyBtnText, !isComplete && styles.verifyBtnTextDisabled]}>
-              VERIFY & PROCEED
+            <Text style={[styles.verifyBtnText, (!isComplete || verifying) && styles.verifyBtnTextDisabled]}>
+              {verifying ? 'VERIFYING OTP...' : 'VERIFY & PROCEED'}
             </Text>
           </LinearGradient>
         </TouchableOpacity>

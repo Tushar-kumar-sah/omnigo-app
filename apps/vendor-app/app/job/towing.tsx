@@ -54,7 +54,7 @@ export default function TowingScreen() {
       await updateBookingStatus(jobId, 'towing');
       setJobState('IN_TRANSIT');
     } else if (jobState === 'IN_TRANSIT') {
-      await updateBookingStatus(jobId, 'at_pickup');
+      await updateBookingStatus(jobId, 'arriving_dropoff');
       setJobState('ARRIVED');
     } else if (jobState === 'ARRIVED') {
       router.push({ pathname: '/job/post-inspection', params: { id: jobId } });

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import GlassCard from '@/components/GlassCard';
 import StatusBadge from '@/components/StatusBadge';
-import { createNotification } from '@omnigo/api';
+import { createNotification, updateDriver } from '@omnigo/api';
 
 type DocumentItem = { name: string; docNumber: string; issuedDate: string; expiryDate: string; status: 'Pending' | 'Verified' | 'Rejected'; notes?: string };
 type PartnerRecord = {
@@ -177,6 +177,7 @@ export default function PartnerManagementPage() {
     const pushMessage = `✅ Account Verified! Your driver profile is now active. Tap here to go online and start earning today.`;
 
     try {
+      await updateDriver(partner.id, { kycStatus: 'verified', isVerified: true });
       await createNotification({ driverId: partner.id, title: 'Account Update', message: pushMessage, type: 'system' });
     } catch (err) {
       console.error(err);
@@ -193,8 +194,13 @@ export default function PartnerManagementPage() {
     setTimeout(() => setActionAlert(null), 6000);
   };
 
-  const handleToggleSuspend = (partnerId: string, currentStatus: PartnerRecord['kycStatus']) => {
+  const handleToggleSuspend = async (partnerId: string, currentStatus: PartnerRecord['kycStatus']) => {
     const newStatus = currentStatus === 'Suspended' ? 'Verified' : 'Suspended';
+    try {
+      await updateDriver(partnerId, { kycStatus: newStatus.toLowerCase(), isVerified: newStatus === 'Verified' });
+    } catch (err) {
+      console.error(err);
+    }
     setPartners(prev => prev.map(p => p.id === partnerId ? { ...p, kycStatus: newStatus } : p));
     setActionAlert(`Partner ${partnerId} status updated to: ${newStatus}.`);
     setSelectedPartner(null);

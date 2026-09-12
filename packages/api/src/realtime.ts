@@ -3,9 +3,12 @@ import { supabase, isSupabaseConfigured } from './supabase';
 export function subscribeToBooking(bookingId: string, callback: (payload: any) => void) {
   if (!isSupabaseConfigured || !supabase) return { unsubscribe: () => {} };
 
+  let channel: any = null;
+  let interval: any = null;
+
   try {
-    const channel = supabase
-      .channel(`booking-${bookingId}`)
+    channel = supabase
+      .channel(`booking-${bookingId}-${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -14,62 +17,99 @@ export function subscribeToBooking(bookingId: string, callback: (payload: any) =
           table: 'bookings',
           filter: `id=eq.${bookingId}`,
         },
-        (payload) => {
-          callback(payload);
+        (payload: any) => {
+          callback(payload?.new || payload);
         }
       )
       .subscribe();
-
-    return {
-      unsubscribe: () => {
-        supabase.removeChannel(channel);
-      },
-    };
   } catch (err) {
-    // Fallback polling
-    let lastStatus = '';
-    const interval = setInterval(async () => {
-      try {
-        const { data } = await supabase.from('bookings').select('*').eq('id', bookingId).maybeSingle();
-        if (data && data.status !== lastStatus) {
-          lastStatus = data.status;
-          callback({ new: data });
-        }
-      } catch (e) {}
-    }, 4000);
-    return { unsubscribe: () => clearInterval(interval) };
+    console.warn('Realtime booking subscription error:', err);
   }
+
+  // Active polling fallback every 2 seconds
+  let lastStatus = '';
+  let lastDriverId: any = null;
+  interval = setInterval(async () => {
+    try {
+      const { data } = await supabase.from('bookings').select('*').eq('id', bookingId).maybeSingle();
+      if (data && (data.status !== lastStatus || data.driver_id !== lastDriverId)) {
+        lastStatus = data.status;
+        lastDriverId = data.driver_id;
+        callback(data);
+      }
+    } catch (e) {}
+  }, 2000);
+
+  return {
+    unsubscribe: () => {
+      if (channel) supabase.removeChannel(channel);
+      if (interval) clearInterval(interval);
+    },
+  };
 }
 
 export function subscribeToIncomingJobs(driverId: string, callback: (payload: any) => void) {
   if (!isSupabaseConfigured || !supabase) return { unsubscribe: () => {} };
 
+  let lastNotifiedId = '';
+  let channel: any = null;
+  let interval: any = null;
+
   try {
-    const channel = supabase
-      .channel(`incoming-jobs-${driverId}`)
+    channel = supabase
+      .channel(`incoming-jobs-${driverId}-${Date.now()}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'bookings',
         },
-        (payload) => {
-          if (payload.new && payload.new.status === 'searching') {
-            callback(payload);
+        (payload: any) => {
+          const row = payload?.new;
+          if (row && (row.status === 'searching' || row.status === 'pending') && (!row.driver_id || row.driver_id === driverId)) {
+            if (row.id !== lastNotifiedId) {
+              lastNotifiedId = row.id;
+              callback(row);
+            }
           }
         }
       )
       .subscribe();
-
-    return {
-      unsubscribe: () => {
-        supabase.removeChannel(channel);
-      },
-    };
   } catch (err) {
-    return { unsubscribe: () => {} };
+    console.warn('Realtime subscription error:', err);
   }
+
+  // Active polling fallback: check immediately and every 1.2 seconds
+  const checkLatestJob = async () => {
+    try {
+      const { data } = await supabase
+        .from('bookings')
+        .select('*')
+        .in('status', ['searching', 'pending'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        const row = data[0];
+        if (row.id !== lastNotifiedId && (!row.driver_id || row.driver_id === driverId)) {
+          lastNotifiedId = row.id;
+          callback(row);
+        }
+      }
+    } catch (e) {}
+  };
+
+  // Immediate check
+  checkLatestJob();
+  interval = setInterval(checkLatestJob, 1200);
+
+  return {
+    unsubscribe: () => {
+      if (channel) supabase.removeChannel(channel);
+      if (interval) clearInterval(interval);
+    },
+  };
 }
 
 export function subscribeToDriverLocation(driverId: string, callback: (payload: any) => void) {

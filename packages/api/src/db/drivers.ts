@@ -25,8 +25,8 @@ export function mapDbDriverToDriver(dbDriver: any): any {
 
   const plate = dbDriver.vehicle_plate || dbDriver.vehicle_number || '—';
 
-  let lat = 28.6139;
-  let lng = 77.2090;
+  let lat = 22.5726;
+  let lng = 88.3639;
 
   if (dbDriver.latitude != null && dbDriver.longitude != null) {
     lat = Number(dbDriver.latitude);
@@ -39,6 +39,16 @@ export function mapDbDriverToDriver(dbDriver: any): any {
     if (match) {
       lng = parseFloat(match[1]);
       lat = parseFloat(match[2]);
+    } else if (dbDriver.location.length >= 42 && /^[0-9a-fA-F]+$/.test(dbDriver.location)) {
+      try {
+        const buf = Buffer.from(dbDriver.location, 'hex');
+        const isLE = buf[0] === 1;
+        const type = isLE ? buf.readUInt32LE(1) : buf.readUInt32BE(1);
+        const hasSrid = (type & 0x20000000) !== 0;
+        const offset = hasSrid ? 9 : 5;
+        lng = isLE ? buf.readDoubleLE(offset) : buf.readDoubleBE(offset);
+        lat = isLE ? buf.readDoubleLE(offset + 8) : buf.readDoubleBE(offset + 8);
+      } catch (e) {}
     }
   }
 
@@ -138,23 +148,89 @@ export async function updateDriverLocation(id: string, lat: number, lng: number,
   try {
     const payload: any = {
       location: `POINT(${lng} ${lat})`,
+      is_online: true,
       updated_at: new Date().toISOString(),
     };
     if (heading !== undefined) payload.heading = heading;
     if (speed !== undefined) payload.speed = speed;
 
-    await supabase.from('drivers').update(payload).eq('id', id);
+    const { data: existing } = await supabase.from('drivers').select('id').eq('id', id).maybeSingle();
+    if (!existing) {
+      await supabase.from('drivers').upsert({
+        id,
+        name: 'OmniGo Partner (Live Driver)',
+        phone: '+919876543210',
+        rating: 4.9,
+        total_trips: 45,
+        is_online: true,
+        is_verified: true,
+        kyc_status: 'verified',
+        vehicle_type: 'flatbed',
+        vehicle_plate: 'MH 12 AB 1234',
+        vehicle_number: 'MH 12 AB 1234',
+        ...payload,
+      });
+    } else {
+      await supabase.from('drivers').update(payload).eq('id', id);
+    }
   } catch (err) {
     console.warn('updateDriverLocation error:', err);
+  }
+}
+
+export async function updateDriver(id: string, data: any): Promise<any | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  try {
+    const payload: any = { updated_at: new Date().toISOString() };
+    if (data.name !== undefined) payload.name = data.name;
+    if (data.phone !== undefined) payload.phone = data.phone;
+    if (data.email !== undefined) payload.email = data.email;
+    if (data.kycStatus !== undefined) payload.kyc_status = data.kycStatus.toLowerCase().replace(/\s+/g, '_');
+    if (data.isVerified !== undefined) payload.is_verified = data.isVerified;
+    if (data.kycStatus === 'Verified' || data.kycStatus === 'verified') payload.is_verified = true;
+    if (data.isOnline !== undefined) payload.is_online = data.isOnline;
+    if (data.rating !== undefined) payload.rating = data.rating;
+    if (data.walletBalance !== undefined) payload.wallet_balance = data.walletBalance;
+
+    const { data: updated, error } = await supabase
+      .from('drivers')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    return updated ? mapDbDriverToDriver(updated) : null;
+  } catch (err) {
+    console.warn('updateDriver error:', err);
+    return null;
   }
 }
 
 export async function toggleDriverOnline(id: string, isOnline: boolean): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return;
   try {
-    await supabase.from('drivers').update({ is_online: isOnline, updated_at: new Date().toISOString() }).eq('id', id);
+    const { data: existing } = await supabase.from('drivers').select('id').eq('id', id).maybeSingle();
+    if (!existing) {
+      await supabase.from('drivers').upsert({
+        id,
+        name: 'OmniGo Partner (Live Driver)',
+        phone: '+919876543210',
+        rating: 4.9,
+        total_trips: 45,
+        is_online: isOnline,
+        is_verified: true,
+        kyc_status: 'verified',
+        vehicle_type: 'flatbed',
+        vehicle_plate: 'MH 12 AB 1234',
+        vehicle_number: 'MH 12 AB 1234',
+        updated_at: new Date().toISOString(),
+      });
+    } else {
+      await supabase.from('drivers').update({ is_online: isOnline, updated_at: new Date().toISOString() }).eq('id', id);
+    }
   } catch (err) {
-    console.warn(err);
+    console.warn('toggleDriverOnline error:', err);
   }
 }
 
