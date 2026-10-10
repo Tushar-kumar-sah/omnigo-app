@@ -6,16 +6,23 @@ import {
   TextInput,
   TouchableOpacity,
   ImageBackground,
+  Image,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../../constants/theme';
+import { theme } from '@/constants/theme';
+import {
+  loginWithCredentials,
+  sendPhoneOtp,
+  resetPasswordForEmailUser,
+} from '@/lib/api';
+import GoogleAuthModal from '@/components/GoogleAuthModal';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -25,31 +32,85 @@ export default function LoginScreen() {
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [googleModalVisible, setGoogleModalVisible] = useState(false);
 
-  const handleSignIn = () => {
+  const handleSendPhoneOtp = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setLoading(true);
+    const res = await sendPhoneOtp(emailOrPhone);
+    setLoading(false);
+    if (res.error) {
+      setErrorMsg(res.error);
+      return;
+    }
+    router.push({
+      pathname: '/(auth)/otp',
+      params: {
+        phone: res.formattedPhone,
+        code: res.code,
+        flow: 'login',
+      },
+    });
+  };
+
+  const handleSignIn = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (activeTab === 'phone') {
+      await handleSendPhoneOtp();
+      return;
+    }
+
+    setLoading(true);
+    const { user, error } = await loginWithCredentials(emailOrPhone, password, activeTab);
+    setLoading(false);
+    if (error || !user) {
+      setErrorMsg(error || 'Invalid credentials. Please try again.');
+      return;
+    }
     router.replace('/(tabs)');
+  };
+
+  const handleForgotOrOtp = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    if (activeTab === 'phone') {
+      await handleSendPhoneOtp();
+      return;
+    }
+    setLoading(true);
+    const res = await resetPasswordForEmailUser(emailOrPhone);
+    setLoading(false);
+    if (res.error) {
+      setErrorMsg(res.error);
+    } else {
+      setSuccessMsg(res.message);
+    }
   };
 
   const handleGoogleSignIn = () => {
-    router.replace('/(tabs)');
-  };
-
-  const handleAppleSignIn = () => {
-    router.replace('/(tabs)');
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setGoogleModalVisible(true);
   };
 
   return (
     <View style={styles.container}>
       {/* OmniGo Silver Tow Truck Background Image - Highly Visible */}
       <ImageBackground
-        source={require('../../assets/auth_bg.jpg')}
-        style={StyleSheet.absoluteFillObject}
+        source={require('@/assets/auth_bg.jpg')}
+        style={StyleSheet.absoluteFill}
         resizeMode="cover"
       >
         {/* Lighter Gradient Overlay for Maximum Tow Truck Visibility */}
         <LinearGradient
           colors={['rgba(5, 8, 16, 0.35)', 'rgba(5, 8, 16, 0.55)', 'rgba(5, 8, 16, 0.85)']}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
       </ImageBackground>
 
@@ -63,13 +124,14 @@ export default function LoginScreen() {
             { paddingTop: Math.max(insets.top + 20, 50), paddingBottom: Math.max(insets.bottom + 20, 40) },
           ]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Top Badge: WELCOME TO OMNIGO */}
           <View style={styles.topBadgeContainer}>
-            <BlurView intensity={20} tint="dark" style={styles.topBadge}>
+            <View style={styles.topBadge}>
               <Ionicons name="sparkles" size={12} color={theme.colors.primary} style={{ marginRight: 6 }} />
               <Text style={styles.topBadgeText}>WELCOME TO OMNIGO</Text>
-            </BlurView>
+            </View>
           </View>
 
           {/* Title & Subtitle */}
@@ -78,20 +140,17 @@ export default function LoginScreen() {
             <Text style={styles.subtitle}>Access your intelligent rescue dashboard</Text>
           </View>
 
-          {/* Social SSO Buttons (Google & Apple) - Ultra Translucent */}
+          {/* Social SSO Button (Google Only with Original Multi-Color Logo) */}
           <View style={styles.socialRow}>
-            <TouchableOpacity style={styles.ssoBtnTouch} onPress={handleGoogleSignIn} activeOpacity={0.8}>
-              <BlurView intensity={25} tint="dark" style={styles.ssoBtn}>
-                <Ionicons name="logo-google" size={18} color="#4285F4" style={{ marginRight: 8 }} />
+            <TouchableOpacity onPress={handleGoogleSignIn} activeOpacity={0.85}>
+              <View style={styles.ssoBtn}>
+                <Image
+                  source={require('@/assets/google_logo.png')}
+                  style={styles.googleLogoImg}
+                  resizeMode="contain"
+                />
                 <Text style={styles.ssoBtnText}>Continue with Google</Text>
-              </BlurView>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.ssoBtnTouch} onPress={handleAppleSignIn} activeOpacity={0.8}>
-              <BlurView intensity={25} tint="dark" style={styles.ssoBtn}>
-                <Ionicons name="logo-apple" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={styles.ssoBtnText}>Continue with Apple</Text>
-              </BlurView>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -106,7 +165,12 @@ export default function LoginScreen() {
           <View style={styles.tabContainer}>
             <TouchableOpacity
               style={[styles.tab, activeTab === 'email' && styles.activeTab]}
-              onPress={() => setActiveTab('email')}
+              onPress={() => {
+                setActiveTab('email');
+                setEmailOrPhone('');
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
               activeOpacity={0.8}
             >
               {activeTab === 'email' ? (
@@ -129,7 +193,12 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               style={[styles.tab, activeTab === 'phone' && styles.activeTab]}
-              onPress={() => setActiveTab('phone')}
+              onPress={() => {
+                setActiveTab('phone');
+                setEmailOrPhone('');
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
               activeOpacity={0.8}
             >
               {activeTab === 'phone' ? (
@@ -151,59 +220,103 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
+          {errorMsg ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={16} color="#FF453A" style={{ marginRight: 8 }} />
+              <Text style={styles.errorBannerText}>{errorMsg}</Text>
+            </View>
+          ) : null}
+
+          {successMsg ? (
+            <View style={styles.successBanner}>
+              <Ionicons name="checkmark-circle" size={16} color="#00FF97" style={{ marginRight: 8 }} />
+              <Text style={styles.successBannerText}>{successMsg}</Text>
+            </View>
+          ) : null}
+
           {/* Form Input Fields - Translucent Glassmorphic Style */}
           <View style={styles.formContainer}>
             {/* Input 1: Enter your email / phone */}
-            <BlurView intensity={30} tint="dark" style={styles.inputWrapper}>
+            <View style={styles.inputWrapper}>
               <Ionicons
-                name={activeTab === 'email' ? 'person-outline' : 'call-outline'}
+                name={activeTab === 'email' ? 'mail-outline' : 'call-outline'}
                 size={18}
                 color={theme.colors.primary}
                 style={styles.inputIcon}
               />
+              {activeTab === 'phone' && (
+                <View style={styles.countryPrefixBadge}>
+                  <Text style={styles.countryPrefixText}>+91</Text>
+                </View>
+              )}
               <TextInput
                 style={styles.input}
-                placeholder={activeTab === 'email' ? 'Enter your email' : 'Enter your phone number'}
+                placeholder={activeTab === 'email' ? 'Enter your email' : 'Enter 10-digit mobile number'}
                 placeholderTextColor="rgba(255, 255, 255, 0.6)"
                 keyboardType={activeTab === 'email' ? 'email-address' : 'phone-pad'}
+                maxLength={activeTab === 'phone' ? 10 : 100}
                 autoCapitalize="none"
                 value={emailOrPhone}
-                onChangeText={setEmailOrPhone}
+                onChangeText={(t) => {
+                  setEmailOrPhone(activeTab === 'phone' ? t.replace(/\D/g, '') : t);
+                  if (errorMsg) setErrorMsg(null);
+                  if (successMsg) setSuccessMsg(null);
+                }}
               />
-            </BlurView>
+            </View>
 
-            {/* Input 2: Enter your password */}
-            <BlurView intensity={30} tint="dark" style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={18} color={theme.colors.primary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your password"
-                placeholderTextColor="rgba(255, 255, 255, 0.6)"
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="rgba(255, 255, 255, 0.6)" />
-              </TouchableOpacity>
-            </BlurView>
+            {/* Input 2: Enter your password (Email mode only) */}
+            {activeTab === 'email' && (
+              <>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="lock-closed-outline" size={18} color={theme.colors.primary} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your password"
+                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={(t) => {
+                      setPassword(t);
+                      if (errorMsg) setErrorMsg(null);
+                    }}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="rgba(255, 255, 255, 0.6)" />
+                  </TouchableOpacity>
+                </View>
 
-            {/* Forgot Password Link */}
-            <TouchableOpacity style={styles.forgotBtn}>
-              <Text style={styles.forgotText}>Forgot Password?</Text>
-            </TouchableOpacity>
+                {/* Forgot Password Link */}
+                <TouchableOpacity style={styles.forgotBtn} onPress={handleForgotOrOtp}>
+                  <Text style={styles.forgotText}>Forgot Password?</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
 
           {/* Sign In Primary Button */}
-          <TouchableOpacity style={styles.signInBtnTouch} onPress={handleSignIn} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.signInBtnTouch}
+            onPress={handleSignIn}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
             <LinearGradient
               colors={['#00FF97', '#00CC7A']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.signInBtn}
             >
-              <Text style={styles.signInBtnText}>Sign In</Text>
-              <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />
+              {loading ? (
+                <ActivityIndicator size="small" color="#000000" />
+              ) : (
+                <>
+                  <Text style={styles.signInBtnText}>
+                    {activeTab === 'phone' ? 'Send OTP & Sign In' : 'Sign In'}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />
+                </>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -216,6 +329,15 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <GoogleAuthModal
+        visible={googleModalVisible}
+        onClose={() => setGoogleModalVisible(false)}
+        onSuccess={() => {
+          setGoogleModalVisible(false);
+          router.replace('/(tabs)');
+        }}
+      />
     </View>
   );
 }
@@ -272,31 +394,27 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   socialRow: {
-    gap: 10,
     marginBottom: 20,
-  },
-  ssoBtnTouch: {
-    borderRadius: 20,
-    overflow: 'hidden',
   },
   ssoBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(13, 28, 60, 0.55)',
-    paddingVertical: 14,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
+    backgroundColor: 'rgba(13, 24, 48, 0.78)',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+  },
+  googleLogoImg: {
+    width: 20,
+    height: 20,
+    marginRight: 10,
   },
   ssoBtnText: {
     fontFamily: 'Outfit_600SemiBold',
-    fontSize: 14,
+    fontSize: 15,
     color: '#FFFFFF',
   },
   dividerContainer: {
@@ -318,12 +436,12 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(13, 20, 32, 0.35)',
+    backgroundColor: 'rgba(13, 20, 32, 0.55)',
     borderRadius: theme.borderRadius.full,
     padding: 4,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   tab: {
     flex: 1,
@@ -359,28 +477,67 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.75)',
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 69, 58, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 69, 58, 0.45)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#FF453A',
+  },
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 255, 151, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 151, 0.45)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  successBannerText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#00FF97',
+  },
   formContainer: {
     marginBottom: 20,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(10, 28, 60, 0.55)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(13, 24, 48, 0.75)',
+    borderRadius: 16,
     paddingHorizontal: 16,
     marginBottom: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     height: 56,
-    overflow: 'hidden',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 10,
+  },
+  countryPrefixBadge: {
+    paddingRight: 10,
+    marginRight: 10,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  countryPrefixText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
+    color: '#00FF97',
   },
   input: {
     flex: 1,

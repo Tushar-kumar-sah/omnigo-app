@@ -21,7 +21,7 @@ import {
   Modal,
   Vibration,
 } from 'react-native';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -172,7 +172,7 @@ export default function HomeScreen() {
 
   // Countdown timer
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setTimeout>;
     if (showJobPopup && countdown > 0) {
       interval = setInterval(() => {
         setCountdown(prev => prev - 1);

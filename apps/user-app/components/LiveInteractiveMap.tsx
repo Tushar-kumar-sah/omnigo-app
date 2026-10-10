@@ -138,7 +138,7 @@ export default function LiveInteractiveMap({
       {/* High-Tech Dark Cyber Map Matrix */}
       <LinearGradient
         colors={['#07101e', '#0b192e', '#060d19']}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
       {/* Futuristic City Map Grid Overlay */}
@@ -154,7 +154,7 @@ export default function LiveInteractiveMap({
       <Animated.View style={[styles.radarSweep, { transform: [{ rotate: spin }] }]}>
         <LinearGradient
           colors={['transparent', 'rgba(0, 207, 255, 0.15)']}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
       </Animated.View>
 
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     backgroundColor: '#07101e',
   },
-  gridContainer: { ...StyleSheet.absoluteFillObject, opacity: 0.2 },
+  gridContainer: { ...StyleSheet.absoluteFill, opacity: 0.2 },
   gridRoadHorizontal: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: '#38BDF8' },
   gridRoadVertical: { position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#38BDF8' },
   gridRoadDiagonal: {

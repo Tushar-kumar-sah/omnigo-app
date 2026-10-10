@@ -4,8 +4,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { THEME } from '../../constants/theme';
-import { CONDITION_CHECKLIST } from '../../constants/app-config';
+import { THEME } from '@/constants/theme';
+import { CONDITION_CHECKLIST } from '@/constants/app-config';
 
 export default function ConditionReportScreen() {
   const router = useRouter();

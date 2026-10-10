@@ -2,10 +2,12 @@
   "name": "omnigo",
   "version": "1.0.0",
   "private": true,
+  "main": "expo-router/entry",
   "description": "OmniGo - Vehicle Towing App Ecosystem",
   "scripts": {
-    "dev:user": "pnpm --filter user-app dev",
-    "dev:vendor": "pnpm --filter vendor-app dev",
+    "start": "pnpm dev:user",
+    "dev:user": "pnpm --filter user-app dev -- -c",
+    "dev:vendor": "pnpm --filter vendor-app dev -- -c",
     "dev:admin": "pnpm --filter admin-panel dev",
     "dev:api": "pnpm --filter api-server dev",
     "lint": "turbo lint",
@@ -14,11 +16,17 @@
   },
   "dependencies": {
     "pg": "^8.23.0",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   },
   "devDependencies": {
     "turbo": "^2.5.0"
   },
-  "packageManager": "pnpm@10.12.1"
+  "packageManager": "pnpm@10.12.1",
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native-reanimated": "4.5.1",
+    "react-native-worklets": "0.10.1"
+  }
 }

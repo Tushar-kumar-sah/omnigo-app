@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
-import { View, StyleSheet, Platform, TouchableOpacity, Text } from 'react-native';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, Platform, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
+import { fetchDrivingRoute, RouteResult } from '@/lib/googleMaps';
 
 export interface LiveRouteMapProps {
   driverCoords: { latitude: number; longitude: number };
@@ -23,21 +24,61 @@ export default function LiveRouteMap({
   dropoffCoords,
   driverName = 'Rajesh Kumar',
   driverVehicle = 'Tata 407 Flatbed',
-  driverPlate = 'WB-02-AK-9821',
+  driverPlate = 'MH-12-AB-1234',
   pickupAddress = 'Breakdown Location',
   dropoffAddress = 'Authorized Workshop',
   speed = 42,
-  height = 320,
+  height = 340,
   interactive = true,
 }: LiveRouteMapProps) {
-  const dLat = driverCoords.latitude || 22.5726;
-  const dLng = driverCoords.longitude || 88.3639;
-  const pLat = pickupCoords.latitude || 22.5515;
-  const pLng = pickupCoords.longitude || 88.3524;
-  const dropLat = dropoffCoords.latitude || 22.5735;
-  const dropLng = dropoffCoords.longitude || 88.4331;
+  const dLat = driverCoords?.latitude || 18.5204;
+  const dLng = driverCoords?.longitude || 73.8567;
+  const pLat = pickupCoords?.latitude || 18.5304;
+  const pLng = pickupCoords?.longitude || 73.8667;
+  const dropLat = dropoffCoords?.latitude || 18.5504;
+  const dropLng = dropoffCoords?.longitude || 73.8967;
+
+  const [routeData, setRouteData] = useState<RouteResult | null>(null);
+  const [loadingRoute, setLoadingRoute] = useState(false);
+  const webViewRef = useRef<WebView>(null);
+
+  // Fetch real Google Routes road navigation polyline
+  useEffect(() => {
+    let isMounted = true;
+    async function loadRoute() {
+      setLoadingRoute(true);
+      try {
+        const route = await fetchDrivingRoute(
+          { latitude: dLat, longitude: dLng },
+          { latitude: pLat, longitude: pLng }
+        );
+        if (isMounted && route) {
+          setRouteData(route);
+        }
+      } catch (e) {
+        console.warn('[LiveRouteMap] Error fetching route:', e);
+      } finally {
+        if (isMounted) setLoadingRoute(false);
+      }
+    }
+    loadRoute();
+    return () => {
+      isMounted = false;
+    };
+  }, [dLat, dLng, pLat, pLng]);
 
   const htmlContent = useMemo(() => {
+    // Road coordinates array
+    const roadPoints = routeData?.coordinates && routeData.coordinates.length > 0
+      ? routeData.coordinates.map((c) => [c.latitude, c.longitude])
+      : [
+          [dLat, dLng],
+          [pLat, pLng],
+          [dropLat, dropLng],
+        ];
+
+    const roadPointsJson = JSON.stringify(roadPoints);
+
     return `
 <!DOCTYPE html>
 <html>
@@ -70,7 +111,7 @@ export default function LiveRouteMap({
       border-radius: 22px;
       background: linear-gradient(135deg, #00CFFF, #0077FF);
       border: 3px solid #FFFFFF;
-      box-shadow: 0 0 16px rgba(0,207,255,0.8), 0 4px 8px rgba(0,0,0,0.5);
+      box-shadow: 0 0 18px rgba(0,207,255,0.9), 0 4px 8px rgba(0,0,0,0.6);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -80,12 +121,12 @@ export default function LiveRouteMap({
     }
     .pulse-ring {
       position: absolute;
-      width: 60px;
-      height: 60px;
-      border-radius: 30px;
-      border: 2px solid #00CFFF;
-      top: -11px;
-      left: -11px;
+      width: 62px;
+      height: 62px;
+      border-radius: 31px;
+      border: 2.5px solid #00CFFF;
+      top: -12px;
+      left: -12px;
       animation: pulsate 2s infinite ease-out;
       pointer-events: none;
     }
@@ -99,13 +140,13 @@ export default function LiveRouteMap({
       border-radius: 18px;
       background: #00FF97;
       border: 3px solid #000000;
-      box-shadow: 0 0 14px rgba(0,255,151,0.8);
+      box-shadow: 0 0 16px rgba(0,255,151,0.9);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #000000;
       font-weight: 900;
-      font-size: 14px;
+      font-size: 15px;
     }
     .dropoff-pin {
       width: 36px;
@@ -113,20 +154,20 @@ export default function LiveRouteMap({
       border-radius: 18px;
       background: #FF3B30;
       border: 3px solid #FFFFFF;
-      box-shadow: 0 0 14px rgba(255,59,48,0.8);
+      box-shadow: 0 0 16px rgba(255,59,48,0.9);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #FFFFFF;
       font-weight: 900;
-      font-size: 14px;
+      font-size: 15px;
     }
     .leaflet-popup-content-wrapper {
       background: #0D1420;
       color: #FFFFFF;
       border-radius: 12px;
-      border: 1px solid rgba(0,207,255,0.3);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      border: 1px solid rgba(0,207,255,0.4);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.7);
       font-size: 12px;
       padding: 4px;
     }
@@ -144,6 +185,7 @@ export default function LiveRouteMap({
     const pLng = ${pLng};
     const dropLat = ${dropLat};
     const dropLng = ${dropLng};
+    const roadCoords = ${roadPointsJson};
 
     const map = L.map('map', {
       zoomControl: false,
@@ -155,13 +197,12 @@ export default function LiveRouteMap({
       tap: true
     });
 
-    // High-reliability OpenStreetMap tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       subdomains: ['a', 'b', 'c']
     }).addTo(map);
 
-    // Driver Marker
+    // Driver Marker (Uber-style pulsing truck)
     const driverIcon = L.divIcon({
       className: 'custom-div-icon',
       html: '<div class="driver-pin"><div class="pulse-ring"></div>🚚</div>',
@@ -179,7 +220,7 @@ export default function LiveRouteMap({
       iconAnchor: [18, 18]
     });
     const pickupMarker = L.marker([pLat, pLng], { icon: pickupIcon }).addTo(map)
-      .bindPopup('<b>PICKUP LOCATION (A)</b><br/>${pickupAddress.replace(/'/g, "\\'")}');
+      .bindPopup('<b>PICKUP (A)</b><br/>${pickupAddress.replace(/'/g, "\\'")}');
 
     // Drop-off Marker (B)
     const dropoffIcon = L.divIcon({
@@ -189,58 +230,59 @@ export default function LiveRouteMap({
       iconAnchor: [18, 18]
     });
     const dropoffMarker = L.marker([dropLat, dropLng], { icon: dropoffIcon }).addTo(map)
-      .bindPopup('<b>DROP-OFF DESTINATION (B)</b><br/>${dropoffAddress.replace(/'/g, "\\'")}');
+      .bindPopup('<b>DROP-OFF (B)</b><br/>${dropoffAddress.replace(/'/g, "\\'")}');
 
-    // Route Polyline connecting Driver -> Pickup -> Dropoff
-    const routeCoords = [
-      [dLat, dLng],
-      [pLat, pLng],
-      [dropLat, dropLng]
-    ];
+    // Real Google Routes Road Path Polyline
+    L.polyline(roadCoords, { color: '#0077FF', weight: 8, opacity: 0.45, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+    L.polyline(roadCoords, { color: '#00CFFF', weight: 5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(map);
 
-    // Neon Route Outline & Main Line
-    L.polyline(routeCoords, { color: '#0077FF', weight: 8, opacity: 0.4, lineCap: 'round' }).addTo(map);
-    L.polyline(routeCoords, { color: '#00CFFF', weight: 4, opacity: 0.9, dashArray: '8, 8', lineCap: 'round' }).addTo(map);
-
-    // Fit map bounds to show all markers with comfortable padding
-    const bounds = L.latLngBounds([
-      [dLat, dLng],
-      [pLat, pLng],
-      [dropLat, dropLng]
-    ]);
-    map.fitBounds(bounds, { padding: [40, 40] });
+    // Fit map bounds
+    const bounds = L.latLngBounds(roadCoords);
+    map.fitBounds(bounds, { padding: [45, 45] });
 
     window.recenterDriver = function() {
-      map.setView([dLat, dLng], 15);
+      map.setView([dLat, dLng], 16);
       driverMarker.openPopup();
     };
 
     window.fitRoute = function() {
-      map.fitBounds(bounds, { padding: [40, 40] });
+      map.fitBounds(bounds, { padding: [45, 45] });
     };
 
-    window.zoomIn = function() {
-      map.zoomIn();
-    };
-
-    window.zoomOut = function() {
-      map.zoomOut();
-    };
+    window.zoomIn = function() { map.zoomIn(); };
+    window.zoomOut = function() { map.zoomOut(); };
   </script>
 </body>
 </html>
     `;
-  }, [dLat, dLng, pLat, pLng, dropLat, dropLng, driverName, driverVehicle, driverPlate, pickupAddress, dropoffAddress, speed]);
+  }, [dLat, dLng, pLat, pLng, dropLat, dropLng, driverName, driverVehicle, driverPlate, pickupAddress, dropoffAddress, speed, routeData]);
 
   return (
     <View style={[styles.container, { height }]}>
+      {/* Top Floating ETA Pill (Uber/Rapido style) */}
+      <View style={styles.topEtaPill}>
+        <View style={styles.etaDot} />
+        {loadingRoute ? (
+          <ActivityIndicator size="small" color="#00CFFF" style={{ marginRight: 6 }} />
+        ) : (
+          <Ionicons name="navigate" size={14} color="#00CFFF" style={{ marginRight: 6 }} />
+        )}
+        <Text style={styles.etaPillText}>
+          {routeData
+            ? `${routeData.durationMinutes} mins away · ${routeData.distanceKm} km`
+            : `Driver En Route · ${speed} km/h`}
+        </Text>
+      </View>
+
+      {/* Map Canvas */}
       {Platform.OS === 'web' ? (
         React.createElement('iframe', {
           srcDoc: htmlContent,
-          style: { width: '100%', height: '100%', border: 'none', borderRadius: 16 },
+          style: { width: '100%', height: '100%', border: 'none', borderRadius: 20 },
         })
       ) : (
         <WebView
+          ref={webViewRef}
           originWhitelist={['*']}
           source={{ html: htmlContent }}
           style={styles.webview}
@@ -250,15 +292,31 @@ export default function LiveRouteMap({
         />
       )}
 
-      {/* Floating Map Controls HUD */}
-      {interactive && (
-        <View style={styles.hudOverlay}>
-          <View style={styles.telemetryTag}>
-            <Ionicons name="radio" size={13} color="#00FF97" />
-            <Text style={styles.telemetryTagText}>LIVE GPS · {speed} km/h</Text>
-          </View>
-        </View>
-      )}
+      {/* Floating Map Controls */}
+      <View style={styles.mapControls}>
+        <TouchableOpacity
+          style={styles.controlBtn}
+          activeOpacity={0.8}
+          onPress={() => {
+            if (webViewRef.current) {
+              webViewRef.current.injectJavaScript('if (window.recenterDriver) window.recenterDriver(); true;');
+            }
+          }}
+        >
+          <Ionicons name="locate" size={18} color="#00FF97" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.controlBtn}
+          activeOpacity={0.8}
+          onPress={() => {
+            if (webViewRef.current) {
+              webViewRef.current.injectJavaScript('if (window.fitRoute) window.fitRoute(); true;');
+            }
+          }}
+        >
+          <Ionicons name="expand" size={18} color="#00CFFF" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -266,42 +324,60 @@ export default function LiveRouteMap({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#070C18',
+    backgroundColor: '#070c18',
     borderWidth: 1,
-    borderColor: 'rgba(0,207,255,0.3)',
+    borderColor: 'rgba(0, 207, 255, 0.25)',
     position: 'relative',
   },
   webview: {
     flex: 1,
-    backgroundColor: '#070C18',
+    backgroundColor: '#070c18',
   },
-  hudOverlay: {
+  topEtaPill: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    pointerEvents: 'box-none',
-  },
-  telemetryTag: {
+    top: 14,
+    left: 14,
+    zIndex: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(7,12,24,0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,255,151,0.4)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: 'rgba(7, 12, 24, 0.92)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 20,
-    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.4)',
+    elevation: 6,
   },
-  telemetryTagText: {
+  etaDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#00FF97',
+    marginRight: 6,
+  },
+  etaPillText: {
     fontFamily: 'Outfit_700Bold',
-    fontSize: 11,
-    color: '#00FF97',
-    letterSpacing: 0.5,
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
+  mapControls: {
+    position: 'absolute',
+    right: 14,
+    bottom: 14,
+    zIndex: 15,
+    gap: 8,
+  },
+  controlBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(13, 20, 32, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
   },
 });

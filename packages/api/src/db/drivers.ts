@@ -159,7 +159,7 @@ export async function updateDriverLocation(id: string, lat: number, lng: number,
       await supabase.from('drivers').upsert({
         id,
         name: 'OmniGo Partner (Live Driver)',
-        phone: '+919876543210',
+        phone: '+91' + id.replace(/-/g, '').slice(0, 10),
         rating: 4.9,
         total_trips: 45,
         is_online: true,
@@ -215,7 +215,7 @@ export async function toggleDriverOnline(id: string, isOnline: boolean): Promise
       await supabase.from('drivers').upsert({
         id,
         name: 'OmniGo Partner (Live Driver)',
-        phone: '+919876543210',
+        phone: '+91' + id.replace(/-/g, '').slice(0, 10),
         rating: 4.9,
         total_trips: 45,
         is_online: isOnline,

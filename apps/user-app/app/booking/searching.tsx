@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { theme } from '../../constants/theme';
+import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { fetchBookingById } from '../../lib/api';
+import { fetchBookingById } from '@/lib/api';
 import { subscribeToBooking, getDrivers, assignDriver } from '@omnigo/api';
 
 export default function SearchingScreen() {
@@ -112,17 +112,17 @@ export default function SearchingScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1424', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1424', '#050810']} style={StyleSheet.absoluteFill} />
 
       <View style={styles.radarContainer}>
         <Animated.View style={[styles.ring1, { transform: [{ scale: pulseAnim }] }]}>
-          <LinearGradient colors={['rgba(0, 207, 255, 0.15)', 'transparent']} style={StyleSheet.absoluteFillObject} />
+          <LinearGradient colors={['rgba(0, 207, 255, 0.15)', 'transparent']} style={StyleSheet.absoluteFill} />
         </Animated.View>
         <Animated.View style={[styles.ring2, { transform: [{ scale: pulseAnim }] }]}>
-          <LinearGradient colors={['rgba(0, 255, 151, 0.25)', 'transparent']} style={StyleSheet.absoluteFillObject} />
+          <LinearGradient colors={['rgba(0, 255, 151, 0.25)', 'transparent']} style={StyleSheet.absoluteFill} />
         </Animated.View>
         <Animated.View style={[styles.scannerBeam, { transform: [{ rotate: spin }] }]}>
-          <LinearGradient colors={['transparent', 'rgba(0, 207, 255, 0.4)']} style={StyleSheet.absoluteFillObject} />
+          <LinearGradient colors={['transparent', 'rgba(0, 207, 255, 0.4)']} style={StyleSheet.absoluteFill} />
         </Animated.View>
         <View style={styles.centerIcon}>
           <Ionicons name="car-sport" size={36} color="#00FF97" />

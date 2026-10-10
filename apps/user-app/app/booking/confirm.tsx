@@ -8,10 +8,10 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Location from 'expo-location';
-import { theme } from '../../constants/theme';
-import { createNewBooking, fetchCurrentUser } from '../../lib/api';
+import { theme } from '@/constants/theme';
+import { createNewBooking, fetchCurrentUser } from '@/lib/api';
 import { getPricingRules } from '@omnigo/api';
-import MapLocationPickerModal from '../../components/MapLocationPickerModal';
+import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 
 const USER_ID = 'a0000000-0000-0000-0000-000000000001';
 
@@ -38,6 +38,8 @@ export default function ConfirmBookingScreen() {
   const [dropoffAddr, setDropoffAddr]         = useState<string>((params.dropoff as string) || '');
   const [showMapPicker, setShowMapPicker]     = useState(false);
   const [mapPickerType, setMapPickerType]     = useState<'pickup' | 'dropoff'>('pickup');
+  const [pickupCoords, setPickupCoords]       = useState<{ latitude: number; longitude: number }>({ latitude: 0, longitude: 0 });
+  const [dropoffCoords, setDropoffCoords]     = useState<{ latitude: number; longitude: number }>({ latitude: 0, longitude: 0 });
 
   const vehicleName  = (params.vehicleName as string) || 'Hatchback (Small Car)';
   const vehiclePlate = (params.vehiclePlate as string) || 'MH 12 AB 1234';
@@ -57,6 +59,7 @@ export default function ConfirmBookingScreen() {
           const { status } = await Location.requestForegroundPermissionsAsync();
           if (status === 'granted') {
             const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            setPickupCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
             try {
               const geocode = await Location.reverseGeocodeAsync({
                 latitude: loc.coords.latitude,
@@ -108,8 +111,8 @@ export default function ConfirmBookingScreen() {
         userId: user?.uuid || user?.id || USER_ID,
         vehicleTypeId: (params.vehicleType as string) || 'hatchback',
         customerVehicle: { make: '—', model: vehicleName, plate: vehiclePlate, color: '—' },
-        pickup: { address: pickupAddr || 'Current Location', coordinates: { latitude: 0, longitude: 0 } },
-        dropoff: { address: dropoffAddr || 'Nearest Workshop', coordinates: { latitude: 0, longitude: 0 } },
+        pickup: { address: pickupAddr || 'Current Location', coordinates: pickupCoords.latitude !== 0 ? pickupCoords : { latitude: 18.5204, longitude: 73.8567 } },
+        dropoff: { address: dropoffAddr || 'Nearest Workshop', coordinates: dropoffCoords.latitude !== 0 ? dropoffCoords : { latitude: 18.5004, longitude: 73.8167 } },
         estimatedPrice: total,
         distance: distanceVal,
         paymentMethod: selectedPayment,
@@ -124,7 +127,7 @@ export default function ConfirmBookingScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
@@ -385,8 +388,10 @@ export default function ConfirmBookingScreen() {
         onSelectLocation={({ address, coordinates }) => {
           if (mapPickerType === 'pickup') {
             setPickupAddr(address);
+            if (coordinates) setPickupCoords(coordinates);
           } else {
             setDropoffAddr(address);
+            if (coordinates) setDropoffCoords(coordinates);
           }
         }}
       />

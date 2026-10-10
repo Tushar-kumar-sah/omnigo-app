@@ -19,11 +19,11 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { jobId, driverName } = body;
-    if (!jobId || !driverName) {
-      return NextResponse.json({ error: 'Missing jobId or driverName' }, { status: 400 });
+    const { jobId, driverId } = body;
+    if (!jobId || !driverId) {
+      return NextResponse.json({ error: 'Missing jobId or driverId' }, { status: 400 });
     }
-    await assignDriver(jobId, driverName);
+    await assignDriver(jobId, driverId);
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('[API/dispatch POST]', err);

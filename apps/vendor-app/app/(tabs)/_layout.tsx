@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 

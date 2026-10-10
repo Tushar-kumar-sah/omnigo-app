@@ -4,8 +4,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { THEME } from '../../constants/theme';
-import { INSPECTION_STEPS } from '../../constants/app-config';
+import { THEME } from '@/constants/theme';
+import { INSPECTION_STEPS } from '@/constants/app-config';
 
 const { width } = Dimensions.get('window');
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
-import { THEME } from '../../constants/theme';
-import { INSPECTION_STEPS } from '../../constants/app-config';
+import { THEME } from '@/constants/theme';
+import { INSPECTION_STEPS } from '@/constants/app-config';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -418,12 +418,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   flashOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#fff',
     zIndex: 20,
   },
   viewfinderGrid: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
   },

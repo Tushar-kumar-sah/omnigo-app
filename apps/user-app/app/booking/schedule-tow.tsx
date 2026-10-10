@@ -13,15 +13,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../../constants/theme';
+import { theme } from '@/constants/theme';
 
 const VEHICLE_IMAGES = {
-  sedan: require('../../assets/vehicles/sedan.jpg'),
-  suv: require('../../assets/vehicles/suv.jpg'),
-  hatchback: require('../../assets/vehicles/hatchback.jpg'),
-  bike: require('../../assets/vehicles/bike.jpg'),
-  truck: require('../../assets/vehicles/truck.jpg'),
-  bus: require('../../assets/vehicles/bus.jpg'),
+  sedan: require('@/assets/vehicles/sedan.jpg'),
+  suv: require('@/assets/vehicles/suv.jpg'),
+  hatchback: require('@/assets/vehicles/hatchback.jpg'),
+  bike: require('@/assets/vehicles/bike.jpg'),
+  truck: require('@/assets/vehicles/truck.jpg'),
+  bus: require('@/assets/vehicles/bus.jpg'),
 };
 
 const VEHICLE_TYPES = [
@@ -72,7 +72,7 @@ export default function ScheduleTowScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
@@ -93,7 +93,7 @@ export default function ScheduleTowScreen() {
             colors={['rgba(0, 255, 151, 0.15)', 'rgba(0, 207, 255, 0.08)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
           <Ionicons name="calendar" size={14} color="#00FF97" />
           <Text style={styles.scheduleBadgeText}>Advance Booking Schedule</Text>
@@ -123,7 +123,7 @@ export default function ScheduleTowScreen() {
                 {isSelected && (
                   <LinearGradient
                     colors={['rgba(0, 255, 151, 0.25)', 'rgba(0, 207, 255, 0.15)']}
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                   />
                 )}
                 <Text style={[styles.dateDayText, isSelected && styles.dateDayTextSelected]}>
@@ -155,7 +155,7 @@ export default function ScheduleTowScreen() {
                 {isSelected && (
                   <LinearGradient
                     colors={['rgba(0, 207, 255, 0.25)', 'rgba(0, 255, 151, 0.15)']}
-                    style={[StyleSheet.absoluteFillObject, { borderRadius: 12 }]}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 12 }]}
                   />
                 )}
                 <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>{t}</Text>
@@ -179,7 +179,7 @@ export default function ScheduleTowScreen() {
                 {isSelected && (
                   <LinearGradient
                     colors={['rgba(0, 207, 255, 0.2)', 'rgba(0, 255, 151, 0.08)']}
-                    style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
                   />
                 )}
                 <View style={[styles.typeIcon, isSelected && styles.typeIconSelected]}>
@@ -247,7 +247,7 @@ export default function ScheduleTowScreen() {
             colors={['rgba(0, 255, 151, 0.08)', 'rgba(0, 207, 255, 0.05)', 'transparent']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
           <Text style={styles.summaryTitle}>Booking Summary</Text>
           <View style={styles.summaryDivider} />

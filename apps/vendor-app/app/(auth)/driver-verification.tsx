@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 
 type DocStatus = 'empty' | 'uploaded';
 
@@ -112,7 +112,7 @@ export default function DriverVerificationScreen() {
     <View style={styles.container}>
       <LinearGradient
         colors={['rgba(5, 8, 16, 0.35)', 'rgba(5, 8, 16, 0.55)', 'rgba(5, 8, 16, 0.85)']}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
       <KeyboardAvoidingView

@@ -9,11 +9,11 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { theme } from '../../constants/theme';
-import { fetchBookingById, fetchDriverById } from '../../lib/api';
+import { theme } from '@/constants/theme';
+import { fetchBookingById, fetchDriverById } from '@/lib/api';
 import { subscribeToDriverLocation, updateBookingDestination, subscribeToBooking } from '@omnigo/api';
-import MapLocationPickerModal from '../../components/MapLocationPickerModal';
-import LiveRouteMap from '../../components/LiveRouteMap';
+import MapLocationPickerModal from '@/components/MapLocationPickerModal';
+import LiveRouteMap from '@/components/LiveRouteMap';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -325,7 +325,7 @@ export default function TrackingScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#040711', '#09101E', '#040711']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#040711', '#09101E', '#040711']} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
@@ -661,7 +661,7 @@ export default function TrackingScreen() {
           <BlurView intensity={60} tint="dark" style={styles.arrivalOtpModal}>
             <LinearGradient
               colors={['rgba(0,255,151,0.15)', 'rgba(4,7,17,0.95)']}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <View style={styles.arrivalIconBox}>
               <Ionicons name="shield-checkmark" size={36} color="#00FF97" />

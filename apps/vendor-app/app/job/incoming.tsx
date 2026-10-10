@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable, ScrollView } from 'react-native';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 
 import { getBookingById, assignDriver, updateBookingStatus, Booking, getPricingRules } from '@omnigo/api';

@@ -15,7 +15,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 
 export default function OtpVerifyScreen() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function OtpVerifyScreen() {
   const inputRefs = useRef<Array<TextInput | null>>([]);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
     if (countdown > 0) {
       timer = setInterval(() => {
         setCountdown(prev => prev - 1);

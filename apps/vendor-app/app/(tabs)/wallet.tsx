@@ -10,7 +10,7 @@ import {
   TextInput,
   Pressable,
 } from 'react-native';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -140,7 +140,7 @@ export default function WalletScreen() {
             colors={['rgba(0, 255, 151, 0.12)', 'rgba(0, 207, 255, 0.05)', 'transparent']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
 
           <Text style={styles.walletLabel}>Available Balance</Text>

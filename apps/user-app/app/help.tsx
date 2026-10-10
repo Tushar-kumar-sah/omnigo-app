@@ -32,7 +32,7 @@ export default function HelpScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
       
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>

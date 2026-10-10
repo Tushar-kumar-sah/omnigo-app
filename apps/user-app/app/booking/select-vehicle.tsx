@@ -18,16 +18,16 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { theme } from '../../constants/theme';
-import MapLocationPickerModal from '../../components/MapLocationPickerModal';
+import { theme } from '@/constants/theme';
+import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 
 const VEHICLE_IMAGES = {
-  sedan: require('../../assets/vehicles/sedan.jpg'),
-  suv: require('../../assets/vehicles/suv.jpg'),
-  hatchback: require('../../assets/vehicles/hatchback.jpg'),
-  bike: require('../../assets/vehicles/bike.jpg'),
-  truck: require('../../assets/vehicles/truck.jpg'),
-  bus: require('../../assets/vehicles/bus.jpg'),
+  sedan: require('@/assets/vehicles/sedan.jpg'),
+  suv: require('@/assets/vehicles/suv.jpg'),
+  hatchback: require('@/assets/vehicles/hatchback.jpg'),
+  bike: require('@/assets/vehicles/bike.jpg'),
+  truck: require('@/assets/vehicles/truck.jpg'),
+  bus: require('@/assets/vehicles/bus.jpg'),
 };
 
 const VEHICLE_TYPES = [
@@ -213,7 +213,7 @@ export default function SelectVehicleScreen() {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
@@ -270,7 +270,7 @@ export default function SelectVehicleScreen() {
                 {isSelected && (
                   <LinearGradient
                     colors={['rgba(0, 207, 255, 0.2)', 'rgba(0, 255, 151, 0.08)']}
-                    style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
                   />
                 )}
                 <View style={[styles.typeIcon, isSelected && styles.typeIconSelected]}>
@@ -591,7 +591,7 @@ export default function SelectVehicleScreen() {
             <View style={styles.videoUploadedContent}>
               <LinearGradient
                 colors={['rgba(0, 255, 151, 0.1)', 'rgba(0, 207, 255, 0.05)']}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
               />
               <View style={styles.videoPlayCircle}>
                 <Ionicons name="play" size={28} color="#00FF97" />
@@ -1064,7 +1064,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   photoOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'flex-end',
     alignItems: 'flex-start',
@@ -1242,6 +1242,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
     padding: 16,
     marginBottom: 12,
+  },
+  checklistTitle: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 8,
   },
   // Location inputs & Issue chips
   locationInputBox: {

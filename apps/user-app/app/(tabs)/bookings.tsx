@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { theme } from '../../constants/theme';
-import { fetchCurrentUser, fetchUserBookings } from '../../lib/api';
+import { theme } from '@/constants/theme';
+import { fetchCurrentUser, fetchUserBookings } from '@/lib/api';
 
 const mapToUIBooking = (b: any) => {
   const estPrice = Number(b.finalPrice || b.final_price || b.estimatedPrice || b.estimated_price || b.price || b.fare?.total || b.fare?.estimated || 0);
@@ -94,31 +94,34 @@ export default function BookingsScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 12, 54) }]}>
+      <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 12 : 44 }]}>
         <Text style={styles.headerTitle}>My Bookings</Text>
         <Text style={styles.headerSub}>Track rides & view receipts</Text>
       </View>
 
       {/* Filter Tabs */}
-      <ScrollView
-        horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabRow}
-        style={styles.tabScroll}
-      >
-        {TABS.map(tab => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.tabWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabRow}
+          style={styles.tabScroll}
+        >
+          {TABS.map(tab => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              onPress={() => setActiveTab(tab)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom + 90, 100) }]}
@@ -132,7 +135,7 @@ export default function BookingsScreen() {
         )}
 
         {filtered.map(booking => (
-          <BlurView key={booking.id} intensity={20} tint="dark" style={styles.card}>
+          <View key={booking.id} style={[styles.card, Platform.OS === 'android' && styles.cardAndroid]}>
             {/* Top Row */}
             <View style={styles.cardTop}>
               <View style={[styles.statusBadge, { backgroundColor: `${STATUS_COLOR[booking.status]}18`, borderColor: `${STATUS_COLOR[booking.status]}35` }]}>
@@ -198,14 +201,14 @@ export default function BookingsScreen() {
                 </TouchableOpacity>
               )}
             </View>
-          </BlurView>
+          </View>
         ))}
       </ScrollView>
 
       {/* ─── Invoice Modal ─── */}
       <Modal visible={!!invoice} animationType="slide" transparent statusBarTranslucent>
         <View style={modal.overlay}>
-          <BlurView intensity={30} tint="dark" style={modal.container}>
+          <View style={modal.container}>
             {/* Header */}
             <View style={modal.header}>
               <View>
@@ -269,7 +272,7 @@ export default function BookingsScreen() {
                 <Text style={modal.noBadgeText}>No hidden charges · All amounts are GST-inclusive</Text>
               </View>
             </ScrollView>
-          </BlurView>
+          </View>
         </View>
       </Modal>
     </View>
@@ -279,10 +282,11 @@ export default function BookingsScreen() {
 // ─── Styles ──────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container:    { flex: 1, backgroundColor: '#050810' },
-  header:       { paddingHorizontal: 20, paddingBottom: 14 },
+  header:       { paddingHorizontal: 20, paddingBottom: 10 },
   headerTitle:  { fontFamily: 'Outfit_700Bold', fontSize: 24, color: '#fff' },
-  headerSub:    { fontFamily: 'Inter_400Regular', fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 3 },
-  tabScroll:    { height: 46, marginBottom: 12 },
+  headerSub:    { fontFamily: 'Inter_400Regular', fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
+  tabWrapper:   { height: 38, marginBottom: 12 },
+  tabScroll:    { flexGrow: 0, height: 38 },
   tabRow:       { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
   tab:          { paddingHorizontal: 18, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
   tabActive:    { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
@@ -292,6 +296,7 @@ const styles = StyleSheet.create({
   emptyState:   { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText:    { fontFamily: 'Inter_400Regular', fontSize: 15, color: 'rgba(255,255,255,0.3)' },
   card:         { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', padding: 16, backgroundColor: 'rgba(13,20,32,0.5)', marginBottom: 2 },
+  cardAndroid:  { backgroundColor: 'rgba(13,20,40,0.95)' },
   cardTop:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   statusBadge:  { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100, borderWidth: 1 },
   statusText:   { fontFamily: 'Outfit_700Bold', fontSize: 11, letterSpacing: 0.5 },

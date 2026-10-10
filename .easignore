@@ -1,0 +1,9 @@
+# Ignore unnecessary files in EAS builds
+node_modules/
+.git/
+apps/admin-panel/
+apps/api-server/
+apps/vendor-app/
+.next/
+*.log
+.turbo/

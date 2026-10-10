@@ -4,7 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 import { getBookingById, updateBookingStatus, Booking } from '@omnigo/api';
 
 const { width, height } = Dimensions.get('window');
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.background,
   },
   mapBackground: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',

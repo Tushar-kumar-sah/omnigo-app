@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,15 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
+import {
+  fetchPlacePredictions,
+  fetchPlaceDetails,
+  reverseGeocodeGoogle,
+  PlacePrediction,
+} from '@/lib/googleMaps';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -32,18 +37,6 @@ export interface MapLocationPickerModalProps {
   onConfirmLocation?: (data: { address: string; coordinates: { latitude: number; longitude: number } }) => void;
 }
 
-const POPULAR_LANDMARKS = [
-  { name: 'Park Street', desc: 'Central Kolkata', lat: 22.5515, lng: 88.3524 },
-  { name: 'Salt Lake Sector V', desc: 'IT Hub, Bidhannagar', lat: 22.5735, lng: 88.4331 },
-  { name: 'New Town Action Area 1', desc: 'Major Arterial Road', lat: 22.5898, lng: 88.4722 },
-  { name: 'Howrah Railway Station', desc: 'Station Approach Road', lat: 22.5855, lng: 88.3426 },
-  { name: 'Kolkata Airport (CCU)', desc: 'Dum Dum Airport Area', lat: 22.6547, lng: 88.4467 },
-  { name: 'Authorized Hyundai & Tata Service Center', desc: 'EM Bypass Workshop Zone', lat: 22.5186, lng: 88.3976 },
-  { name: 'Multi-Brand Garage & Tow Hub', desc: 'VIP Road, Kankurgachi', lat: 22.5830, lng: 88.3912 },
-  { name: 'South City Mall', desc: 'Prince Anwar Shah Road', lat: 22.5020, lng: 88.3615 },
-  { name: 'Gariahat Market', desc: 'Ballygunge, South Kolkata', lat: 22.5170, lng: 88.3668 },
-];
-
 export default function MapLocationPickerModal({
   visible,
   onClose,
@@ -57,24 +50,33 @@ export default function MapLocationPickerModal({
   const insets = useSafeAreaInsets();
   const [selectedAddress, setSelectedAddress] = useState(initialAddress || '');
   const [searchQuery, setSearchQuery] = useState('');
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
+  const [searching, setSearching] = useState(false);
   const [coords, setCoords] = useState<{ latitude: number; longitude: number }>(
-    initialCoordinates || { latitude: 22.5726, longitude: 88.3639 }
+    initialCoordinates || { latitude: 18.5204, longitude: 73.8567 }
   );
-  const [zoomLevel, setZoomLevel] = useState(15);
+  const [zoomLevel, setZoomLevel] = useState(16);
   const [locating, setLocating] = useState(false);
+  const [reverseGeocoding, setReverseGeocoding] = useState(false);
 
+  const webViewRef = useRef<WebView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pinBobAnim = useRef(new Animated.Value(0)).current;
+  const searchTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
     if (visible) {
       if (initialAddress) setSelectedAddress(initialAddress);
-      if (initialCoordinates) setCoords(initialCoordinates);
+      if (initialCoordinates && initialCoordinates.latitude !== 0) {
+        setCoords(initialCoordinates);
+      } else {
+        handleGetCurrentLocation();
+      }
 
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pinBobAnim, { toValue: -6, duration: 700, useNativeDriver: true }),
-          Animated.timing(pinBobAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
+          Animated.timing(pinBobAnim, { toValue: -8, duration: 600, useNativeDriver: true }),
+          Animated.timing(pinBobAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
         ])
       ).start();
 
@@ -85,11 +87,71 @@ export default function MapLocationPickerModal({
         ])
       ).start();
     }
-  }, [visible, initialAddress, initialCoordinates]);
+  }, [visible]);
 
-  const isPickup = type === 'pickup';
-  const themeColor = isPickup ? '#00FF97' : '#00CFFF';
+  // Live Google Places Autocomplete search (debounced 350ms)
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
+    if (text.trim().length < 2) {
+      setPredictions([]);
+      setSearching(false);
+      return;
+    }
+
+    setSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await fetchPlacePredictions(text, coords);
+        setPredictions(results);
+      } catch (e) {
+        console.warn('[MapPicker] Autocomplete search error:', e);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+  };
+
+  // Select place prediction from Google Places
+  const handleSelectPrediction = async (prediction: PlacePrediction) => {
+    setSearching(true);
+    try {
+      const details = await fetchPlaceDetails(prediction.placeId);
+      if (details) {
+        setCoords(details.coordinates);
+        setSelectedAddress(details.address);
+        setSearchQuery('');
+        setPredictions([]);
+
+        // Move WebView map camera to new location
+        const js = `if (window.setMapLocation) { window.setMapLocation(${details.coordinates.latitude}, ${details.coordinates.longitude}, 16); } true;`;
+        if (webViewRef.current) {
+          webViewRef.current.injectJavaScript(js);
+        }
+      }
+    } catch (e) {
+      console.warn('[MapPicker] Place details selection error:', e);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Handle map pan/drag end -> Google Reverse Geocoding
+  const handleMapMoveEnd = useCallback(async (lat: number, lng: number) => {
+    setCoords({ latitude: lat, longitude: lng });
+    setReverseGeocoding(true);
+    try {
+      const geo = await reverseGeocodeGoogle(lat, lng);
+      setSelectedAddress(geo.address);
+    } catch (e) {
+      console.warn('[MapPicker] Reverse geocode error:', e);
+    } finally {
+      setReverseGeocoding(false);
+    }
+  }, []);
+
+  // GPS current location
   const handleGetCurrentLocation = async () => {
     try {
       setLocating(true);
@@ -99,54 +161,18 @@ export default function MapLocationPickerModal({
         const { latitude, longitude } = loc.coords;
         setCoords({ latitude, longitude });
 
-        try {
-          const geocodes = await Location.reverseGeocodeAsync({ latitude, longitude });
-          if (geocodes && geocodes.length > 0) {
-            const g = geocodes[0];
-            const parts = [g.name, g.street, g.subregion || g.district, g.city].filter(Boolean);
-            const addr = parts.join(', ') || `GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-            setSelectedAddress(addr);
-          } else {
-            setSelectedAddress(`GPS Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
-          }
-        } catch {
-          setSelectedAddress(`GPS Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+        const js = `if (window.setMapLocation) { window.setMapLocation(${latitude}, ${longitude}, 16); } true;`;
+        if (webViewRef.current) {
+          webViewRef.current.injectJavaScript(js);
         }
+
+        const geo = await reverseGeocodeGoogle(latitude, longitude);
+        setSelectedAddress(geo.address);
       }
     } catch (e) {
-      console.warn('Map picker GPS error', e);
+      console.warn('[MapPicker] GPS error:', e);
     } finally {
       setLocating(false);
-    }
-  };
-
-  const handleSelectLandmark = (item: typeof POPULAR_LANDMARKS[0]) => {
-    setCoords({ latitude: item.lat, longitude: item.lng });
-    setSelectedAddress(`${item.name}, ${item.desc}`);
-  };
-
-  const handleSearchSubmit = async () => {
-    if (!searchQuery.trim()) return;
-    try {
-      const results = await Location.geocodeAsync(searchQuery);
-      if (results && results.length > 0) {
-        const { latitude, longitude } = results[0];
-        setCoords({ latitude, longitude });
-        setSelectedAddress(searchQuery.trim());
-      } else {
-        const match = POPULAR_LANDMARKS.find(l => 
-          l.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-          l.desc.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-        if (match) {
-          handleSelectLandmark(match);
-        } else {
-          setSelectedAddress(searchQuery.trim());
-        }
-      }
-    } catch (e) {
-      console.warn('Search geocode error', e);
-      setSelectedAddress(searchQuery.trim());
     }
   };
 
@@ -163,16 +189,10 @@ export default function MapLocationPickerModal({
     onClose();
   };
 
-  const filteredLandmarks = useMemo(() => {
-    if (!searchQuery.trim()) return POPULAR_LANDMARKS;
-    return POPULAR_LANDMARKS.filter(
-      item =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.desc.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery]);
+  const isPickup = type === 'pickup';
+  const themeColor = isPickup ? '#00FF97' : '#00CFFF';
 
-  // High-performance Leaflet real map HTML for mobile WebView & Web
+  // Real-time Leaflet Map with Google Maps-style styling
   const mapHtml = useMemo(() => {
     return `
 <!DOCTYPE html>
@@ -193,9 +213,8 @@ export default function MapLocationPickerModal({
       overflow: hidden;
     }
     .leaflet-tile {
-      filter: brightness(0.85) contrast(1.15) saturate(1.1);
+      filter: brightness(0.88) contrast(1.15) saturate(1.1);
     }
-    .leaflet-control-container .leaflet-routing-container-hide { display: none; }
   </style>
 </head>
 <body>
@@ -212,14 +231,19 @@ export default function MapLocationPickerModal({
         tap: true
       }).setView([${coords.latitude}, ${coords.longitude}], ${zoomLevel});
 
-      // Primary OSM tile layer
-      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         subdomains: ['a', 'b', 'c']
       }).addTo(map);
 
-      // Listen to map drag/pan
+      let isMoving = false;
+
+      map.on('movestart', function() {
+        isMoving = true;
+      });
+
       map.on('moveend', function() {
+        isMoving = false;
         const center = map.getCenter();
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify({ 
@@ -230,7 +254,6 @@ export default function MapLocationPickerModal({
         }
       });
 
-      // Support direct click to center
       map.on('click', function(e) {
         map.panTo(e.latlng);
       });
@@ -250,7 +273,7 @@ export default function MapLocationPickerModal({
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <View style={styles.container}>
-        {/* Top Floating Glass Header */}
+        {/* Top Header */}
         <View style={[styles.headerFloating, { paddingTop: Math.max(insets.top + 8, 44) }]}>
           <TouchableOpacity onPress={onClose} style={styles.closeCircleBtn} activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
@@ -270,39 +293,65 @@ export default function MapLocationPickerModal({
           </TouchableOpacity>
         </View>
 
-        {/* Floating Search Bar */}
+        {/* Floating Google Places Autocomplete Search Bar */}
         <View style={[styles.searchBarFloating, { top: Math.max(insets.top + 68, 104) }]}>
           <Ionicons name="search" size={18} color="rgba(255,255,255,0.5)" style={{ marginLeft: 12 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder={isPickup ? 'Search pickup street or area...' : 'Search destination garage or area...'}
+            placeholder={isPickup ? 'Search pickup street or landmark...' : 'Search drop-off destination or workshop...'}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearchSubmit}
+            onChangeText={handleSearchChange}
             returnKeyType="search"
           />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 8 }}>
+          {searching ? (
+            <ActivityIndicator size="small" color={themeColor} style={{ marginRight: 10 }} />
+          ) : searchQuery ? (
+            <TouchableOpacity onPress={() => { setSearchQuery(''); setPredictions([]); }} style={{ padding: 8 }}>
               <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
           ) : null}
         </View>
 
-        {/* 🗺️ REAL LIVE INTERACTIVE MAP CANVAS (MOBILE WEBVIEW & WEB IFRAME) */}
+        {/* Live Google Places Predictions Dropdown */}
+        {predictions.length > 0 && (
+          <View style={[styles.predictionsDropdown, { top: Math.max(insets.top + 120, 156) }]}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {predictions.map((item) => (
+                <TouchableOpacity
+                  key={item.placeId}
+                  style={styles.predictionItem}
+                  onPress={() => handleSelectPrediction(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.predictionIconWrap, { backgroundColor: isPickup ? 'rgba(0,255,151,0.12)' : 'rgba(0,207,255,0.12)' }]}>
+                    <Ionicons name="location-sharp" size={16} color={themeColor} />
+                  </View>
+                  <View style={styles.predictionTextWrap}>
+                    <Text style={styles.predictionPrimaryText} numberOfLines={1}>
+                      {item.primaryText}
+                    </Text>
+                    <Text style={styles.predictionSecondaryText} numberOfLines={1}>
+                      {item.secondaryText}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Map Canvas */}
         <View style={styles.mapViewerContainer}>
           {Platform.OS === 'web' ? (
             React.createElement('iframe', {
               title: 'Live Map',
               srcDoc: mapHtml,
-              style: {
-                width: '100%',
-                height: '100%',
-                border: 'none',
-              },
+              style: { width: '100%', height: '100%', border: 'none' },
             })
           ) : (
             <WebView
+              ref={webViewRef}
               originWhitelist={['*']}
               source={{ html: mapHtml }}
               style={styles.webview}
@@ -312,128 +361,90 @@ export default function MapLocationPickerModal({
               onMessage={(event) => {
                 try {
                   const data = JSON.parse(event.nativeEvent.data);
-                  if (data.lat && data.lng) {
-                    setCoords({ latitude: data.lat, longitude: data.lng });
+                  if (data.type === 'moveend' && data.lat && data.lng) {
+                    handleMapMoveEnd(data.lat, data.lng);
                   }
                 } catch (e) {}
               }}
             />
           )}
-
-          {/* Center Target & Animated Crosshair Pin */}
-          <View style={styles.centerTargetContainer} pointerEvents="none">
-            <Animated.View style={[styles.targetRingOuter, { transform: [{ scale: pulseAnim }], borderColor: themeColor }]} />
-            <View style={[styles.targetRingInner, { borderColor: themeColor }]} />
-            
-            <Animated.View style={{ transform: [{ translateY: pinBobAnim }], alignItems: 'center' }}>
-              <View style={[styles.pinHead, { backgroundColor: themeColor, shadowColor: themeColor }]}>
-                <Ionicons name={isPickup ? 'pin' : 'flag'} size={18} color="#000000" />
-              </View>
-              <View style={[styles.pinStem, { backgroundColor: themeColor }]} />
-              <View style={styles.pinShadow} />
-            </Animated.View>
-          </View>
-
-          {/* Floating Zoom Map Controls */}
-          <View style={styles.mapControlsFloating}>
-            <TouchableOpacity 
-              style={styles.mapFab} 
-              onPress={() => setZoomLevel(prev => Math.min(prev + 1, 19))}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.mapFab} 
-              onPress={() => setZoomLevel(prev => Math.max(prev - 1, 10))}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="remove" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.mapFab, { backgroundColor: 'rgba(0,255,151,0.2)', borderColor: '#00FF97' }]} 
-              onPress={handleGetCurrentLocation}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="locate" size={18} color="#00FF97" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Map Status Pill */}
-          <View style={styles.mapHintPill}>
-            <View style={[styles.liveDot, { backgroundColor: themeColor }]} />
-            <Text style={styles.mapHintText}>
-              Live GPS: {coords.latitude.toFixed(4)}° N, {coords.longitude.toFixed(4)}° E
-            </Text>
-          </View>
         </View>
 
-        {/* Bottom Location Confirmation Sheet */}
-        <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom + 16, 28) }]}>
-          {/* Popular Landmark Suggestions */}
-          <View style={{ marginBottom: 10 }}>
-            <Text style={styles.suggestionsLabel}>SELECT KNOWN WORKSHOP OR LANDMARK</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
-            >
-              {filteredLandmarks.map((item) => {
-                const isSelected = selectedAddress.includes(item.name);
-                return (
-                  <TouchableOpacity
-                    key={item.name}
-                    onPress={() => handleSelectLandmark(item)}
-                    style={[
-                      styles.landmarkChip,
-                      isSelected && { borderColor: themeColor, backgroundColor: isPickup ? 'rgba(0,255,151,0.15)' : 'rgba(0,207,255,0.15)' },
-                    ]}
-                  >
-                    <Ionicons
-                      name={item.name.includes('Service') || item.name.includes('Garage') ? 'construct' : 'location'}
-                      size={12}
-                      color={isSelected ? themeColor : 'rgba(255,255,255,0.6)'}
-                    />
-                    <Text style={[styles.landmarkChipText, isSelected && { color: themeColor, fontFamily: 'Outfit_600SemiBold' }]}>
-                      {item.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+        {/* Center Pin Indicator (Uber/Rapido style) */}
+        <View pointerEvents="none" style={styles.centerTargetContainer}>
+          <Animated.View style={[styles.targetRingOuter, { borderColor: themeColor, transform: [{ scale: pulseAnim }] }]} />
+          <View style={[styles.targetRingInner, { borderColor: themeColor }]} />
+          <Animated.View style={{ transform: [{ translateY: pinBobAnim }], alignItems: 'center' }}>
+            <View style={[styles.pinHead, { backgroundColor: themeColor }]}>
+              <Ionicons name={isPickup ? 'pin' : 'flag'} size={18} color="#000000" />
+            </View>
+            <View style={[styles.pinStem, { backgroundColor: themeColor }]} />
+            <View style={styles.pinShadow} />
+          </Animated.View>
+        </View>
 
-          {/* Selected Address Card */}
-          <BlurView intensity={35} tint="dark" style={styles.selectedAddressCard}>
-            <View style={[styles.typeBadge, { backgroundColor: isPickup ? 'rgba(0,255,151,0.15)' : 'rgba(0,207,255,0.15)' }]}>
-              <Text style={[styles.typeBadgeText, { color: themeColor }]}>
-                {isPickup ? '📍 SELECTED PICKUP SPOT' : '🏁 SELECTED DROP-OFF DESTINATION'}
-              </Text>
+        {/* Map Controls */}
+        <View style={styles.mapControlsFloating}>
+          <TouchableOpacity
+            style={styles.mapFab}
+            activeOpacity={0.8}
+            onPress={() => {
+              if (webViewRef.current) {
+                webViewRef.current.injectJavaScript(`if (window.setMapLocation) { window.setMapLocation(${coords.latitude}, ${coords.longitude}, 18); } true;`);
+              }
+            }}
+          >
+            <Ionicons name="add" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.mapFab}
+            activeOpacity={0.8}
+            onPress={() => {
+              if (webViewRef.current) {
+                webViewRef.current.injectJavaScript(`if (window.setMapLocation) { window.setMapLocation(${coords.latitude}, ${coords.longitude}, 14); } true;`);
+              }
+            }}
+          >
+            <Ionicons name="remove" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Bottom Sheet - Selected Address Card */}
+        <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom + 12, 24) }]}>
+          <View style={styles.selectedAddressCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={[styles.typeBadge, { backgroundColor: isPickup ? 'rgba(0,255,151,0.15)' : 'rgba(0,207,255,0.15)' }]}>
+                <Text style={[styles.typeBadgeText, { color: themeColor }]}>
+                  {isPickup ? '📍 PICKUP LOCATION' : '🏁 DROP-OFF DESTINATION'}
+                </Text>
+              </View>
+              {reverseGeocoding && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <ActivityIndicator size="small" color={themeColor} />
+                  <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter_400Regular' }}>Updating...</Text>
+                </View>
+              )}
             </View>
             <TextInput
               style={styles.addressEditableInput}
               value={selectedAddress}
               onChangeText={setSelectedAddress}
-              placeholder={isPickup ? 'Enter pickup landmark...' : 'Enter drop-off destination...'}
-              placeholderTextColor="rgba(255,255,255,0.4)"
               multiline
+              numberOfLines={2}
             />
-          </BlurView>
+          </View>
 
-          {/* Confirm Button */}
-          <TouchableOpacity onPress={handleConfirm} activeOpacity={0.85} style={styles.confirmBtnTouch}>
+          <TouchableOpacity style={styles.confirmBtnTouch} activeOpacity={0.85} onPress={handleConfirm}>
             <LinearGradient
-              colors={isPickup ? ['#00FF97', '#00CC7A'] : ['#00CFFF', '#0099FF']}
+              colors={isPickup ? ['#00FF97', '#00CFFF'] : ['#00CFFF', '#0077FF']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.confirmBtn}
             >
-              <Ionicons name="checkmark-circle" size={18} color="#000000" style={{ marginRight: 6 }} />
               <Text style={styles.confirmBtnText}>
-                {isPickup ? 'CONFIRM PICKUP SPOT' : 'CONFIRM DROP-OFF DESTINATION'}
+                {isPickup ? 'CONFIRM PICKUP LOCATION' : 'CONFIRM DESTINATION'}
               </Text>
+              <Ionicons name="arrow-forward" size={18} color="#000000" style={{ marginLeft: 6 }} />
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -445,19 +456,19 @@ export default function MapLocationPickerModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#040711',
+    backgroundColor: '#050810',
   },
   headerFloating: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 20,
+    zIndex: 30,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: 'rgba(4,7,17,0.85)',
+    backgroundColor: 'rgba(5,8,16,0.92)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
@@ -469,31 +480,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTextContainer: { flex: 1, marginLeft: 12 },
-  headerTitle: { fontFamily: 'Outfit_700Bold', fontSize: 16, color: '#FFFFFF' },
-  headerSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  headerTitle: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  headerSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 1,
+  },
   gpsPulseBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
     backgroundColor: 'rgba(0,255,151,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(0,255,151,0.3)',
+    borderColor: 'rgba(0,255,151,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   searchBarFloating: {
     position: 'absolute',
     left: 16,
     right: 16,
-    zIndex: 15,
+    zIndex: 30,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(13,20,32,0.92)',
-    borderRadius: 14,
+    backgroundColor: 'rgba(13,20,32,0.95)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(0,207,255,0.25)',
+    borderColor: 'rgba(0,207,255,0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -508,14 +530,58 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 10,
   },
-
+  predictionsDropdown: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    maxHeight: 220,
+    zIndex: 40,
+    backgroundColor: '#0A1222',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,207,255,0.4)',
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.6,
+    shadowRadius: 14,
+    elevation: 12,
+  },
+  predictionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  predictionIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  predictionTextWrap: {
+    flex: 1,
+  },
+  predictionPrimaryText: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  predictionSecondaryText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 2,
+  },
   mapViewerContainer: {
     flex: 1,
     width: '100%',
     height: '100%',
     backgroundColor: '#070c18',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   webview: {
     flex: 1,
@@ -523,7 +589,6 @@ const styles = StyleSheet.create({
     height: SCREEN_HEIGHT,
     backgroundColor: '#070c18',
   },
-
   centerTargetContainer: {
     position: 'absolute',
     top: '50%',
@@ -565,11 +630,10 @@ const styles = StyleSheet.create({
   },
   pinStem: { width: 3, height: 8, marginTop: -2 },
   pinShadow: { width: 12, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.5)', marginTop: 2 },
-
   mapControlsFloating: {
     position: 'absolute',
     right: 16,
-    bottom: 230,
+    bottom: 210,
     zIndex: 15,
     gap: 8,
   },
@@ -577,36 +641,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(13,20,32,0.9)',
+    backgroundColor: 'rgba(13,20,32,0.92)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
     elevation: 4,
   },
-
-  mapHintPill: {
-    position: 'absolute',
-    left: 16,
-    bottom: 230,
-    zIndex: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(7,12,24,0.85)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    gap: 6,
-  },
-  liveDot: { width: 6, height: 6, borderRadius: 3 },
-  mapHintText: { fontFamily: 'Outfit_600SemiBold', fontSize: 11, color: 'rgba(255,255,255,0.8)' },
-
   bottomSheet: {
     position: 'absolute',
     left: 0,
@@ -620,32 +661,8 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     borderWidth: 1,
     borderColor: 'rgba(0,207,255,0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
     elevation: 12,
   },
-  suggestionsLabel: {
-    fontFamily: 'Outfit_700Bold',
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  landmarkChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  landmarkChipText: { fontFamily: 'Inter_500Medium', fontSize: 11, color: '#FFFFFF' },
-
   selectedAddressCard: {
     borderRadius: 14,
     padding: 12,
@@ -653,7 +670,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
     marginBottom: 12,
-    overflow: 'hidden',
   },
   typeBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginBottom: 6 },
   typeBadgeText: { fontFamily: 'Outfit_700Bold', fontSize: 10, letterSpacing: 0.5 },
@@ -664,7 +680,6 @@ const styles = StyleSheet.create({
     padding: 0,
     lineHeight: 18,
   },
-
   confirmBtnTouch: { borderRadius: 14, overflow: 'hidden' },
   confirmBtn: {
     flexDirection: 'row',

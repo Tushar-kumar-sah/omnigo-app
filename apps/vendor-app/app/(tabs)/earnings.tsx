@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -177,7 +177,7 @@ export default function EarningsScreen() {
               colors={['rgba(0, 255, 151, 0.12)', 'rgba(0, 207, 255, 0.04)', 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <Text style={styles.periodLabel}>{periods.find(p => p.id === period)?.label} Net Earnings</Text>
             <Text style={styles.amountText}>{currentData.amount}</Text>
@@ -266,7 +266,7 @@ export default function EarningsScreen() {
           <BlurView intensity={20} tint="dark" style={styles.walletCard}>
             <LinearGradient
               colors={['rgba(0, 207, 255, 0.15)', 'rgba(0, 255, 151, 0.08)', 'transparent']}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <Text style={styles.walletLabel}>Available Wallet Balance</Text>
             <Text style={styles.walletBalanceBig}>₹{driverData.wallet?.balance || earningsAmount || 0}</Text>

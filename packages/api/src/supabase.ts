@@ -6,18 +6,21 @@ const supabaseUrl =
     process.env?.NEXT_PUBLIC_SUPABASE_URL ||
     process.env?.EXPO_PUBLIC_SUPABASE_URL
   )) ||
-  'https://rowyjdwzpiyjamtrftuo.supabase.co';
+  'https://esdgxkddzbdkgjjymjcf.supabase.co';
 
 const supabaseAnonKey =
   (typeof process !== 'undefined' && (
+    process.env?.SUPABASE_SECRET_KEY ||
     process.env?.SUPABASE_ANON_KEY ||
     process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env?.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
     process.env?.SUPABASE_KEY ||
+    process.env?.EXPO_PUBLIC_SUPABASE_KEY ||
     process.env?.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env?.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    process.env?.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env?.SUPABASE_PUBLISHABLE_KEY
   )) ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvd3lqZHd6cGl5amFtdHJmdHVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4ODg0MTksImV4cCI6MjEwMjQ2NDQxOX0.u5Slwdc4SgH1IEeAFze_dw3mk-9TQzjAODELtBOk9I8';
+  'sb_publishable_bbAiIo1ueMxkaUvUp5S45g_LTi2shbV';
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 

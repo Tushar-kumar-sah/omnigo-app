@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 
 import { updateBookingStatus, getBookingById, Booking } from '@omnigo/api';
 import { useLocalSearchParams } from 'expo-router';

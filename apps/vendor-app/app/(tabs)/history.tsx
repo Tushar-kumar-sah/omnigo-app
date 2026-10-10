@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, LayoutAnimation, UIManager, Platform } from 'react-native';
-import { THEME } from '../../constants/theme';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, LayoutAnimation } from 'react-native';
+import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 import { getBookingsByDriver, Booking } from '@omnigo/api';
 import { Ionicons } from '@expo/vector-icons';
-
-if (Platform.OS === 'android') {
-  if (UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-  }
-}
 
 export default function HistoryScreen() {
   const [filter, setFilter] = useState<'all' | 'completed' | 'cancelled'>('all');

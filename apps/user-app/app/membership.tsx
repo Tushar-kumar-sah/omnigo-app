@@ -21,7 +21,7 @@ export default function MembershipScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
 
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -67,7 +67,7 @@ export default function MembershipScreen() {
         <View style={[styles.card, styles.proCard]}>
           <LinearGradient
             colors={['rgba(0, 207, 255, 0.1)', 'rgba(0, 207, 255, 0.05)', 'transparent']}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
           <View style={styles.popularBadge}>
             <LinearGradient

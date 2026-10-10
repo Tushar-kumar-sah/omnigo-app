@@ -1,13 +1,14 @@
 import { Tabs, useRouter } from 'expo-router';
-import { BlurView } from 'expo-blur';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { theme } from '../../constants/theme';
-import { StyleSheet, View, Text, Platform } from 'react-native';
+import { StyleSheet, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 60 + insets.bottom : 62;
+  const TAB_PADDING_BOTTOM = Platform.OS === 'ios' ? Math.max(insets.bottom, 10) : 8;
 
   return (
     <Tabs
@@ -18,22 +19,19 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: Platform.OS === 'ios' ? 78 + insets.bottom : 70,
+          height: TAB_BAR_HEIGHT,
           borderTopWidth: 1,
           borderTopColor: 'rgba(255, 255, 255, 0.08)',
-          backgroundColor: '#050810',
-          elevation: 10,
+          backgroundColor: Platform.OS === 'android' ? '#050810' : 'rgba(5, 8, 16, 0.95)',
+          elevation: 0,
           paddingTop: 8,
-          paddingBottom: Math.max(insets.bottom, 10),
+          paddingBottom: TAB_PADDING_BOTTOM,
         },
-        tabBarBackground: () => (
-          <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
-        ),
         tabBarActiveTintColor: '#00FF97',
         tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.5)',
         tabBarLabelStyle: {
           fontFamily: 'Inter_500Medium',
-          fontSize: 11,
+          fontSize: 10,
           marginTop: 2,
         },
       }}
@@ -60,6 +58,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'navigate' : 'navigate-outline'} size={22} color={color} />
+              {focused && <View style={styles.activeIndicator} />}
             </View>
           ),
         }}
@@ -77,7 +76,7 @@ export default function TabLayout() {
           ),
           tabBarLabelStyle: {
             fontFamily: 'Outfit_700Bold',
-            fontSize: 11,
+            fontSize: 10,
             color: '#FFFFFF',
             marginTop: 4,
           },
@@ -98,6 +97,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'time' : 'time-outline'} size={22} color={color} />
+              {focused && <View style={styles.activeIndicator} />}
             </View>
           ),
         }}
@@ -111,6 +111,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'settings' : 'settings-outline'} size={22} color={color} />
+              {focused && <View style={styles.activeIndicator} />}
             </View>
           ),
         }}
@@ -138,11 +139,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#00FF97',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#00FF97',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 6,
+    elevation: 4,
     marginTop: -4,
   },
 });

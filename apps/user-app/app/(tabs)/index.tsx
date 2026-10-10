@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,15 @@ import {
   TextInput,
   Image,
   Animated,
+  Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../../constants/theme';
-import { fetchCurrentUser, fetchUserBookings } from '../../lib/api';
+import { theme } from '@/constants/theme';
+import { fetchCurrentUser, fetchUserBookings } from '@/lib/api';
 
 const AI_CAPTIONS = [
   "How can I help you?",
@@ -25,6 +26,12 @@ const AI_CAPTIONS = [
   "Emergency assist 24/7",
   "Instant rescue active!",
 ];
+
+const BOOK_TOW_TRUCK_IMG = require('@/assets/book_tow_truck.png');
+
+const CardWrapper = React.memo(({ style, children }: { style: any; children: React.ReactNode }) => {
+  return <View style={[style, Platform.OS !== 'ios' && { backgroundColor: 'rgba(13, 20, 40, 0.92)' }]}>{children}</View>;
+});
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -38,27 +45,29 @@ export default function HomeScreen() {
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const currentUser = await fetchCurrentUser();
-        setUser(currentUser);
-        if (currentUser?.id || currentUser?.uuid) {
-          const uid = currentUser.uuid || currentUser.id;
-          const bookingsData = await fetchUserBookings(uid);
-          setRecentBookings(bookingsData.slice(0, 3));
-        }
-      } catch (e) {
-        console.warn('[Home] data fetch error', e);
-      } finally {
-        setLoading(false);
+  const loadUserData = useCallback(async () => {
+    try {
+      const currentUser = await fetchCurrentUser();
+      setUser(currentUser);
+      if (currentUser?.id || currentUser?.uuid) {
+        const uid = currentUser.uuid || currentUser.id;
+        const bookingsData = await fetchUserBookings(uid);
+        setRecentBookings(bookingsData.slice(0, 3));
       }
-    };
-    fetchData();
+    } catch (e) {
+      console.warn('[Home] data fetch error', e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadUserData();
+    }, [loadUserData])
+  );
+
   useEffect(() => {
-    // Waving animation loop for AI Mascot
     Animated.loop(
       Animated.sequence([
         Animated.timing(waveAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
@@ -69,7 +78,6 @@ export default function HomeScreen() {
       ])
     ).start();
 
-    // Rotating captions loop
     const interval = setInterval(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -101,7 +109,7 @@ export default function HomeScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+        <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
         <Text style={{ color: '#00CFFF', fontFamily: 'Outfit_600SemiBold' }}>Loading...</Text>
       </View>
     );
@@ -109,8 +117,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Background Deep Cyber Dark */}
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
 
       <ScrollView
         contentContainerStyle={[
@@ -119,35 +126,44 @@ export default function HomeScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. Header Row: Welcome back & Action Icons */}
+        {/* 1. Header Row */}
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <View style={styles.logoBadge}>
-              <Image source={require('../../assets/logo.png')} style={styles.logoImg} resizeMode="contain" />
+              <Image source={require('@/assets/logo.png')} style={styles.logoImg} resizeMode="contain" />
             </View>
-            <View>
+            <View style={styles.headerTextWrap}>
               <Text style={styles.greetingText}>Good Morning</Text>
-              <Text style={styles.welcomeText}>Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}! 👋</Text>
+              <Text style={styles.welcomeText} numberOfLines={1} ellipsizeMode="tail">
+                Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}! 👋
+              </Text>
             </View>
           </View>
 
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
-              <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
+              <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
               <View style={styles.notificationDot} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.profileAvatarBtn} onPress={() => router.push('/profile')}>
-              <LinearGradient colors={['#00FF97', '#00CFFF']} style={styles.profileAvatarGradient}>
-                <Ionicons name="person" size={20} color="#000000" />
-              </LinearGradient>
+            <TouchableOpacity style={styles.profileAvatarBtn} onPress={() => router.push('/(tabs)/profile')}>
+              {user?.avatar ? (
+                <Image
+                  source={{ uri: user.avatar }}
+                  style={styles.profileAvatarImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <LinearGradient colors={['#00FF97', '#00CFFF']} style={styles.profileAvatarGradient}>
+                  <Ionicons name="person" size={18} color="#000000" />
+                </LinearGradient>
+              )}
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* 2. Search Box (Left) + AI Mascot OUTSIDE (Right) + Text Callout Further Below */}
+        {/* 2. Search Box + AI Avatar */}
         <View style={styles.searchSectionContainer}>
-          {/* Top Row: Search Box + AI Avatar Outside */}
           <View style={styles.searchRowWithExternalAi}>
             <View style={styles.searchBoxLeft}>
               <Ionicons name="search" size={18} color="rgba(255, 255, 255, 0.4)" style={{ marginRight: 10 }} />
@@ -158,86 +174,71 @@ export default function HomeScreen() {
               />
             </View>
 
-            {/* AI Assistant Avatar OUTSIDE on the Right with Waving Animation */}
-            <TouchableOpacity 
-              style={styles.aiAvatarExternalBtn} 
-              onPress={() => router.push('/ai-assistant')} 
+            {/* AI Avatar - no shadow on Android to avoid blob effect */}
+            <TouchableOpacity
+              style={styles.aiAvatarExternalBtn}
+              onPress={() => router.push('/ai-assistant')}
               activeOpacity={0.8}
             >
-              <Animated.View style={{ width: '100%', height: '100%', transform: [{ rotate: waveRotate }, { scale: waveScale }] }}>
-                <Image source={require('../../assets/ai_mascot.png')} style={styles.aiAvatarImg} resizeMode="contain" />
+              <Animated.View style={[styles.aiAvatarInner, { transform: [{ rotate: waveRotate }, { scale: waveScale }] }]}>
+                <Image source={require('@/assets/ai_mascot.png')} style={styles.aiAvatarImg} resizeMode="contain" />
               </Animated.View>
             </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Floating Animated Speech Callout Bubble Positioned Further Down on Right */}
-          <TouchableOpacity 
+        {/* 3. Quick Actions + AI Callout Pill on Same Compact Row */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <TouchableOpacity
             style={styles.aiCalloutBelowContainer}
-            onPress={() => router.push('/ai-assistant')} 
+            onPress={() => router.push('/ai-assistant')}
             activeOpacity={0.8}
           >
-            <View style={styles.speechBubbleArrowTailTopRight} />
-            <BlurView intensity={35} tint="dark" style={styles.aiSpeechBubbleCalloutBelow}>
+            <View style={styles.aiSpeechBubbleCalloutBelow}>
               <Ionicons name="sparkles" size={12} color="#00CFFF" style={{ marginRight: 4 }} />
-              <Animated.View
-                style={{
-                  opacity: fadeAnim,
-                  transform: [
-                    {
-                      translateY: fadeAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [3, 0],
-                      }),
-                    },
-                  ],
-                }}
-              >
+              <Animated.View style={{ opacity: fadeAnim }}>
                 <Text style={styles.aiSpeechTextCallout}>{AI_CAPTIONS[captionIndex]}</Text>
               </Animated.View>
-            </BlurView>
+            </View>
           </TouchableOpacity>
         </View>
 
-        {/* 3. Quick Actions Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-        </View>
-
-        {/* Card 1: Book Tow (Cyan Glass Glow) */}
+        {/* Card 1: Book Tow */}
         <TouchableOpacity
           style={styles.actionCardTouch}
           onPress={() => router.push('/booking/select-vehicle')}
           activeOpacity={0.85}
         >
-          <BlurView intensity={85} tint="dark" style={[styles.actionCard, styles.bookTowBorder]}>
+          <CardWrapper style={[styles.actionCard, styles.bookTowBorder]}>
             <LinearGradient
               colors={['rgba(0, 207, 255, 0.38)', 'rgba(0, 255, 151, 0.12)', 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>Book Tow</Text>
               <Text style={styles.cardSubtitle}>Instant dispatch to your location</Text>
             </View>
             <View style={styles.cardRightGraphic}>
-              <Image source={require('../../assets/book_tow_truck.png')} style={styles.towTruckThumb} resizeMode="contain" />
+              <Image source={BOOK_TOW_TRUCK_IMG} style={styles.towTruckThumb} resizeMode="contain" fadeDuration={0} />
             </View>
-          </BlurView>
+          </CardWrapper>
         </TouchableOpacity>
 
-        {/* Card 2: Schedule Tow (Emerald Green Glass Glow) */}
+        {/* Card 2: Schedule Tow */}
         <TouchableOpacity
           style={styles.actionCardTouch}
           onPress={() => router.push('/booking/schedule-tow')}
           activeOpacity={0.85}
         >
-          <BlurView intensity={85} tint="dark" style={[styles.actionCard, styles.scheduleTowBorder]}>
+          <CardWrapper style={[styles.actionCard, styles.scheduleTowBorder]}>
             <LinearGradient
               colors={['rgba(0, 255, 151, 0.38)', 'rgba(0, 207, 255, 0.12)', 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>Schedule Tow</Text>
@@ -246,21 +247,21 @@ export default function HomeScreen() {
             <View style={styles.scheduleIconBadge}>
               <Ionicons name="calendar-outline" size={24} color="#00FF97" />
             </View>
-          </BlurView>
+          </CardWrapper>
         </TouchableOpacity>
 
-        {/* Card 3: Emergency SOS (Red Crimson Glass Glow) */}
+        {/* Card 3: Emergency SOS */}
         <TouchableOpacity
           style={styles.actionCardTouch}
           onPress={() => router.push('/(tabs)/sos')}
           activeOpacity={0.85}
         >
-          <BlurView intensity={85} tint="dark" style={[styles.actionCard, styles.emergencySosBorder]}>
+          <CardWrapper style={[styles.actionCard, styles.emergencySosBorder]}>
             <LinearGradient
               colors={['rgba(255, 59, 48, 0.40)', 'rgba(255, 149, 0, 0.12)', 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>Emergency SOS</Text>
@@ -269,10 +270,10 @@ export default function HomeScreen() {
             <View style={styles.sosBadge}>
               <Text style={styles.sosText}>SOS</Text>
             </View>
-          </BlurView>
+          </CardWrapper>
         </TouchableOpacity>
 
-        {/* 4. Recent Activity Section */}
+        {/* 4. Recent Activity */}
         <View style={styles.recentSectionHeader}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')}>
@@ -280,15 +281,16 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {recentBookings.length === 0 && (
+          <View style={styles.emptyActivity}>
+            <Ionicons name="car-sport-outline" size={36} color="rgba(255,255,255,0.12)" />
+            <Text style={styles.emptyActivityText}>No recent bookings</Text>
+          </View>
+        )}
+
         {recentBookings.map((booking, idx) => (
           <TouchableOpacity key={booking.id || booking.uuid || idx} style={styles.activityItemTouch} activeOpacity={0.8} onPress={() => router.push('/(tabs)/bookings')}>
-            <BlurView intensity={75} tint="dark" style={styles.activityItem}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.08)', 'rgba(0, 207, 255, 0.03)', 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-              />
+            <View style={styles.activityItem}>
               <View style={[styles.activityIconBadge, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]}>
                 <Ionicons name="car-sport" size={20} color="#00CFFF" />
               </View>
@@ -304,7 +306,7 @@ export default function HomeScreen() {
                 <Text style={styles.activityAmount}>₹{booking.price || booking.estimatedPrice || booking.fare || 0}</Text>
                 <Text style={styles.activityTime}>{booking.status}</Text>
               </View>
-            </BlurView>
+            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -320,55 +322,60 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
   },
+  androidCard: {
+    backgroundColor: 'rgba(13, 20, 40, 0.92)',
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  headerTextWrap: {
+    flex: 1,
   },
   logoBadge: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: 'rgba(0, 207, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: 'rgba(0, 207, 255, 0.4)',
-    marginRight: 12,
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    marginRight: 10,
   },
   logoImg: {
-    width: 40,
-    height: 40,
+    width: 30,
+    height: 30,
   },
   greetingText: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255, 255, 255, 0.6)',
   },
   welcomeText: {
     fontFamily: 'Outfit_700Bold',
-    fontSize: 20,
+    fontSize: 16,
     color: '#FFFFFF',
-    marginTop: 2,
+    marginTop: 1,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    flexShrink: 0,
   },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -377,18 +384,24 @@ const styles = StyleSheet.create({
   },
   notificationDot: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 7,
+    right: 7,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#00FF97',
   },
   profileAvatarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#00FF97',
+  },
+  profileAvatarImg: {
+    width: '100%',
+    height: '100%',
   },
   profileAvatarGradient: {
     width: '100%',
@@ -397,7 +410,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   searchSectionContainer: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   searchRowWithExternalAi: {
     flexDirection: 'row',
@@ -422,33 +435,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   aiAvatarExternalBtn: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    overflow: 'hidden',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     borderWidth: 2,
     borderColor: '#00CFFF',
     backgroundColor: '#0A1222',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
+    overflow: 'hidden',
+    // No shadow/elevation to prevent cyan blob on Android
+  },
+  aiAvatarInner: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiAvatarImg: {
+    width: '120%',
+    height: '135%',
+    top: 2,
+    alignSelf: 'center',
   },
   aiCalloutBelowContainer: {
-    alignSelf: 'flex-end',
-    marginTop: 6,
-    marginRight: 8,
-    position: 'relative',
-  },
-  speechBubbleArrowTailTopRight: {
-    position: 'absolute',
-    top: -4,
-    right: 24,
-    width: 8,
-    height: 8,
-    backgroundColor: '#00CFFF',
-    transform: [{ rotate: '45deg' }],
-    zIndex: 10,
+    marginRight: 2,
   },
   aiSpeechBubbleCalloutBelow: {
     flexDirection: 'row',
@@ -459,25 +468,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#00CFFF',
-    overflow: 'hidden',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
   },
   aiSpeechTextCallout: {
     fontFamily: 'Outfit_700Bold',
     fontSize: 10,
     color: '#00CFFF',
   },
-  aiAvatarImg: {
-    width: '120%',
-    height: '135%',
-    top: 2,
-    alignSelf: 'center',
-  },
   sectionHeader: {
-    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   sectionTitle: {
     fontFamily: 'Outfit_700Bold',
@@ -498,41 +499,20 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     overflow: 'hidden',
   },
-  topNeonGlowLine: {
-    position: 'absolute',
-    top: 0,
-    left: 16,
-    right: 16,
-    height: 2.5,
-    borderRadius: 1.25,
-    opacity: 0.9,
-  },
   bookTowBorder: {
     backgroundColor: 'rgba(10, 28, 60, 0.65)',
     borderColor: '#00CFFF',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.75,
-    shadowRadius: 18,
-    elevation: 12,
+    elevation: 4,
   },
   scheduleTowBorder: {
     backgroundColor: 'rgba(8, 38, 42, 0.65)',
     borderColor: '#00FF97',
-    shadowColor: '#00FF97',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.75,
-    shadowRadius: 18,
-    elevation: 12,
+    elevation: 4,
   },
   emergencySosBorder: {
     backgroundColor: 'rgba(42, 14, 24, 0.65)',
     borderColor: '#FF3B30',
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.75,
-    shadowRadius: 18,
-    elevation: 12,
+    elevation: 4,
   },
   cardContent: {
     flex: 1,
@@ -598,6 +578,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#00CFFF',
   },
+  emptyActivity: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    gap: 10,
+  },
+  emptyActivityText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.3)',
+  },
   activityItemTouch: {
     marginBottom: 12,
     borderRadius: 20,
@@ -607,16 +597,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: 'rgba(14, 24, 48, 0.55)',
+    backgroundColor: 'rgba(14, 24, 48, 0.92)',
     borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.30)',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
-    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   activityIconBadge: {
     width: 42,
@@ -647,11 +631,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     fontSize: 14,
     color: '#00FF97',
-  },
-  activityWarningStatus: {
-    fontFamily: 'Outfit_700Bold',
-    fontSize: 12,
-    color: '#FFB300',
   },
   activityTime: {
     fontFamily: 'Inter_400Regular',

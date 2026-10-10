@@ -1,11 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
-import { BlurView } from 'expo-blur';
+import React, { useCallback } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { fetchCurrentUser } from '../../lib/api';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { fetchCurrentUser, signOutUser } from '@/lib/api';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -14,19 +13,24 @@ export default function ProfileScreen() {
   const [user, setUser] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const u = await fetchCurrentUser();
-        if (u) setUser(u);
-      } catch (e) {
-        console.warn('[Profile]', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUser();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        try {
+          const u = await fetchCurrentUser();
+          if (active && u) setUser(u);
+        } catch (e) {
+          console.warn('[Profile]', e);
+        } finally {
+          if (active) setLoading(false);
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
 
   const MENU_ITEMS = [
     { title: 'Membership', icon: 'card-outline', route: '/membership' },
@@ -35,9 +39,14 @@ export default function ProfileScreen() {
     { title: 'Help & Support', icon: 'help-circle-outline', route: '/help' },
   ];
 
+  const handleSignOut = async () => {
+    await signOutUser();
+    router.replace('/(auth)/login');
+  };
+
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
 
       <View style={[styles.headerArea, { paddingTop: Math.max(insets.top + 10, 44) }]}>
         <Text style={styles.headerTitle}>Settings & Profile</Text>
@@ -46,31 +55,44 @@ export default function ProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {/* User Profile Glass Card */}
-        <View style={styles.profileCardTouch}>
-          <BlurView intensity={85} tint="dark" style={styles.profileCard}>
+        <TouchableOpacity
+          style={styles.profileCardTouch}
+          activeOpacity={0.85}
+          onPress={() => router.push('/settings/edit-profile')}
+        >
+          <View style={[styles.profileCard, Platform.OS === 'android' && { backgroundColor: 'rgba(10,18,36,0.97)' }]}>
             <LinearGradient
               colors={['rgba(0, 207, 255, 0.2)', 'rgba(255, 255, 255, 0.04)', 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <View style={styles.avatarWrapper}>
-              <Ionicons name="person" size={38} color="#00CFFF" />
+              {user?.avatar ? (
+                <Image
+                  source={{ uri: user.avatar }}
+                  style={styles.avatarImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="person" size={38} color="#00CFFF" />
+              )}
             </View>
             <View style={styles.info}>
               <Text style={styles.name}>{user?.name || 'Loading...'}</Text>
+              {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
               <Text style={styles.phone}>{user?.phone || 'Loading...'}</Text>
               <View style={styles.badge}>
                 <Ionicons name="checkmark-circle" size={14} color="#00FF97" />
-                <Text style={styles.badgeText}>Verified Account</Text>
+                <Text style={styles.badgeText}>Verified Google Account</Text>
               </View>
             </View>
-          </BlurView>
-        </View>
+          </View>
+        </TouchableOpacity>
 
         {/* Menu Glass Cards */}
         <View style={styles.menuContainer}>
-          <BlurView intensity={85} tint="dark" style={styles.menuCard}>
+          <View style={[styles.menuCard, Platform.OS === 'android' && { backgroundColor: 'rgba(10,18,36,0.97)' }]}>
             {MENU_ITEMS.map((item, idx) => (
               <TouchableOpacity
                 key={item.title}
@@ -88,19 +110,19 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={18} color="rgba(255, 255, 255, 0.5)" />
               </TouchableOpacity>
             ))}
-          </BlurView>
+          </View>
         </View>
 
         {/* Logout Button */}
         <TouchableOpacity
           style={styles.logoutBtnTouch}
-          onPress={() => router.replace('/(auth)/login')}
+          onPress={handleSignOut}
           activeOpacity={0.8}
         >
-          <BlurView intensity={85} tint="dark" style={styles.logoutBtn}>
+          <View style={[styles.logoutBtn, Platform.OS === 'android' && { backgroundColor: 'rgba(42,10,10,0.97)' }]}>
             <Ionicons name="log-out-outline" size={20} color="#FF3B30" style={{ marginRight: 8 }} />
             <Text style={styles.logoutText}>Sign Out</Text>
-          </BlurView>
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -139,9 +161,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 36,
   },
   info: { flex: 1 },
   name: { fontFamily: 'Outfit_700Bold', fontSize: 22, color: '#FFFFFF' },
+  email: { fontFamily: 'Inter_400Regular', color: 'rgba(0, 207, 255, 0.85)', fontSize: 12, marginTop: 2 },
   phone: { fontFamily: 'Inter_400Regular', color: 'rgba(255, 255, 255, 0.65)', fontSize: 13, marginTop: 2 },
   badge: {
     flexDirection: 'row',

@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../../constants/theme';
+import { theme } from '@/constants/theme';
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
@@ -56,7 +56,7 @@ export default function ChangePasswordScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
       
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>

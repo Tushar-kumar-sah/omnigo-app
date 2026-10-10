@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../../constants/theme';
-import { fetchCurrentUser, fetchUserBookings, fetchUserWallet } from '../../lib/api';
+import { theme } from '@/constants/theme';
+import { fetchCurrentUser, fetchUserBookings, fetchUserWallet } from '@/lib/api';
 
 const mapToUIRide = (b: any) => {
   const estPrice = Number(b.finalPrice || b.final_price || b.estimatedPrice || b.estimated_price || b.price || b.fare?.total || b.fare?.estimated || 0);
@@ -90,7 +91,7 @@ export default function WalletScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.headerArea, { paddingTop: Math.max(insets.top + 10, 44) }]}>
@@ -101,12 +102,12 @@ export default function WalletScreen() {
       <ScrollView contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom + 90, 110) }]} showsVerticalScrollIndicator={false}>
         {rides.map((ride) => (
           <TouchableOpacity key={ride.id} onPress={() => setSelectedRide(ride)} activeOpacity={0.85} style={styles.cardTouch}>
-            <BlurView intensity={85} tint="dark" style={styles.card}>
+            <View style={[styles.card, Platform.OS === 'android' && { backgroundColor: 'rgba(13,20,40,0.96)' }]}>
               <LinearGradient
                 colors={['rgba(255, 255, 255, 0.04)', 'transparent']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
               />
               {/* Top Details */}
               <View style={styles.cardTop}>
@@ -146,7 +147,7 @@ export default function WalletScreen() {
                 <Text style={styles.viewInvoiceLink}>View Receipt Details</Text>
                 <Ionicons name="chevron-forward" size={16} color="#00CFFF" />
               </View>
-            </BlurView>
+            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -155,8 +156,8 @@ export default function WalletScreen() {
       <Modal visible={selectedRide !== null} animationType="slide" transparent>
         {selectedRide && (
           <View style={modal.overlay}>
-            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <BlurView intensity={90} tint="dark" style={modal.container}>
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.7)' }]} />
+            <View style={modal.container}>
               <View style={modal.header}>
                 <View>
                   <Text style={modal.title}>Receipt Details</Text>
@@ -245,7 +246,7 @@ export default function WalletScreen() {
                   <Text style={modal.noBadgeText}>No hidden charges · Paid securely through OmniGo</Text>
                 </View>
               </ScrollView>
-            </BlurView>
+            </View>
           </View>
         )}
       </Modal>

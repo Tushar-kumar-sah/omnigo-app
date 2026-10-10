@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ScrollView } from 'react-native';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#050810',
   },
   fakeMapGrid: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
     flexWrap: 'wrap',
     opacity: 0.15,

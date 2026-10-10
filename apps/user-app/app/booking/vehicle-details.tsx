@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../../constants/theme';
+import { theme } from '@/constants/theme';
 
 export default function VehicleDetailsScreen() {
   const router = useRouter();
@@ -61,7 +61,7 @@ export default function VehicleDetailsScreen() {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
       
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={[styles.inner, { paddingTop: insets.top }]}>

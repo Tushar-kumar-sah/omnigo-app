@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { theme, glassStyle } from '../../constants/theme';
+import { theme, glassStyle } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { fetchDriverById } from '../../lib/api';
+import { fetchDriverById } from '@/lib/api';
 import { useLocalSearchParams } from 'expo-router';
 
 export default function DriverAssignedScreen() {

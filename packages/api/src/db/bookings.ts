@@ -63,7 +63,7 @@ export function mapDbBookingToBooking(dbBooking: any): any {
   const fallbackPickupOtp = String(1000 + Math.abs(hashVal));
   const fallbackDropoffOtp = String(1000 + Math.abs((hashVal * 7 + 13) % 9000));
 
-  const pickupOtp = dbBooking.pickup_otp || fallbackPickupOtp;
+  const pickupOtp = dbBooking.customer_otp || dbBooking.pickup_otp || fallbackPickupOtp;
   const dropoffOtp = dbBooking.dropoff_otp || fallbackDropoffOtp;
 
   return {
@@ -175,7 +175,7 @@ export async function createBooking(data: any): Promise<any | null> {
           phone: data.userPhone || data.user_phone || '+919876543210',
           email: 'customer@omnigo.com',
           is_verified: true,
-          membership_tier: 'standard',
+          membership_tier: 'none',
           wallet_balance: 500,
           created_at: new Date().toISOString(),
         });
@@ -320,7 +320,7 @@ export async function verifyPickupOtp(
 
     // Allow correct OTP, or master test OTP '1234' for developer testing convenience
     if (inputOtp === validOtp || inputOtp === '1234') {
-      const updated = await updateBookingStatus(bookingId, 'vehicle_loaded');
+      const updated = await updateBookingStatus(bookingId, 'towing');
       return { success: true, booking: updated };
     }
 

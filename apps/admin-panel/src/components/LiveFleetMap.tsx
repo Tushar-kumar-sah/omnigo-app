@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 import { subscribeToAllDrivers } from '@omnigo/api';
 
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyCNEIOTc6guKsRAOFKIvtYzWbIVptKbbGE';
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyCmqFiReImo33lXPqskdY3_zg3SopOvbnA';
 
 // Dark Mode Map Styles for OmniGo Operations Command Center
 const DARK_MAP_STYLE: google.maps.MapTypeStyle[] = [

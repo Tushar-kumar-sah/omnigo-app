@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../../constants/theme';
+import { theme } from '@/constants/theme';
 
 const PRIVACY_SECTIONS = [
   {
@@ -65,7 +65,7 @@ export default function PrivacyPolicyScreen() {
     <View style={styles.container}>
       <LinearGradient
         colors={['#050810', '#0a1222', '#050810']}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
       
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>

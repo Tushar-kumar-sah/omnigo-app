@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Image,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -14,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { THEME } from '../../constants/theme';
+import { THEME } from '@/constants/theme';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -34,16 +35,12 @@ export default function RegisterScreen() {
     router.push('/(auth)/driver-verification');
   };
 
-  const handleAppleSignUp = () => {
-    router.push('/(auth)/driver-verification');
-  };
-
   return (
     <View style={styles.container}>
       {/* Background gradient */}
       <LinearGradient
         colors={['rgba(5, 8, 16, 0.35)', 'rgba(5, 8, 16, 0.55)', 'rgba(5, 8, 16, 0.85)']}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
       <KeyboardAvoidingView
@@ -72,20 +69,15 @@ export default function RegisterScreen() {
             <Text style={styles.subtitle}>Register for driver & towing services</Text>
           </View>
 
-          {/* Social SSO Buttons */}
+          {/* Social SSO Button (Google Only with Original Multi-Color Logo) */}
           <View style={styles.socialRow}>
-            <TouchableOpacity style={styles.ssoBtnTouch} onPress={handleGoogleSignUp} activeOpacity={0.8}>
-              <BlurView intensity={25} tint="dark" style={styles.ssoBtn}>
-                <Ionicons name="logo-google" size={18} color="#4285F4" style={{ marginRight: 8 }} />
-                <Text style={styles.ssoBtnText}>Continue with Google</Text>
-              </BlurView>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.ssoBtnTouch} onPress={handleAppleSignUp} activeOpacity={0.8}>
-              <BlurView intensity={25} tint="dark" style={styles.ssoBtn}>
-                <Ionicons name="logo-apple" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={styles.ssoBtnText}>Continue with Apple</Text>
-              </BlurView>
+            <TouchableOpacity style={styles.ssoBtn} onPress={handleGoogleSignUp} activeOpacity={0.8}>
+              <Image
+                source={require('@/assets/google_logo.png')}
+                style={{ width: 20, height: 20, marginRight: 10 }}
+                resizeMode="contain"
+              />
+              <Text style={styles.ssoBtnText}>Continue with Google</Text>
             </TouchableOpacity>
           </View>
 

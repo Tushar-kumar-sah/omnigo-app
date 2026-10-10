@@ -5,10 +5,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
-import { theme } from '../../constants/theme';
-import { createSOSAlert, fetchCurrentUser } from '../../lib/api';
+import { theme } from '@/constants/theme';
+import { createSOSAlert, fetchCurrentUser } from '@/lib/api';
 
 const USER_ID = 'a0000000-0000-0000-0000-000000000001';
 
@@ -124,7 +124,7 @@ export default function SOSScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#0A0005', '#1A0008', '#050810']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#0A0005', '#1A0008', '#050810']} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 12, 54) }]}>
@@ -139,7 +139,7 @@ export default function SOSScreen() {
         {!dispatched ? (
           <>
             {/* Location Card */}
-            <BlurView intensity={20} tint="dark" style={styles.locationCard}>
+            <View style={styles.locationCard}>
               <View style={styles.locationRow}>
                 <View style={styles.locationDot} />
                 <View style={{ flex: 1 }}>
@@ -152,7 +152,7 @@ export default function SOSScreen() {
                 <Ionicons name="checkmark-circle" size={13} color="#00FF97" />
                 <Text style={styles.gpsActiveText}>GPS Active · Location will be shared on SOS dispatch</Text>
               </View>
-            </BlurView>
+            </View>
 
             {/* Incident Type */}
             <Text style={styles.sectionTitle}>What's the emergency?</Text>
@@ -220,7 +220,7 @@ export default function SOSScreen() {
         ) : (
           /* ─── Dispatched State ─── */
           <>
-            <BlurView intensity={20} tint="dark" style={[styles.dispatchCard, { borderColor: 'rgba(255,71,87,0.3)' }]}>
+            <View style={[styles.dispatchCard, { borderColor: 'rgba(255,71,87,0.3)' }]}>
               <View style={styles.dispatchIcon}>
                 <Ionicons name="checkmark-circle" size={48} color="#FF4D4D" />
               </View>
@@ -231,19 +231,19 @@ export default function SOSScreen() {
                 <Text style={styles.incidentIdLabel}>Incident ID</Text>
                 <Text style={styles.incidentIdValue}>{incidentId}</Text>
               </View>
-            </BlurView>
+            </View>
 
             {/* Location shared */}
-            <BlurView intensity={15} tint="dark" style={styles.sharedCard}>
+            <View style={styles.sharedCard}>
               <Ionicons name="location" size={18} color="#FF4D4D" />
               <View style={{ flex: 1 }}>
                 <Text style={styles.sharedLabel}>Location Shared With Responder</Text>
                 <Text style={styles.sharedAddr}>{location}</Text>
               </View>
-            </BlurView>
+            </View>
 
             {/* Incident Type */}
-            <BlurView intensity={15} tint="dark" style={styles.sharedCard}>
+            <View style={styles.sharedCard}>
               <Ionicons name="alert-circle" size={18} color="#FFD60A" />
               <View style={{ flex: 1 }}>
                 <Text style={styles.sharedLabel}>Incident Type</Text>
@@ -251,7 +251,7 @@ export default function SOSScreen() {
                   {INCIDENT_TYPES.find(i => i.id === selectedIncident)?.label}
                 </Text>
               </View>
-            </BlurView>
+            </View>
 
             {/* ETA */}
             <LinearGradient colors={['rgba(255,71,87,0.12)', 'rgba(255,71,87,0.04)']} style={styles.etaBanner}>
