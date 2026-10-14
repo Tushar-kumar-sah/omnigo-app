@@ -37,5 +37,5 @@ BEGIN
 END $$;
 
 -- 3. Fix security warning for functions with mutable search_path
-ALTER FUNCTION IF EXISTS update_updated_at_column() SET search_path = public;
-ALTER FUNCTION IF EXISTS generate_booking_number() SET search_path = public;
+ALTER FUNCTION update_updated_at_column() SET search_path = public;
+ALTER FUNCTION generate_booking_number() SET search_path = public;
