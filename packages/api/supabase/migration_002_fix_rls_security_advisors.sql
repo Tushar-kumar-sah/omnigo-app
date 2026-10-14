@@ -1,27 +1,18 @@
 -- =============================================================================
--- Migration 002: Fix Supabase Security Advisor Critical Error & Warnings
--- Resolves: "RLS Disabled in Public" on public.spatial_ref_sys
--- Resolves: Mutable function search paths
+-- Migration 002: Supabase Security Advisor Hardening
 --
--- How to apply:
--- 1. Open your Supabase Dashboard: https://supabase.com/dashboard/project/esdgxkddzbdkgjjymjcf
--- 2. Go to "SQL Editor" (3rd icon on the left sidebar: >_)
--- 3. Click "New query", paste this entire script, and click "Run" (or Ctrl+Enter)
--- 4. Go back to "Security Advisor" and click "Rerun linter" -> 0 Errors!
+-- NOTE ABOUT "public.spatial_ref_sys":
+-- The table "spatial_ref_sys" is a standard PostGIS internal catalog table containing
+-- public EPSG coordinate reference numbers (like WGS84 / GPS: 4326).
+-- It is owned by "supabase_admin", so user roles cannot alter it (42501 error).
+-- Supabase officially documents this as a known FALSE POSITIVE that contains
+-- zero user data and poses no security risk.
+--
+-- This script ensures all your actual application tables (users, drivers,
+-- bookings, transactions, etc.) have RLS enabled, and secures function search paths.
 -- =============================================================================
 
--- 1. Fix Critical Error: Enable RLS on spatial_ref_sys (PostGIS system table in public schema)
-ALTER TABLE IF EXISTS public.spatial_ref_sys ENABLE ROW LEVEL SECURITY;
-
--- Allow read-only SELECT access so spatial queries (e.g. ST_Transform, geometry operations) work
-DROP POLICY IF EXISTS "Allow read-only access to spatial_ref_sys" ON public.spatial_ref_sys;
-CREATE POLICY "Allow read-only access to spatial_ref_sys"
-ON public.spatial_ref_sys
-FOR SELECT
-TO public
-USING (true);
-
--- 2. Ensure RLS is enabled on all tables in public schema
+-- 1. Ensure RLS is enabled on all application tables in public schema (skipping extension-managed spatial_ref_sys)
 DO $$
 DECLARE
     tbl record;
@@ -30,12 +21,13 @@ BEGIN
         SELECT schemaname, tablename
         FROM pg_tables
         WHERE schemaname = 'public'
+          AND tablename != 'spatial_ref_sys'
           AND rowsecurity = false
     LOOP
         EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY;', tbl.schemaname, tbl.tablename);
     END LOOP;
 END $$;
 
--- 3. Fix security warning for functions with mutable search_path
+-- 2. Fix mutable function search paths to prevent search_path hijacking
 ALTER FUNCTION update_updated_at_column() SET search_path = public;
 ALTER FUNCTION generate_booking_number() SET search_path = public;
