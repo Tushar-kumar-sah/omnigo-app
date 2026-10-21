@@ -6,8 +6,8 @@
   "description": "OmniGo - Vehicle Towing App Ecosystem",
   "scripts": {
     "start": "pnpm dev:user",
-    "dev:user": "pnpm --filter user-app dev -- -c",
-    "dev:vendor": "pnpm --filter vendor-app dev -- -c",
+    "dev:user": "pnpm --filter user-app lan",
+    "dev:vendor": "pnpm --filter vendor-app lan",
     "dev:admin": "pnpm --filter admin-panel dev",
     "dev:api": "pnpm --filter api-server dev",
     "lint": "turbo lint",
