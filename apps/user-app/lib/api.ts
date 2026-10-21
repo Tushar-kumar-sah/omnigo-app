@@ -34,6 +34,8 @@ let cachedGoogleUser: {
   email?: string;
   phone?: string;
   avatar?: string;
+  dob?: string;
+  gender?: string;
 } | null = null;
 
 let activeSessionUser: any | null = null;

@@ -5,10 +5,12 @@ import {
   toggleDriverOnline,
   updateDriverLocation,
   subscribeToIncomingJobs,
+  acceptBooking,
   Driver,
   Booking
 } from '@omnigo/api';
 import * as Location from 'expo-location';
+import { BuzzerSound, BuzzerSoundHandle } from '@/components/BuzzerSound';
 import {
   View,
   Text,
@@ -40,6 +42,11 @@ export default function HomeScreen() {
   const [todayJobs, setTodayJobs] = useState<Booking[]>([]);
   const [incomingJob, setIncomingJob] = useState<any>(null);
   const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  const buzzerRef = useRef<BuzzerSoundHandle>(null);
+  const declinedJobsRef = useRef<Set<string>>(new Set());
+  const activeSubRef = useRef<any>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isAccepting, setIsAccepting] = useState(false);
 
   // Fetch initial data
   useEffect(() => {
@@ -106,30 +113,59 @@ export default function HomeScreen() {
     };
   }, [isOnline, DRIVER_ID]);
 
-  // Subscribe to real incoming jobs
+  // Subscribe to real incoming jobs with buzz alarm & mutual exclusion
   useEffect(() => {
     if (isOnline) {
-      const sub = subscribeToIncomingJobs(DRIVER_ID, (rawJob: any) => {
-        const job = rawJob?.new || rawJob;
-        if (!job || !job.id) return;
+      const sub = subscribeToIncomingJobs(DRIVER_ID, {
+        isJobIgnored: (jobId: string) => declinedJobsRef.current.has(jobId),
+        onNewJob: (rawJob: any) => {
+          const job = rawJob?.new || rawJob;
+          if (!job || !job.id) return;
+          if (declinedJobsRef.current.has(job.id)) return;
 
-        setIncomingJob({
-          id: job.id,
-          customerName: job.customer_vehicle?.model ? `Customer (${job.customer_vehicle.model})` : 'Customer',
-          customerRating: '5.0',
-          vehicleModel: job.customer_vehicle?.model || 'Vehicle',
-          issue: job.service_type || 'Towing',
-          pickupAddress: job.pickup_address || (typeof job.pickup === 'object' ? job.pickup?.address : null) || 'Pickup Location',
-          dropAddress: job.dropoff_address || (typeof job.dropoff === 'object' ? job.dropoff?.address : null) || 'Drop Location',
-          distance: job.distance_km ? `${job.distance_km} km` : '—',
-          estimatedEarning: `₹${job.estimated_price || job.estimatedPrice || 0}`,
-          estimatedTime: '—'
-        });
-        setShowJobPopup(true);
-        setCountdown(20);
-        Vibration.vibrate([0, 400, 200, 400]);
+          setIncomingJob({
+            id: job.id,
+            customerName: job.customer_vehicle?.model ? `Customer (${job.customer_vehicle.model})` : (job.users?.name || 'Customer'),
+            customerRating: '4.9',
+            vehicleModel: job.customer_vehicle?.model || job.vehicle_type_id || 'Vehicle',
+            vehicleColor: job.customer_vehicle?.color || 'White',
+            issue: job.service_type || 'Towing Assistance',
+            pickupAddress: job.pickup_address || (typeof job.pickup === 'object' ? job.pickup?.address : null) || 'Pickup Location',
+            dropAddress: job.dropoff_address || (typeof job.dropoff === 'object' ? job.dropoff?.address : null) || 'Drop Location',
+            distance: job.distance_km ? `${job.distance_km} km` : '—',
+            estimatedEarning: `₹${job.estimated_price || job.estimatedPrice || 0}`,
+            estimatedTime: '5-8 mins',
+          });
+          setShowJobPopup(true);
+          setCountdown(20);
+          buzzerRef.current?.startBuzz();
+        },
+        onJobTaken: (jobId: string, assignedDriverId?: string) => {
+          // Another driver accepted the order! Close for this driver immediately!
+          buzzerRef.current?.stopBuzz();
+          setShowJobPopup(false);
+          setIncomingJob(null);
+          setCountdown(20);
+          showToast('Order Accepted: Another nearby partner accepted this order.');
+        },
+        onJobCancelled: (jobId: string) => {
+          buzzerRef.current?.stopBuzz();
+          setShowJobPopup(false);
+          setIncomingJob(null);
+          setCountdown(20);
+          showToast('Order Cancelled by Customer.');
+        },
       });
-      return () => sub?.unsubscribe?.();
+
+      activeSubRef.current = sub;
+      return () => {
+        buzzerRef.current?.stopBuzz();
+        sub?.unsubscribe?.();
+      };
+    } else {
+      buzzerRef.current?.stopBuzz();
+      setShowJobPopup(false);
+      setIncomingJob(null);
     }
   }, [isOnline, DRIVER_ID]);
 
@@ -183,19 +219,53 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [showJobPopup, countdown]);
 
-  const handleAccept = () => {
-    setShowJobPopup(false);
-    setJobAccepted(true);
-    if (incomingJob?.id) {
-      router.push({ pathname: '/job/incoming', params: { id: incomingJob.id } });
-    } else {
-      router.push('/job/incoming');
+  const handleAccept = async () => {
+    if (!incomingJob?.id || isAccepting) return;
+    setIsAccepting(true);
+    buzzerRef.current?.stopBuzz();
+
+    try {
+      const res = await acceptBooking(incomingJob.id, DRIVER_ID);
+      setIsAccepting(false);
+
+      if (!res.success) {
+        setShowJobPopup(false);
+        setIncomingJob(null);
+        activeSubRef.current?.clearActiveJob?.();
+        if (res.error === 'ALREADY_TAKEN') {
+          showToast('Order Taken: Another partner accepted this order a moment ago.');
+        } else {
+          showToast(res.error || 'Unable to accept booking');
+        }
+        return;
+      }
+
+      setShowJobPopup(false);
+      setJobAccepted(true);
+      router.push({ pathname: '/job/navigation', params: { id: incomingJob.id } });
+    } catch (err: any) {
+      setIsAccepting(false);
+      buzzerRef.current?.stopBuzz();
+      showToast('Error accepting job');
     }
   };
 
   const handleDecline = () => {
+    buzzerRef.current?.stopBuzz();
+    if (incomingJob?.id) {
+      declinedJobsRef.current.add(incomingJob.id);
+    }
     setShowJobPopup(false);
+    setIncomingJob(null);
     setCountdown(20);
+    activeSubRef.current?.clearActiveJob?.();
+  };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(prev => (prev === msg ? null : prev));
+    }, 4500);
   };
 
   const handleToggleOnline = async (value: boolean) => {
@@ -220,9 +290,12 @@ export default function HomeScreen() {
         console.warn('[GPS initial update error]', e);
       }
     } else {
+      buzzerRef.current?.stopBuzz();
       setShowJobPopup(false);
       setJobAccepted(false);
       setCountdown(20);
+      setIncomingJob(null);
+      activeSubRef.current?.clearActiveJob?.();
     }
   };
 
@@ -489,6 +562,17 @@ export default function HomeScreen() {
           </Animated.View>
         </View>
       </Modal>
+
+      {/* Toast Notification for Taken/Cancelled Orders */}
+      {toastMessage && (
+        <View style={styles.toastBanner}>
+          <Ionicons name="information-circle" size={20} color="#FFD60A" />
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </View>
+      )}
+
+      {/* Hidden WebAudio Siren Buzzer for Incoming Orders */}
+      <BuzzerSound ref={buzzerRef} />
     </View>
   );
 }
@@ -537,6 +621,33 @@ const styles = StyleSheet.create({
   recentMeta: { flexDirection: 'row', gap: 18 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.5)' },
+  toastBanner: {
+    position: 'absolute',
+    top: 55,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(20, 26, 40, 0.96)',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#FFD60A',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    zIndex: 9999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  toastText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
   tipCard: { flexDirection: 'row', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(255,214,10,0.15)', backgroundColor: 'rgba(255,214,10,0.04)', gap: 12, alignItems: 'flex-start', marginBottom: 10, overflow: 'hidden' },
   tipContent: { flex: 1 },
   tipTitle: { fontFamily: 'Outfit_700Bold', fontSize: 13, color: '#FFD60A', marginBottom: 2 },

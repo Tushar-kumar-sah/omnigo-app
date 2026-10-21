@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, ScrollView, Alert } from 'react-native';
 import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 
-import { getBookingById, assignDriver, updateBookingStatus, Booking, getPricingRules } from '@omnigo/api';
+import { getBookingById, assignDriver, updateBookingStatus, Booking, getPricingRules, acceptBooking, subscribeToBooking } from '@omnigo/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BuzzerSound, BuzzerSoundHandle } from '@/components/BuzzerSound';
 
 export default function IncomingJobScreen() {
   const router = useRouter();
@@ -18,6 +19,43 @@ export default function IncomingJobScreen() {
 
   const jobId = (params.id as string);
   const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  const buzzerRef = useRef<BuzzerSoundHandle>(null);
+
+  // Start buzz on open
+  useEffect(() => {
+    buzzerRef.current?.startBuzz();
+    return () => {
+      buzzerRef.current?.stopBuzz();
+    };
+  }, []);
+
+  // Listen to order status in realtime: if another driver accepts or user cancels, close screen
+  useEffect(() => {
+    if (!jobId) return;
+    const sub = subscribeToBooking(jobId, (payload: any) => {
+      const b = payload?.new || payload;
+      if (!b) return;
+      if (b.status === 'driver_assigned' && b.driver_id && b.driver_id !== DRIVER_ID) {
+        buzzerRef.current?.stopBuzz();
+        Alert.alert(
+          'Order Already Taken',
+          'Another nearby partner has already accepted this order.',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        );
+      } else if (b.status === 'cancelled') {
+        buzzerRef.current?.stopBuzz();
+        Alert.alert(
+          'Order Cancelled',
+          'The customer has cancelled this towing request.',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        );
+      }
+    });
+
+    return () => {
+      sub?.unsubscribe?.();
+    };
+  }, [jobId]);
 
   useEffect(() => {
     async function loadData() {
@@ -35,6 +73,7 @@ export default function IncomingJobScreen() {
 
   useEffect(() => {
     if (timeLeft <= 0) {
+      buzzerRef.current?.stopBuzz();
       router.back();
       return;
     }
@@ -43,16 +82,30 @@ export default function IncomingJobScreen() {
   }, [timeLeft, router]);
 
   const handleAccept = async () => {
+    buzzerRef.current?.stopBuzz();
     try {
-      await assignDriver(jobId, DRIVER_ID);
-      await updateBookingStatus(jobId, 'driver_assigned');
+      const res = await acceptBooking(jobId, DRIVER_ID);
+      if (!res.success) {
+        if (res.error === 'ALREADY_TAKEN') {
+          Alert.alert('Order Taken', 'Another partner accepted this order a moment ago.', [
+            { text: 'OK', onPress: () => router.replace('/(tabs)') }
+          ]);
+        } else {
+          Alert.alert('Error', res.error || 'Failed to accept order', [
+            { text: 'OK', onPress: () => router.replace('/(tabs)') }
+          ]);
+        }
+        return;
+      }
       router.replace({ pathname: '/job/navigation', params: { id: jobId } });
     } catch (err) {
       console.error(err);
+      router.replace('/(tabs)');
     }
   };
 
   const handleDecline = () => {
+    buzzerRef.current?.stopBuzz();
     router.back();
   };
 
@@ -218,6 +271,7 @@ export default function IncomingJobScreen() {
           </View>
         </View>
       </ScrollView>
+      <BuzzerSound ref={buzzerRef} />
     </View>
   );
 }

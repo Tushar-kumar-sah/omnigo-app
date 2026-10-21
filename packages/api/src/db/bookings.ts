@@ -248,20 +248,59 @@ export async function updateBookingStatus(id: string, status: BookingStatus, ext
 }
 
 export async function assignDriver(bookingId: string, driverId: string): Promise<any | null> {
-  if (!isSupabaseConfigured || !supabase) return null;
+  const res = await acceptBooking(bookingId, driverId);
+  return res.booking || null;
+}
+
+export async function acceptBooking(
+  bookingId: string,
+  driverId: string
+): Promise<{ success: boolean; error?: string; booking?: any }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: false, error: 'Database not configured' };
+  }
   try {
-    const { data: updated, error } = await supabase
+    // 1. Fetch current status of the booking first
+    const { data: current, error: fetchErr } = await supabase
       .from('bookings')
-      .update({ driver_id: driverId, status: 'driver_assigned', updated_at: new Date().toISOString() })
+      .select('id, status, driver_id, booking_number')
       .or(`id.eq.${bookingId},booking_number.eq.${bookingId}`)
+      .maybeSingle();
+
+    if (fetchErr || !current) {
+      return { success: false, error: 'Booking not found' };
+    }
+
+    // If already assigned to another driver
+    if (current.driver_id && current.driver_id !== driverId && current.status === 'driver_assigned') {
+      return { success: false, error: 'ALREADY_TAKEN' };
+    }
+
+    const isAvailable = current.status === 'searching' || current.status === 'pending' || current.driver_id === driverId;
+    if (!isAvailable) {
+      return { success: false, error: 'ALREADY_TAKEN' };
+    }
+
+    // 2. Atomically claim the booking
+    const { data: updated, error: updateErr } = await supabase
+      .from('bookings')
+      .update({
+        driver_id: driverId,
+        status: 'driver_assigned',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', current.id)
       .select('*, users(name, phone), drivers(name, vehicle_plate)')
       .single();
 
-    if (error || !updated) return null;
-    return mapDbBookingToBooking(updated);
-  } catch (err) {
-    console.warn('assignDriver error:', err);
-    return null;
+    if (updateErr || !updated) {
+      return { success: false, error: updateErr?.message || 'Failed to claim booking' };
+    }
+
+    return { success: true, booking: mapDbBookingToBooking(updated) };
+  } catch (e: any) {
+    console.warn('acceptBooking error:', e);
+    return { success: false, error: e?.message || 'Error accepting booking' };
   }
 }
 

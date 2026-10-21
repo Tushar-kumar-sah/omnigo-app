@@ -72,6 +72,8 @@ export function mapDbDriverToDriver(dbDriver: any): any {
     status: status,
     kycStatus: kycStatusMap[dbDriver.kyc_status] || 'Pending',
     vehicleType: dbDriver.vehicle_type || 'Tow Truck',
+    vehicle: `${dbDriver.vehicle_type || 'Tow Truck'} • ${plate}`,
+    eta: '5-8 mins',
     vehicleNumber: plate,
     vehiclePlate: plate,
     licensePlate: plate,
