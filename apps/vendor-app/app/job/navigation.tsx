@@ -8,6 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { updateBookingStatus, updateDriverLocation, getBookingById, Booking, createSOSIncident } from '@omnigo/api';
+import DriverNavigationMap from '@/components/DriverNavigationMap';
 
 type NavState = 'EN_ROUTE_PICKUP' | 'AT_PICKUP';
 
@@ -24,6 +25,12 @@ export default function NavigationScreen() {
   const params = useLocalSearchParams();
   const jobId = (params.id as string);
   const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  const [driverCoords, setDriverCoords] = useState<{ latitude: number; longitude: number }>({
+    latitude: 22.5726,
+    longitude: 88.3639,
+  });
+  const [driverHeading, setDriverHeading] = useState(0);
+  const [driverSpeed, setDriverSpeed] = useState(0);
   const [booking, setBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
@@ -78,15 +85,32 @@ export default function NavigationScreen() {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') return;
 
+        // Immediate initial position
+        try {
+          const initialLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+          if (initialLoc?.coords && isMounted) {
+            setDriverCoords({
+              latitude: initialLoc.coords.latitude,
+              longitude: initialLoc.coords.longitude,
+            });
+            if (initialLoc.coords.heading != null) setDriverHeading(initialLoc.coords.heading);
+            if (initialLoc.coords.speed != null) setDriverSpeed(Math.max(0, Math.round(initialLoc.coords.speed * 3.6)));
+          }
+        } catch (e) {}
+
         locationSub = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 4000,
+            timeInterval: 3000,
             distanceInterval: 5,
           },
           (loc) => {
             if (!isMounted) return;
             const { latitude, longitude, heading, speed } = loc.coords;
+            setDriverCoords({ latitude, longitude });
+            if (heading != null) setDriverHeading(heading);
+            if (speed != null) setDriverSpeed(Math.max(0, Math.round(speed * 3.6)));
+
             updateDriverLocation(
               DRIVER_ID,
               latitude,
@@ -197,12 +221,16 @@ export default function NavigationScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Fake Map Background Grid */}
-      <View style={styles.fakeMapGrid}>
-        {Array.from({ length: 400 }).map((_, i) => (
-          <View key={i} style={styles.mapDot} />
-        ))}
-      </View>
+      {/* Live Interactive Navigation Map showing Driver & Customer Breakdown Spot */}
+      <DriverNavigationMap
+        driverCoords={driverCoords}
+        userCoords={(booking as any)?.pickupCoords || { latitude: 22.5515, longitude: 88.3524 }}
+        customerName={(booking as any)?.customer || 'Customer'}
+        customerVehicle={`${(booking as any)?.customerVehicle?.brand || ''} ${(booking as any)?.customerVehicle?.model || ''}`.trim() || 'Vehicle'}
+        pickupAddress={(booking as any)?.pickup?.address || (typeof (booking as any)?.pickup === 'string' ? (booking as any).pickup : 'Customer Pickup Spot')}
+        driverSpeed={driverSpeed}
+        driverHeading={driverHeading}
+      />
 
       {/* Top Banner & SOS Bar */}
       <LinearGradient

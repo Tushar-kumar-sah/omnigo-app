@@ -41,6 +41,24 @@ export default function LiveRouteMap({
   const [routeData, setRouteData] = useState<RouteResult | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const webViewRef = useRef<WebView>(null);
+  const lastDCoordsRef = useRef({ lat: dLat, lng: dLng });
+
+  useEffect(() => {
+    if (dLat && dLng) {
+      if (
+        Math.abs(lastDCoordsRef.current.lat - dLat) > 0.00001 ||
+        Math.abs(lastDCoordsRef.current.lng - dLng) > 0.00001
+      ) {
+        lastDCoordsRef.current = { lat: dLat, lng: dLng };
+        webViewRef.current?.injectJavaScript(`
+          if (window.updateDriverPosition) {
+            window.updateDriverPosition(${dLat}, ${dLng}, ${speed});
+          }
+          true;
+        `);
+      }
+    }
+  }, [dLat, dLng, speed]);
 
   // Fetch real Google Routes road navigation polyline
   useEffect(() => {
@@ -247,6 +265,12 @@ export default function LiveRouteMap({
 
     window.fitRoute = function() {
       map.fitBounds(bounds, { padding: [45, 45] });
+    };
+
+    window.updateDriverPosition = function(newLat, newLng, newSpeed) {
+      if (driverMarker) {
+        driverMarker.setLatLng([newLat, newLng]);
+      }
     };
 
     window.zoomIn = function() { map.zoomIn(); };

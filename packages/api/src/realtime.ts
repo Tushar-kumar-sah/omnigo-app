@@ -1,4 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase';
+import { mapDbBookingToBooking } from './db/bookings';
+import { mapDbDriverToDriver, getDriverById } from './db/drivers';
 
 export function subscribeToBooking(bookingId: string, callback: (payload: any) => void) {
   if (!isSupabaseConfigured || !supabase) return { unsubscribe: () => {} };
@@ -19,7 +21,8 @@ export function subscribeToBooking(bookingId: string, callback: (payload: any) =
         (payload: any) => {
           const row = payload?.new || payload;
           if (row && (row.id === bookingId || row.booking_number === bookingId)) {
-            callback(row);
+            const mapped = mapDbBookingToBooking(row);
+            callback(mapped || row);
           }
         }
       )
@@ -44,7 +47,8 @@ export function subscribeToBooking(bookingId: string, callback: (payload: any) =
       if (data && (data.status !== lastStatus || data.driver_id !== lastDriverId)) {
         lastStatus = data.status;
         lastDriverId = data.driver_id;
-        callback(data);
+        const mapped = mapDbBookingToBooking(data);
+        callback(mapped || data);
       }
     } catch (e) {}
   }, 1500);
@@ -191,9 +195,12 @@ export function subscribeToIncomingJobs(
 export function subscribeToDriverLocation(driverId: string, callback: (payload: any) => void) {
   if (!isSupabaseConfigured || !supabase) return { unsubscribe: () => {} };
 
+  let channel: any = null;
+  let interval: any = null;
+
   try {
-    const channel = supabase
-      .channel(`driver-location-${driverId}`)
+    channel = supabase
+      .channel(`driver-location-${driverId}-${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -203,19 +210,36 @@ export function subscribeToDriverLocation(driverId: string, callback: (payload: 
           filter: `id=eq.${driverId}`,
         },
         (payload) => {
-          callback(payload);
+          const raw = payload?.new || payload;
+          const mapped = mapDbDriverToDriver(raw);
+          if (mapped) callback(mapped);
         }
       )
       .subscribe();
-
-    return {
-      unsubscribe: () => {
-        supabase.removeChannel(channel);
-      },
-    };
   } catch (err) {
-    return { unsubscribe: () => {} };
+    console.warn('Realtime driver location error:', err);
   }
+
+  // Active polling fallback every 1.5 seconds
+  let lastLat = 0;
+  let lastLng = 0;
+  interval = setInterval(async () => {
+    try {
+      const d = await getDriverById(driverId);
+      if (d && (d.latitude !== lastLat || d.longitude !== lastLng)) {
+        lastLat = d.latitude;
+        lastLng = d.longitude;
+        callback(d);
+      }
+    } catch (e) {}
+  }, 1500);
+
+  return {
+    unsubscribe: () => {
+      if (channel) supabase.removeChannel(channel);
+      if (interval) clearInterval(interval);
+    },
+  };
 }
 
 export function subscribeToSOSAlerts(callback: (payload: any) => void) {

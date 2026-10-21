@@ -101,8 +101,15 @@ export default function TrackingScreen() {
     else if (b.dropoff?.address) setDropoffAddr(b.dropoff.address);
     else if (b.dropoff_location?.address) setDropoffAddr(b.dropoff_location.address);
 
-    if (b.pickupCoords?.latitude) setPickupCoords(b.pickupCoords);
-    if (b.dropoffCoords?.latitude) setDropoffCoords(b.dropoffCoords);
+    const pCoords = b.pickupCoords || b.pickupLocation?.coordinates || (b.pickup_location && typeof b.pickup_location === 'object' && b.pickup_location.coordinates ? { latitude: b.pickup_location.coordinates[1], longitude: b.pickup_location.coordinates[0] } : null);
+    if (pCoords?.latitude && pCoords?.longitude) {
+      setPickupCoords({ latitude: Number(pCoords.latitude), longitude: Number(pCoords.longitude) });
+    }
+
+    const dCoords = b.dropoffCoords || b.dropoffLocation?.coordinates || (b.dropoff_location && typeof b.dropoff_location === 'object' && b.dropoff_location.coordinates ? { latitude: b.dropoff_location.coordinates[1], longitude: b.dropoff_location.coordinates[0] } : null);
+    if (dCoords?.latitude && dCoords?.longitude) {
+      setDropoffCoords({ latitude: Number(dCoords.latitude), longitude: Number(dCoords.longitude) });
+    }
   };
 
   useEffect(() => {
@@ -151,10 +158,15 @@ export default function TrackingScreen() {
               setDriverCoords({ latitude: d.latitude, longitude: d.longitude });
             }
           }
-          unsub = await subscribeToDriverLocation(activeDriverId, (payload: any) => {
-            if (payload?.speed != null) setSpeedVal(payload.speed);
-            if (payload?.latitude && payload?.longitude) {
-              setDriverCoords({ latitude: payload.latitude, longitude: payload.longitude });
+          unsub = subscribeToDriverLocation(activeDriverId, (payload: any) => {
+            if (payload?.speed != null) {
+              const spd = typeof payload.speed === 'number' ? Math.round(payload.speed) : parseInt(payload.speed, 10);
+              if (!isNaN(spd)) setSpeedVal(spd);
+            }
+            const lat = payload?.latitude ?? payload?.lat ?? payload?.location?.latitude;
+            const lng = payload?.longitude ?? payload?.lng ?? payload?.location?.longitude;
+            if (lat && lng) {
+              setDriverCoords({ latitude: Number(lat), longitude: Number(lng) });
             }
           });
         } catch (e) {
