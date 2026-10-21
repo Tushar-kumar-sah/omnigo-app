@@ -260,28 +260,31 @@ export async function acceptBooking(
     return { success: false, error: 'Database not configured' };
   }
   try {
-    // 1. Fetch current status of the booking first
-    const { data: current, error: fetchErr } = await supabase
-      .from('bookings')
-      .select('id, status, driver_id, booking_number')
-      .or(`id.eq.${bookingId},booking_number.eq.${bookingId}`)
-      .maybeSingle();
+    // 1. Resolve target booking UUID
+    const isUuid = bookingId.includes('-') && bookingId.length > 30;
+    let targetId = bookingId;
 
-    if (fetchErr || !current) {
-      return { success: false, error: 'Booking not found' };
+    if (!isUuid) {
+      const { data: bRow, error: fetchErr } = await supabase
+        .from('bookings')
+        .select('id, driver_id, status')
+        .or(`id.eq.${bookingId},booking_number.eq.${bookingId}`)
+        .maybeSingle();
+
+      if (fetchErr || !bRow) {
+        return { success: false, error: 'Booking not found' };
+      }
+      if (bRow.driver_id && bRow.driver_id !== driverId && bRow.status !== 'searching' && bRow.status !== 'pending') {
+        return { success: false, error: 'ALREADY_TAKEN' };
+      }
+      targetId = bRow.id;
     }
 
-    // If already assigned to another driver
-    if (current.driver_id && current.driver_id !== driverId && current.status === 'driver_assigned') {
-      return { success: false, error: 'ALREADY_TAKEN' };
-    }
-
-    const isAvailable = current.status === 'searching' || current.status === 'pending' || current.driver_id === driverId;
-    if (!isAvailable) {
-      return { success: false, error: 'ALREADY_TAKEN' };
-    }
-
-    // 2. Atomically claim the booking
+    // 2. STRICT ATOMIC CONDITIONAL CLAIM (CAS - Compare-And-Swap)
+    // Runs an atomic UPDATE matching status in ('searching', 'pending') AND (driver_id IS NULL OR driver_id = driverId).
+    // In PostgreSQL, this conditional UPDATE acquires an exclusive row-level lock.
+    // The very first driver to execute will update the row.
+    // Any concurrent driver's statement will match 0 rows and return null!
     const { data: updated, error: updateErr } = await supabase
       .from('bookings')
       .update({
@@ -289,12 +292,30 @@ export async function acceptBooking(
         status: 'driver_assigned',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', current.id)
+      .eq('id', targetId)
+      .in('status', ['searching', 'pending'])
+      .or(`driver_id.is.null,driver_id.eq.${driverId}`)
       .select('*, users(name, phone), drivers(name, vehicle_plate)')
-      .single();
+      .maybeSingle();
 
-    if (updateErr || !updated) {
-      return { success: false, error: updateErr?.message || 'Failed to claim booking' };
+    if (updateErr) {
+      console.warn('acceptBooking update error:', updateErr);
+      return { success: false, error: updateErr.message || 'Failed to claim booking' };
+    }
+
+    if (!updated) {
+      // 0 rows updated! Another driver won the race.
+      const { data: current } = await supabase
+        .from('bookings')
+        .select('*, users(name, phone), drivers(name, vehicle_plate)')
+        .eq('id', targetId)
+        .maybeSingle();
+
+      if (current && current.driver_id === driverId) {
+        return { success: true, booking: mapDbBookingToBooking(current) };
+      }
+
+      return { success: false, error: 'ALREADY_TAKEN' };
     }
 
     return { success: true, booking: mapDbBookingToBooking(updated) };

@@ -38,7 +38,18 @@ export default function NavigationScreen() {
       if (!jobId) return;
       try {
         const b = await getBookingById(jobId);
-        setBooking(b);
+        if (b) {
+          // Ownership verification: ensure this driver actually won the order
+          if (b.driverId && b.driverId !== DRIVER_ID) {
+            Alert.alert(
+              'Order Claimed by Another Partner',
+              'Another nearby towing partner has already claimed this order.',
+              [{ text: 'Return to Home', onPress: () => router.replace('/(tabs)') }]
+            );
+            return;
+          }
+          setBooking(b);
+        }
       } catch (err) {
         console.error(err);
       }

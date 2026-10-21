@@ -106,13 +106,15 @@ export function subscribeToIncomingJobs(
           }
 
           // 2. Order was accepted by another driver -> Close for all other drivers!
-          if (row.id === activeShowingJobId && row.status === 'driver_assigned') {
-            if (row.driver_id && row.driver_id !== driverId) {
-              const takenId = activeShowingJobId;
-              activeShowingJobId = '';
-              onJobTaken?.(takenId, row.driver_id);
-              return;
-            }
+          if (
+            (row.id === activeShowingJobId || row.booking_number === activeShowingJobId) &&
+            row.driver_id &&
+            row.driver_id !== driverId
+          ) {
+            const takenId = activeShowingJobId;
+            activeShowingJobId = '';
+            onJobTaken?.(takenId, row.driver_id);
+            return;
           }
 
           // 3. Order was cancelled
@@ -141,7 +143,7 @@ export function subscribeToIncomingJobs(
           .maybeSingle();
 
         if (currentJob) {
-          if (currentJob.status === 'driver_assigned' && currentJob.driver_id && currentJob.driver_id !== driverId) {
+          if (currentJob.driver_id && currentJob.driver_id !== driverId) {
             const takenId = activeShowingJobId;
             activeShowingJobId = '';
             onJobTaken?.(takenId, currentJob.driver_id);
