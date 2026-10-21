@@ -32,6 +32,55 @@ export default function NavigationScreen() {
   const [driverHeading, setDriverHeading] = useState(0);
   const [driverSpeed, setDriverSpeed] = useState(0);
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const routeCoordsRef = useRef<{ latitude: number; longitude: number }[]>([]);
+  const simIndexRef = useRef(0);
+
+  const userPickupCoords = React.useMemo(() => {
+    const bAny = booking as any;
+    if (bAny?.pickupCoords && (bAny.pickupCoords.latitude !== 0 || bAny.pickupCoords.longitude !== 0)) {
+      return bAny.pickupCoords;
+    }
+    if (bAny?.pickupLocation?.coordinates && (bAny.pickupLocation.coordinates.latitude !== 0 || bAny.pickupLocation.coordinates.longitude !== 0)) {
+      return bAny.pickupLocation.coordinates;
+    }
+    if (bAny?.pickup_location?.coordinates) {
+      return {
+        latitude: bAny.pickup_location.coordinates[1],
+        longitude: bAny.pickup_location.coordinates[0],
+      };
+    }
+    return { latitude: 22.5726, longitude: 88.3639 };
+  }, [booking]);
+
+  const handleRouteCalculated = (route: any) => {
+    if (route?.coordinates && route.coordinates.length > 0) {
+      routeCoordsRef.current = route.coordinates;
+    }
+  };
+
+  useEffect(() => {
+    let interval: any;
+    if (isSimulating && routeCoordsRef.current.length > 0) {
+      interval = setInterval(() => {
+        if (simIndexRef.current < routeCoordsRef.current.length) {
+          const pt = routeCoordsRef.current[simIndexRef.current];
+          setDriverCoords({ latitude: pt.latitude, longitude: pt.longitude });
+          setDriverSpeed(42);
+          updateDriverLocation(DRIVER_ID, pt.latitude, pt.longitude, 0, 42).catch(console.warn);
+          simIndexRef.current += 1;
+        } else {
+          setIsSimulating(false);
+          simIndexRef.current = 0;
+          Alert.alert('Arrived at Pickup', 'You have arrived at the customer pickup location!');
+          handleMainAction();
+        }
+      }, 1500);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isSimulating]);
 
   useEffect(() => {
     async function loadData() {
@@ -235,12 +284,15 @@ export default function NavigationScreen() {
       {/* Live Interactive Navigation Map showing Driver & Customer Breakdown Spot */}
       <DriverNavigationMap
         driverCoords={driverCoords}
-        userCoords={(booking as any)?.pickupCoords || { latitude: 22.5515, longitude: 88.3524 }}
+        userCoords={userPickupCoords}
         customerName={(booking as any)?.customer || 'Customer'}
         customerVehicle={`${(booking as any)?.customerVehicle?.brand || ''} ${(booking as any)?.customerVehicle?.model || ''}`.trim() || 'Vehicle'}
         pickupAddress={(booking as any)?.pickup?.address || (typeof (booking as any)?.pickup === 'string' ? (booking as any).pickup : 'Customer Pickup Spot')}
         driverSpeed={driverSpeed}
         driverHeading={driverHeading}
+        onRouteCalculated={handleRouteCalculated}
+        isSimulating={isSimulating}
+        onToggleSimulate={() => setIsSimulating(prev => !prev)}
       />
 
       {/* Top Banner & SOS Bar */}

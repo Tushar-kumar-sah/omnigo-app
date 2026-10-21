@@ -41,13 +41,21 @@ export function mapDbDriverToDriver(dbDriver: any): any {
       lat = parseFloat(match[2]);
     } else if (dbDriver.location.length >= 42 && /^[0-9a-fA-F]+$/.test(dbDriver.location)) {
       try {
-        const buf = Buffer.from(dbDriver.location, 'hex');
-        const isLE = buf[0] === 1;
-        const type = isLE ? buf.readUInt32LE(1) : buf.readUInt32BE(1);
+        const bytes = new Uint8Array(dbDriver.location.length / 2);
+        for (let i = 0; i < bytes.length; i++) {
+          bytes[i] = parseInt(dbDriver.location.substr(i * 2, 2), 16);
+        }
+        const view = new DataView(bytes.buffer);
+        const isLE = view.getUint8(0) === 1;
+        const type = view.getUint32(1, isLE);
         const hasSrid = (type & 0x20000000) !== 0;
         const offset = hasSrid ? 9 : 5;
-        lng = isLE ? buf.readDoubleLE(offset) : buf.readDoubleBE(offset);
-        lat = isLE ? buf.readDoubleLE(offset + 8) : buf.readDoubleBE(offset + 8);
+        const parsedLng = view.getFloat64(offset, isLE);
+        const parsedLat = view.getFloat64(offset + 8, isLE);
+        if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0) {
+          lng = parsedLng;
+          lat = parsedLat;
+        }
       } catch (e) {}
     }
   }

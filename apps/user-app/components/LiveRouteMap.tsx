@@ -116,8 +116,8 @@ export default function LiveRouteMap({
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    .leaflet-tile {
-      filter: brightness(0.85) contrast(1.15) saturate(1.1);
+    .leaflet-tile-pane {
+      filter: invert(100%) hue-rotate(180deg) brightness(88%) contrast(105%);
     }
     .custom-div-icon {
       background: transparent;

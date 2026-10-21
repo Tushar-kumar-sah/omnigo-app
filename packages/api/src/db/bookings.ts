@@ -9,6 +9,9 @@ function parseGeometryPoint(geo: any): { latitude: number; longitude: number } {
   if (typeof geo === 'object' && Array.isArray(geo.coordinates)) {
     return { latitude: Number(geo.coordinates[1]) || lat, longitude: Number(geo.coordinates[0]) || lng };
   }
+  if (typeof geo === 'object' && geo.latitude != null && geo.longitude != null) {
+    return { latitude: Number(geo.latitude), longitude: Number(geo.longitude) };
+  }
   if (typeof geo === 'string') {
     const match = geo.match(/POINT\(([^ ]+)\s+([^)]+)\)/i);
     if (match) {
@@ -16,13 +19,20 @@ function parseGeometryPoint(geo: any): { latitude: number; longitude: number } {
     }
     if (geo.length >= 42 && /^[0-9a-fA-F]+$/.test(geo)) {
       try {
-        const buf = Buffer.from(geo, 'hex');
-        const isLE = buf[0] === 1;
-        const type = isLE ? buf.readUInt32LE(1) : buf.readUInt32BE(1);
+        const bytes = new Uint8Array(geo.length / 2);
+        for (let i = 0; i < bytes.length; i++) {
+          bytes[i] = parseInt(geo.substr(i * 2, 2), 16);
+        }
+        const view = new DataView(bytes.buffer);
+        const isLE = view.getUint8(0) === 1;
+        const type = view.getUint32(1, isLE);
         const hasSrid = (type & 0x20000000) !== 0;
         const offset = hasSrid ? 9 : 5;
-        lng = isLE ? buf.readDoubleLE(offset) : buf.readDoubleBE(offset);
-        lat = isLE ? buf.readDoubleLE(offset + 8) : buf.readDoubleBE(offset + 8);
+        const parsedLng = view.getFloat64(offset, isLE);
+        const parsedLat = view.getFloat64(offset + 8, isLE);
+        if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0) {
+          return { latitude: parsedLat, longitude: parsedLng };
+        }
       } catch (e) {}
     }
   }

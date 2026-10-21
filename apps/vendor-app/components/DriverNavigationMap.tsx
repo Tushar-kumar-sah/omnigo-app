@@ -12,6 +12,9 @@ export interface DriverNavigationMapProps {
   pickupAddress?: string;
   driverSpeed?: number;
   driverHeading?: number;
+  onRouteCalculated?: (route: RouteResult) => void;
+  isSimulating?: boolean;
+  onToggleSimulate?: () => void;
 }
 
 export default function DriverNavigationMap({
@@ -22,6 +25,9 @@ export default function DriverNavigationMap({
   pickupAddress = 'Breakdown Location',
   driverSpeed = 0,
   driverHeading = 0,
+  onRouteCalculated,
+  isSimulating = false,
+  onToggleSimulate,
 }: DriverNavigationMapProps) {
   const dLat = driverCoords?.latitude || 22.5726;
   const dLng = driverCoords?.longitude || 88.3639;
@@ -46,6 +52,7 @@ export default function DriverNavigationMap({
         );
         if (isMounted && route) {
           setRouteData(route);
+          onRouteCalculated?.(route);
         }
       } catch (e) {
         console.warn('[DriverNavigationMap] Route fetch error:', e);
@@ -118,6 +125,9 @@ export default function DriverNavigationMap({
       background: #050810;
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .leaflet-tile-pane {
+      filter: invert(100%) hue-rotate(180deg) brightness(88%) contrast(105%);
     }
     .custom-div-icon {
       background: transparent;
@@ -210,10 +220,10 @@ export default function DriverNavigationMap({
       tap: true
     });
 
-    // High performance CartoDB Dark Matter tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // High performance dark tiles (no watermark, zero API key)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: ['a', 'b', 'c', 'd']
+      subdomains: ['a', 'b', 'c']
     }).addTo(map);
 
     // Driver Marker (Pulsing Tow Truck)
@@ -294,6 +304,17 @@ export default function DriverNavigationMap({
           <Ionicons name="navigate" size={16} color="#000" style={{ marginRight: 6 }} />
           <Text style={styles.actionPillText}>Turn-by-Turn GPS</Text>
         </TouchableOpacity>
+
+        {onToggleSimulate && (
+          <TouchableOpacity
+            style={[styles.actionPill, { backgroundColor: isSimulating ? '#FF9500' : 'rgba(0, 207, 255, 0.95)' }]}
+            onPress={onToggleSimulate}
+            activeOpacity={0.85}
+          >
+            <Ionicons name={isSimulating ? "pause" : "play"} size={14} color="#000" style={{ marginRight: 6 }} />
+            <Text style={styles.actionPillText}>{isSimulating ? "Pause Sim" : "Simulate Drive"}</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={styles.iconCircle}
