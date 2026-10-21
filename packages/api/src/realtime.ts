@@ -165,12 +165,11 @@ export function subscribeToIncomingJobs(
           .select('*')
           .in('status', ['searching', 'pending'])
           .order('created_at', { ascending: false })
-          .limit(1);
+          .limit(10);
 
         if (latestJobs && latestJobs.length > 0) {
-          const row = latestJobs[0];
-          if (isJobIgnored && isJobIgnored(row.id)) return;
-          if (!row.driver_id || row.driver_id === driverId) {
+          const row = latestJobs.find((j) => (!isJobIgnored || !isJobIgnored(j.id)) && (!j.driver_id || j.driver_id === driverId));
+          if (row) {
             activeShowingJobId = row.id;
             onNewJob(row);
           }

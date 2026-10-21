@@ -60,14 +60,31 @@ export default function SearchingScreen() {
       router.replace({ pathname: '/booking/driver-assigned', params: { driverId, bookingId: bId } });
     };
 
+    const isJobAssigned = (statusVal?: string, dId?: string) => {
+      const s = (statusVal || '').toLowerCase().trim();
+      const assignedStatuses = [
+        'driver_assigned',
+        'assigned',
+        'driver_arriving',
+        'en_route',
+        'arrived',
+        'at_pickup',
+        'towing',
+        'in_progress',
+      ];
+      if (assignedStatuses.includes(s) && dId) return true;
+      if (dId && s !== 'searching' && s !== 'pending' && s !== 'cancelled') return true;
+      return false;
+    };
+
     if (bookingId) {
       // 1. Supabase Realtime channel subscription
       try {
         unsubscribe = subscribeToBooking(bookingId, (payload: any) => {
           const row = payload?.new || payload;
           const driverId = row?.driver_id || row?.driverId;
-          const status = (row?.status || '').toLowerCase();
-          if ((status === 'driver_assigned' || status === 'assigned') && driverId) {
+          const status = row?.status || row?.bookingStatus;
+          if (isJobAssigned(status, driverId)) {
             onAssigned(driverId, bookingId);
           }
         });
@@ -79,8 +96,10 @@ export default function SearchingScreen() {
       pollInterval = setInterval(async () => {
         try {
           const b = await fetchBookingById(bookingId);
-          if (b && (b.status === 'driver_assigned' || b.status === 'assigned') && (b.driverId || b.driver_id)) {
-            onAssigned(b.driverId || b.driver_id, bookingId);
+          const driverId = b?.driverId || b?.driver_id;
+          const status = b?.status || b?.bookingStatus;
+          if (isJobAssigned(status, driverId)) {
+            onAssigned(driverId, bookingId);
           }
         } catch (e) {}
       }, 1500);
