@@ -3,10 +3,7 @@ import { useFonts } from 'expo-font';
 import { Outfit_400Regular, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import * as SplashScreen from 'expo-splash-screen';
-
-SplashScreen.preventAutoHideAsync().catch(() => {});
+import { View, ActivityIndicator } from 'react-native';
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -18,18 +15,19 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [fontsLoaded, fontError]);
-
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0A0E17' }}>
+        <ActivityIndicator size="large" color="#00CFFF" />
+      </View>
+    );
+  }
 
   return (
     <>
       <StatusBar style="light" />
-      <Stack initialRouteName="splash" screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0A0E17' } }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0A0E17' } }}>
+        <Stack.Screen name="index" />
         <Stack.Screen name="splash" options={{ animation: 'fade' }} />
         <Stack.Screen name="location-permission" options={{ animation: 'fade' }} />
         <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
