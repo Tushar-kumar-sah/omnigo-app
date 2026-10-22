@@ -6,34 +6,52 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   KeyboardAvoidingView, 
-  Platform,
-  SafeAreaView,
-  Keyboard,
-  TouchableWithoutFeedback
+  Platform, 
+  SafeAreaView, 
+  Keyboard, 
+  TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { THEME } from '@/constants/theme';
+import { verifyDriverPhoneOtp, sendDriverPhoneOtp } from '@/lib/auth';
 
 export default function OtpVerifyScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    phone?: string;
+    code?: string;
+    fullName?: string;
+    flow?: 'login' | 'register';
+  }>();
+
+  const phone = params.phone || '+919876543210';
+  const initialCode = params.code || '123456';
+  const fullName = params.fullName || '';
+  const flow = params.flow || 'login';
+
+  const [activeCode, setActiveCode] = useState(initialCode);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(30);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const inputRefs = useRef<Array<TextInput | null>>([]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     if (countdown > 0) {
       timer = setInterval(() => {
-        setCountdown(prev => prev - 1);
+        setCountdown((prev) => prev - 1);
       }, 1000);
     }
     return () => clearInterval(timer);
   }, [countdown]);
 
   const handleOtpChange = (value: string, index: number) => {
+    setErrorMsg(null);
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -56,16 +74,60 @@ export default function OtpVerifyScreen() {
     }
   };
 
-  const handleVerify = () => {
-    Keyboard.dismiss();
-    // In a real app, verify OTP against backend here
-    router.replace('/(tabs)');
+  const autoFillOtp = () => {
+    const digits = (activeCode || '123456').slice(0, 6).split('');
+    while (digits.length < 6) digits.push('0');
+    setOtp(digits);
+    setErrorMsg(null);
   };
 
-  const handleResend = () => {
-    setCountdown(30);
-    // Add resend logic here
+  const handleVerify = async () => {
+    Keyboard.dismiss();
+    const enteredOtp = otp.join('').trim();
+    if (enteredOtp.length !== 6) {
+      setErrorMsg('Please enter the complete 6-digit OTP code.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg(null);
+
+    const { driver, isNew, error } = await verifyDriverPhoneOtp({
+      phone,
+      otp: enteredOtp,
+      fullName,
+      flow,
+    });
+
+    setLoading(false);
+
+    if (error || !driver) {
+      setErrorMsg(error || 'Invalid OTP code. Please try again.');
+      return;
+    }
+
+    if (flow === 'register' || isNew) {
+      router.push('/(auth)/driver-verification');
+    } else {
+      router.replace('/(tabs)');
+    }
   };
+
+  const handleResend = async () => {
+    setErrorMsg(null);
+    setCountdown(30);
+    const res = await sendDriverPhoneOtp(phone);
+    if (res.code) {
+      setActiveCode(res.code);
+    }
+    if (res.error) {
+      setErrorMsg(res.error);
+    }
+  };
+
+  const maskedPhone = phone.length >= 10
+    ? `${phone.slice(0, 5)} **** ${phone.slice(-3)}`
+    : phone;
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -85,18 +147,36 @@ export default function OtpVerifyScreen() {
           <View style={styles.content}>
             <Text style={styles.title}>Verify Phone</Text>
             <Text style={styles.subtitle}>
-              Code sent to <Text style={styles.highlight}>+91 98***43210</Text>
+              Code sent to <Text style={styles.highlight}>{maskedPhone}</Text>
             </Text>
+
+            {/* Test Helper Banner */}
+            {activeCode ? (
+              <TouchableOpacity style={styles.demoBanner} onPress={autoFillOtp} activeOpacity={0.8}>
+                <Ionicons name="key-outline" size={15} color="#00CFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.demoBannerText}>
+                  Your OTP: <Text style={styles.demoCode}>{activeCode}</Text> (Tap to auto-fill)
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {/* Error Banner */}
+            {errorMsg ? (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={16} color="#FF453A" style={{ marginRight: 6 }} />
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              </View>
+            ) : null}
 
             <BlurView intensity={20} tint="dark" style={styles.glassCard}>
               <View style={styles.otpContainer}>
                 {otp.map((digit, index) => (
                   <TextInput
                     key={index}
-                    ref={ref => { inputRefs.current[index] = ref; }}
+                    ref={(ref) => { inputRefs.current[index] = ref; }}
                     style={[
                       styles.otpInput,
-                      digit ? styles.otpInputActive : null
+                      digit ? styles.otpInputActive : null,
                     ]}
                     keyboardType="number-pad"
                     maxLength={1}
@@ -124,6 +204,7 @@ export default function OtpVerifyScreen() {
                 activeOpacity={0.8} 
                 style={styles.buttonContainer} 
                 onPress={handleVerify}
+                disabled={loading}
               >
                 <LinearGradient
                   colors={[THEME.colors.primary, THEME.colors.secondary]}
@@ -131,8 +212,14 @@ export default function OtpVerifyScreen() {
                   end={{ x: 1, y: 0 }}
                   style={styles.button}
                 >
-                  <Text style={styles.buttonText}>VERIFY</Text>
-                  <Ionicons name="checkmark-circle" size={20} color="#050810" />
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#050810" />
+                  ) : (
+                    <>
+                      <Text style={styles.buttonText}>VERIFY & CONTINUE</Text>
+                      <Ionicons name="checkmark-circle" size={20} color="#050810" />
+                    </>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </BlurView>
@@ -146,98 +233,150 @@ export default function OtpVerifyScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: THEME.colors.background,
+    backgroundColor: '#050810',
   },
   container: {
     flex: 1,
   },
   backButton: {
-    padding: THEME.spacing.lg,
-    paddingTop: Platform.OS === 'android' ? 40 : THEME.spacing.lg,
+    padding: 16,
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
-    padding: THEME.spacing.lg,
+    paddingHorizontal: 24,
     justifyContent: 'center',
-    paddingBottom: 100, // offset slightly to center better visually
+    marginTop: -40,
   },
   title: {
-    fontFamily: THEME.fonts.outfit.bold,
+    fontFamily: 'Outfit_700Bold',
     fontSize: 32,
-    color: THEME.colors.text,
-    marginBottom: THEME.spacing.xs,
+    color: '#00FF97',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
-    fontFamily: THEME.fonts.inter.regular,
-    fontSize: 16,
-    color: THEME.colors.textSecondary,
-    marginBottom: THEME.spacing.xl,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'center',
+    marginBottom: 16,
   },
   highlight: {
-    color: THEME.colors.primary,
-    fontFamily: THEME.fonts.inter.medium,
+    color: '#FFFFFF',
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 207, 255, 0.12)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.35)',
+    marginBottom: 16,
+    alignSelf: 'center',
+  },
+  demoBannerText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#00CFFF',
+  },
+  demoCode: {
+    fontFamily: 'Outfit_700Bold',
+    letterSpacing: 1.5,
+    color: '#FFFFFF',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 69, 58, 0.15)',
+    borderColor: '#FF453A',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  errorText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#FF8A80',
+    flex: 1,
   },
   glassCard: {
-    backgroundColor: THEME.colors.glassBg,
-    borderRadius: THEME.borderRadius.xl,
-    padding: THEME.spacing.lg,
+    borderRadius: 24,
+    padding: 24,
+    backgroundColor: 'rgba(13, 20, 32, 0.6)',
     borderWidth: 1,
-    borderColor: THEME.colors.glassBorder,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     overflow: 'hidden',
   },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: THEME.spacing.xl,
+    marginBottom: 24,
+    gap: 8,
   },
   otpInput: {
-    width: 48,
-    height: 56,
-    backgroundColor: 'rgba(5, 8, 16, 0.7)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: THEME.borderRadius.md,
-    color: THEME.colors.primary,
-    fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 24,
+    flex: 1,
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(5, 8, 16, 0.6)',
+    color: '#FFFFFF',
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 22,
     textAlign: 'center',
   },
   otpInputActive: {
-    borderColor: THEME.colors.primary,
-    backgroundColor: 'rgba(0, 207, 255, 0.05)',
+    borderColor: '#00FF97',
+    backgroundColor: 'rgba(0, 255, 151, 0.08)',
+    shadowColor: '#00FF97',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   resendContainer: {
     alignItems: 'center',
-    marginBottom: THEME.spacing.lg,
+    marginBottom: 24,
   },
   resendText: {
-    fontFamily: THEME.fonts.inter.regular,
+    fontFamily: 'Inter_400Regular',
     fontSize: 14,
-    color: THEME.colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   countdownText: {
-    color: THEME.colors.warning,
-    fontFamily: THEME.fonts.inter.bold,
+    color: '#00FF97',
+    fontFamily: 'Outfit_600SemiBold',
   },
   resendActionText: {
-    fontFamily: THEME.fonts.inter.bold,
+    color: '#00FF97',
+    fontFamily: 'Outfit_700Bold',
     fontSize: 14,
-    color: THEME.colors.primary,
   },
   buttonContainer: {
-    borderRadius: THEME.borderRadius.md,
+    borderRadius: 100,
     overflow: 'hidden',
   },
   button: {
     flexDirection: 'row',
-    height: 56,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
   },
   buttonText: {
-    fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 15,
     color: '#050810',
-    marginRight: THEME.spacing.sm,
+    letterSpacing: 1,
   },
 });

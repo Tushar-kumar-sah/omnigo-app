@@ -280,3 +280,48 @@ export async function getDriverDocuments(driverId: string): Promise<any[]> {
     return [];
   }
 }
+
+export async function createDriver(data: any): Promise<any | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  try {
+    const fallbackPhone = '+919' + String(Math.floor(100000000 + Math.random() * 900000000));
+    const payload: any = {
+      name: data.name || 'OmniGo Driver Partner',
+      phone: data.phone || fallbackPhone,
+      email: data.email || null,
+      avatar: data.avatar || null,
+      rating: data.rating || 5.0,
+      total_trips: data.totalTrips || 0,
+      acceptance_rate: 100,
+      cancellation_rate: 0,
+      online_hours: '0 hrs',
+      is_online: Boolean(data.isOnline ?? false),
+      is_verified: Boolean(data.isVerified ?? false),
+      kyc_status: data.kycStatus ? data.kycStatus.toLowerCase().replace(/\s+/g, '_') : 'pending_review',
+      vehicle_type: data.vehicleType || 'flatbed',
+      vehicle_number: data.vehicleNumber || data.vehiclePlate || 'MH 12 AB 1234',
+      vehicle_plate: data.vehiclePlate || data.vehicleNumber || 'MH 12 AB 1234',
+      location: data.latitude && data.longitude ? `POINT(${data.longitude} ${data.latitude})` : 'POINT(88.3639 22.5726)',
+      city: data.city || 'Kolkata',
+      address: data.address || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: created, error } = await supabase
+      .from('drivers')
+      .insert(payload)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.warn('createDriver error:', error);
+      return null;
+    }
+    return created ? mapDbDriverToDriver(created) : null;
+  } catch (err) {
+    console.warn('createDriver error:', err);
+    return null;
+  }
+}
+

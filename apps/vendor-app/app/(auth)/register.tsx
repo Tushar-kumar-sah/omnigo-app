@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +17,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { THEME } from '@/constants/theme';
+import GoogleAuthModal from '@/components/GoogleAuthModal';
+import {
+  registerDriverWithCredentials,
+  sendDriverPhoneOtp,
+} from '@/lib/auth';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -26,18 +32,77 @@ export default function RegisterScreen() {
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [googleModalVisible, setGoogleModalVisible] = useState(false);
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
+    setErrorMsg(null);
+
+    if (!fullName || fullName.trim().length < 2) {
+      setErrorMsg('Please enter your full legal name.');
+      return;
+    }
+    if (!emailOrPhone || !emailOrPhone.trim()) {
+      setErrorMsg(activeTab === 'email' ? 'Please enter your email.' : 'Please enter your phone number.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (activeTab === 'phone') {
+      setLoading(true);
+      const res = await sendDriverPhoneOtp(emailOrPhone);
+      setLoading(false);
+
+      if (res.error) {
+        setErrorMsg(res.error);
+        return;
+      }
+
+      router.push({
+        pathname: '/(auth)/otp-verify',
+        params: {
+          phone: res.formattedPhone,
+          code: res.code,
+          fullName: fullName.trim(),
+          flow: 'register',
+        },
+      });
+      return;
+    }
+
+    // Email registration
+    setLoading(true);
+    const { driver, error } = await registerDriverWithCredentials({
+      fullName: fullName.trim(),
+      identifier: emailOrPhone.trim(),
+      password,
+      mode: 'email',
+    });
+    setLoading(false);
+
+    if (error || !driver) {
+      setErrorMsg(error || 'Failed to register account. Please try again.');
+      return;
+    }
+
     router.push('/(auth)/driver-verification');
   };
 
-  const handleGoogleSignUp = () => {
-    router.push('/(auth)/driver-verification');
+  const handleGoogleSuccess = (driver: any, isNew: boolean) => {
+    setGoogleModalVisible(false);
+    if (isNew) {
+      router.push('/(auth)/driver-verification');
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* Background gradient */}
       <LinearGradient
         colors={['rgba(5, 8, 16, 0.35)', 'rgba(5, 8, 16, 0.55)', 'rgba(5, 8, 16, 0.85)']}
         style={StyleSheet.absoluteFill}
@@ -69,9 +134,24 @@ export default function RegisterScreen() {
             <Text style={styles.subtitle}>Register for driver & towing services</Text>
           </View>
 
-          {/* Social SSO Button (Google Only with Original Multi-Color Logo) */}
+          {/* Error Banner */}
+          {errorMsg ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={18} color="#FF453A" style={{ marginRight: 8 }} />
+              <Text style={styles.errorBannerText}>{errorMsg}</Text>
+            </View>
+          ) : null}
+
+          {/* Social SSO Button (Google Only) */}
           <View style={styles.socialRow}>
-            <TouchableOpacity style={styles.ssoBtn} onPress={handleGoogleSignUp} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.ssoBtn}
+              onPress={() => {
+                setErrorMsg(null);
+                setGoogleModalVisible(true);
+              }}
+              activeOpacity={0.8}
+            >
               <Image
                 source={require('@/assets/google_logo.png')}
                 style={{ width: 20, height: 20, marginRight: 10 }}
@@ -92,7 +172,10 @@ export default function RegisterScreen() {
           <View style={styles.tabContainer}>
             <TouchableOpacity
               style={[styles.tab, activeTab === 'phone' && styles.activeTab]}
-              onPress={() => setActiveTab('phone')}
+              onPress={() => {
+                setActiveTab('phone');
+                setErrorMsg(null);
+              }}
               activeOpacity={0.8}
             >
               {activeTab === 'phone' ? (
@@ -115,7 +198,10 @@ export default function RegisterScreen() {
 
             <TouchableOpacity
               style={[styles.tab, activeTab === 'email' && styles.activeTab]}
-              onPress={() => setActiveTab('email')}
+              onPress={() => {
+                setActiveTab('email');
+                setErrorMsg(null);
+              }}
               activeOpacity={0.8}
             >
               {activeTab === 'email' ? (
@@ -144,7 +230,7 @@ export default function RegisterScreen() {
               <Ionicons name="person-outline" size={18} color={THEME.colors.primary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter your full name"
+                placeholder="Enter full legal name"
                 placeholderTextColor="rgba(255, 255, 255, 0.6)"
                 value={fullName}
                 onChangeText={setFullName}
@@ -162,7 +248,7 @@ export default function RegisterScreen() {
               />
               <TextInput
                 style={styles.input}
-                placeholder={activeTab === 'email' ? 'Enter your email' : 'Enter your phone number'}
+                placeholder={activeTab === 'email' ? 'Enter driver email' : 'Enter 10-digit mobile number'}
                 placeholderTextColor="rgba(255, 255, 255, 0.6)"
                 keyboardType={activeTab === 'email' ? 'email-address' : 'phone-pad'}
                 autoCapitalize="none"
@@ -176,7 +262,7 @@ export default function RegisterScreen() {
               <Ionicons name="lock-closed-outline" size={18} color={THEME.colors.primary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter your password"
+                placeholder="Create a strong password"
                 placeholderTextColor="rgba(255, 255, 255, 0.6)"
                 secureTextEntry={!showPassword}
                 value={password}
@@ -189,15 +275,28 @@ export default function RegisterScreen() {
           </View>
 
           {/* Create Account Button */}
-          <TouchableOpacity style={styles.signInBtnTouch} onPress={handleSignUp} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.signInBtnTouch}
+            onPress={handleSignUp}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
             <LinearGradient
               colors={['#00FF97', '#00CC7A']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.signInBtn}
             >
-              <Text style={styles.signInBtnText}>Create Account</Text>
-              <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />
+              {loading ? (
+                <ActivityIndicator color="#000000" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.signInBtnText}>
+                    {activeTab === 'phone' ? 'Verify with Phone OTP' : 'Create Account'}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />
+                </>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -210,6 +309,13 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Google Auth Modal */}
+      <GoogleAuthModal
+        visible={googleModalVisible}
+        onClose={() => setGoogleModalVisible(false)}
+        onSuccess={handleGoogleSuccess}
+      />
     </View>
   );
 }
@@ -246,7 +352,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   title: {
     fontFamily: 'Outfit_700Bold',
@@ -265,13 +371,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 69, 58, 0.16)',
+    borderColor: '#FF453A',
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#FF8A80',
+  },
   socialRow: {
     gap: 10,
     marginBottom: 20,
-  },
-  ssoBtnTouch: {
-    borderRadius: 20,
-    overflow: 'hidden',
   },
   ssoBtn: {
     flexDirection: 'row',

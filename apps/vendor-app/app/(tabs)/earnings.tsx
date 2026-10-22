@@ -5,6 +5,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getDriverEarnings, getBookingsByDriver, getDriverById, getPayouts, getDriverLedger, createSettlement, Driver, Booking, DriverEarnings, PayoutRecord } from '@omnigo/api';
+import { getAuthenticatedDriverId } from '@/lib/auth';
 
 export default function EarningsScreen() {
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
@@ -16,7 +17,7 @@ export default function EarningsScreen() {
   const [payouts, setPayouts] = useState<PayoutRecord[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
 
-  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  const DRIVER_ID = getAuthenticatedDriverId();
 
   useEffect(() => {
     async function loadData() {

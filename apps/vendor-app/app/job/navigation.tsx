@@ -8,6 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { updateBookingStatus, updateDriverLocation, getBookingById, Booking, createSOSIncident } from '@omnigo/api';
+import { getAuthenticatedDriverId } from '@/lib/auth';
 import DriverNavigationMap from '@/components/DriverNavigationMap';
 
 type NavState = 'EN_ROUTE_PICKUP' | 'AT_PICKUP';
@@ -24,7 +25,7 @@ export default function NavigationScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const jobId = (params.id as string);
-  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  const DRIVER_ID = getAuthenticatedDriverId();
   const [driverCoords, setDriverCoords] = useState<{ latitude: number; longitude: number }>({
     latitude: 22.5726,
     longitude: 88.3639,

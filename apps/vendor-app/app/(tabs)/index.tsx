@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getAuthenticatedDriverId } from '@/lib/auth';
 import {
   getDriverById,
   getBookingsByDriver,
@@ -41,7 +42,7 @@ export default function HomeScreen() {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [todayJobs, setTodayJobs] = useState<Booking[]>([]);
   const [incomingJob, setIncomingJob] = useState<any>(null);
-  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  const DRIVER_ID = getAuthenticatedDriverId();
   const buzzerRef = useRef<BuzzerSoundHandle>(null);
   const declinedJobsRef = useRef<Set<string>>(new Set());
   const activeSubRef = useRef<any>(null);

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getNotifications, markNotificationAsRead, Notification } from '@omnigo/api';
+import { getAuthenticatedDriverId } from '@/lib/auth';
 
 type NotificationCategory = 'all' | 'earnings' | 'jobs' | 'compliance';
 type NotificationType = 'success' | 'job' | 'info' | 'payment' | 'warning';
@@ -34,7 +35,7 @@ interface DriverNotification {
 export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  const DRIVER_ID = getAuthenticatedDriverId();
 
   const [notifications, setNotifications] = useState<DriverNotification[]>([]);
   const [activeTab, setActiveTab] = useState<NotificationCategory>('all');

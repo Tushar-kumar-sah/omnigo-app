@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { THEME } from '@/constants/theme';
+import GoogleAuthModal from '@/components/GoogleAuthModal';
+import {
+  loginDriverWithCredentials,
+  sendDriverPhoneOtp,
+  resetPasswordForDriverEmail,
+} from '@/lib/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -25,18 +32,78 @@ export default function LoginScreen() {
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [googleModalVisible, setGoogleModalVisible] = useState(false);
 
-  const handleSignIn = () => {
+  const handleSendPhoneOtp = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setLoading(true);
+    const res = await sendDriverPhoneOtp(emailOrPhone);
+    setLoading(false);
+    if (res.error) {
+      setErrorMsg(res.error);
+      return;
+    }
+    router.push({
+      pathname: '/(auth)/otp-verify',
+      params: {
+        phone: res.formattedPhone,
+        code: res.code,
+        flow: 'login',
+      },
+    });
+  };
+
+  const handleSignIn = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    setLoading(true);
+    const { driver, error } = await loginDriverWithCredentials(emailOrPhone, password, activeTab);
+    setLoading(false);
+
+    if (error || !driver) {
+      setErrorMsg(error || 'Invalid credentials. Please try again or use OTP.');
+      return;
+    }
+
     router.replace('/(tabs)');
   };
 
-  const handleGoogleSignIn = () => {
-    router.replace('/(tabs)');
+  const handleForgotPassword = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (activeTab === 'phone') {
+      await handleSendPhoneOtp();
+      return;
+    }
+
+    setLoading(true);
+    const res = await resetPasswordForDriverEmail(emailOrPhone);
+    setLoading(false);
+
+    if (res.error) {
+      setErrorMsg(res.error);
+    } else {
+      setSuccessMsg(res.message);
+    }
+  };
+
+  const handleGoogleSuccess = (driver: any, isNew: boolean) => {
+    setGoogleModalVisible(false);
+    if (isNew) {
+      router.push('/(auth)/driver-verification');
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* Background gradient */}
       <LinearGradient
         colors={['rgba(5, 8, 16, 0.35)', 'rgba(5, 8, 16, 0.55)', 'rgba(5, 8, 16, 0.85)']}
         style={StyleSheet.absoluteFill}
@@ -68,9 +135,32 @@ export default function LoginScreen() {
             <Text style={styles.subtitle}>Access your driver & towing dashboard</Text>
           </View>
 
-          {/* Social SSO Button (Google Only with Original Multi-Color Logo) */}
+          {/* Error & Success Banners */}
+          {errorMsg ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={18} color="#FF453A" style={{ marginRight: 8 }} />
+              <Text style={styles.errorBannerText}>{errorMsg}</Text>
+            </View>
+          ) : null}
+
+          {successMsg ? (
+            <View style={styles.successBanner}>
+              <Ionicons name="checkmark-circle" size={18} color="#00FF97" style={{ marginRight: 8 }} />
+              <Text style={styles.successBannerText}>{successMsg}</Text>
+            </View>
+          ) : null}
+
+          {/* Social SSO Button (Google Auth) */}
           <View style={styles.socialRow}>
-            <TouchableOpacity style={styles.ssoBtn} onPress={handleGoogleSignIn} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.ssoBtn}
+              onPress={() => {
+                setErrorMsg(null);
+                setSuccessMsg(null);
+                setGoogleModalVisible(true);
+              }}
+              activeOpacity={0.8}
+            >
               <Image
                 source={require('@/assets/google_logo.png')}
                 style={{ width: 20, height: 20, marginRight: 10 }}
@@ -91,7 +181,11 @@ export default function LoginScreen() {
           <View style={styles.tabContainer}>
             <TouchableOpacity
               style={[styles.tab, activeTab === 'phone' && styles.activeTab]}
-              onPress={() => setActiveTab('phone')}
+              onPress={() => {
+                setActiveTab('phone');
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
               activeOpacity={0.8}
             >
               {activeTab === 'phone' ? (
@@ -114,7 +208,11 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               style={[styles.tab, activeTab === 'email' && styles.activeTab]}
-              onPress={() => setActiveTab('email')}
+              onPress={() => {
+                setActiveTab('email');
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
               activeOpacity={0.8}
             >
               {activeTab === 'email' ? (
@@ -140,14 +238,14 @@ export default function LoginScreen() {
           <View style={styles.formContainer}>
             <BlurView intensity={30} tint="dark" style={styles.inputWrapper}>
               <Ionicons
-                name={activeTab === 'email' ? 'person-outline' : 'call-outline'}
+                name={activeTab === 'email' ? 'mail-outline' : 'call-outline'}
                 size={18}
                 color={THEME.colors.primary}
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
-                placeholder={activeTab === 'email' ? 'Enter your email' : 'Enter your phone number'}
+                placeholder={activeTab === 'email' ? 'Enter driver email' : 'Enter 10-digit mobile number'}
                 placeholderTextColor="rgba(255, 255, 255, 0.6)"
                 keyboardType={activeTab === 'email' ? 'email-address' : 'phone-pad'}
                 autoCapitalize="none"
@@ -171,23 +269,56 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </BlurView>
 
-            <TouchableOpacity style={styles.forgotBtn}>
-              <Text style={styles.forgotText}>Forgot Password?</Text>
-            </TouchableOpacity>
+            <View style={styles.actionRow}>
+              {activeTab === 'phone' ? (
+                <TouchableOpacity onPress={handleSendPhoneOtp} disabled={loading} style={styles.otpLinkBtn}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={14} color="#00FF97" style={{ marginRight: 4 }} />
+                  <Text style={styles.otpLinkText}>Sign in via SMS OTP</Text>
+                </TouchableOpacity>
+              ) : <View />}
+
+              <TouchableOpacity style={styles.forgotBtn} onPress={handleForgotPassword} disabled={loading}>
+                <Text style={styles.forgotText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Sign In Button */}
-          <TouchableOpacity style={styles.signInBtnTouch} onPress={handleSignIn} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.signInBtnTouch}
+            onPress={handleSignIn}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
             <LinearGradient
               colors={['#00FF97', '#00CC7A']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.signInBtn}
             >
-              <Text style={styles.signInBtnText}>Sign In</Text>
-              <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />
+              {loading ? (
+                <ActivityIndicator color="#000000" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.signInBtnText}>Sign In</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />
+                </>
+              )}
             </LinearGradient>
           </TouchableOpacity>
+
+          {/* Quick OTP Action Button for Phone Mode */}
+          {activeTab === 'phone' && (
+            <TouchableOpacity
+              style={styles.secondaryOtpBtn}
+              onPress={handleSendPhoneOtp}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="key-outline" size={16} color="#00CFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.secondaryOtpText}>Get Instant Login OTP</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Footer */}
           <View style={styles.footerRow}>
@@ -198,6 +329,13 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Google Auth Modal */}
+      <GoogleAuthModal
+        visible={googleModalVisible}
+        onClose={() => setGoogleModalVisible(false)}
+        onSuccess={handleGoogleSuccess}
+      />
     </View>
   );
 }
@@ -234,7 +372,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   title: {
     fontFamily: 'Outfit_700Bold',
@@ -253,13 +391,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 69, 58, 0.16)',
+    borderColor: '#FF453A',
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#FF8A80',
+  },
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 255, 151, 0.16)',
+    borderColor: '#00FF97',
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  successBannerText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#00FF97',
+  },
   socialRow: {
     gap: 10,
     marginBottom: 20,
-  },
-  ssoBtnTouch: {
-    borderRadius: 20,
-    overflow: 'hidden',
   },
   ssoBtn: {
     flexDirection: 'row',
@@ -343,7 +511,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.75)',
   },
   formContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -374,9 +542,25 @@ const styles = StyleSheet.create({
   eyeBtn: {
     padding: 6,
   },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  otpLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  otpLinkText: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 13,
+    color: '#00FF97',
+  },
   forgotBtn: {
-    alignSelf: 'flex-end',
-    marginTop: 4,
+    paddingVertical: 4,
   },
   forgotText: {
     fontFamily: 'Inter_500Medium',
@@ -386,7 +570,7 @@ const styles = StyleSheet.create({
   signInBtnTouch: {
     borderRadius: 100,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: 12,
     shadowColor: '#00FF97',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
@@ -405,10 +589,27 @@ const styles = StyleSheet.create({
     color: '#000000',
     letterSpacing: 0.3,
   },
+  secondaryOtpBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    backgroundColor: 'rgba(0, 207, 255, 0.12)',
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.35)',
+    marginBottom: 20,
+  },
+  secondaryOtpText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
+    color: '#00CFFF',
+  },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 6,
   },
   footerText: {
     fontFamily: 'Inter_400Regular',

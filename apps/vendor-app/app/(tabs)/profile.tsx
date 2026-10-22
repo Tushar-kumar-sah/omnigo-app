@@ -5,13 +5,14 @@ import { BlurView } from 'expo-blur';
 import { getDriverById, getDriverDocuments, Driver } from '@omnigo/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { getAuthenticatedDriverId, logoutDriver } from '@/lib/auth';
 
 export default function ProfileScreen() {
   const router = useRouter();
   
   const [driver, setDriver] = useState<Driver | null>(null);
   const [documents, setDocuments] = useState<any[]>([]);
-  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  const DRIVER_ID = getAuthenticatedDriverId();
 
   useEffect(() => {
     async function loadData() {
@@ -30,6 +31,7 @@ export default function ProfileScreen() {
   const displayDriver = driver || {} as any;
 
   const handleLogout = () => {
+    logoutDriver();
     router.replace('/(auth)/login');
   };
 

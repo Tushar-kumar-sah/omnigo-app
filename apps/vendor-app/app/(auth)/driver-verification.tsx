@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { THEME } from '@/constants/theme';
+import { updateDriver } from '@omnigo/api';
+import { getAuthenticatedDriverId } from '@/lib/auth';
 
 type DocStatus = 'empty' | 'uploaded';
 
@@ -51,7 +53,21 @@ export default function DriverVerificationScreen() {
     setter('uploaded');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    try {
+      const driverId = getAuthenticatedDriverId();
+      await updateDriver(driverId, {
+        name: fullName.trim() || undefined,
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        city: city.trim() || undefined,
+        address: address.trim() || undefined,
+        kycStatus: 'pending_review',
+        isVerified: false,
+      });
+    } catch (e) {
+      console.warn('Driver verification submit error:', e);
+    }
     router.replace('/(auth)/under-review');
   };
 
