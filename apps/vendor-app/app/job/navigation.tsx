@@ -346,13 +346,6 @@ export default function NavigationScreen() {
             </View>
           </View>
 
-          {/* SOS Emergency Trigger */}
-          <TouchableOpacity style={styles.sosTopBtn} onPress={handleSOS} activeOpacity={0.8}>
-            <LinearGradient colors={['#FF3366', '#CC0033']} style={styles.sosGradient}>
-              <Ionicons name="warning" size={16} color="#fff" />
-              <Text style={styles.sosText}>SOS</Text>
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
       </LinearGradient>
 

@@ -318,26 +318,6 @@ export default function DriverNavigationMap({
       {/* Floating HUD Controls */}
       <View style={styles.floatingControls}>
         <TouchableOpacity
-          style={styles.actionPill}
-          onPress={openTurnByTurnGPS}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="navigate" size={16} color="#000" style={{ marginRight: 6 }} />
-          <Text style={styles.actionPillText}>Turn-by-Turn GPS</Text>
-        </TouchableOpacity>
-
-        {onToggleSimulate && (
-          <TouchableOpacity
-            style={[styles.actionPill, { backgroundColor: isSimulating ? '#FF9500' : 'rgba(0, 207, 255, 0.95)' }]}
-            onPress={onToggleSimulate}
-            activeOpacity={0.85}
-          >
-            <Ionicons name={isSimulating ? "pause" : "play"} size={14} color="#000" style={{ marginRight: 6 }} />
-            <Text style={styles.actionPillText}>{isSimulating ? "Pause Sim" : "Simulate Drive"}</Text>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
           style={styles.iconCircle}
           onPress={() => {
             webViewRef.current?.injectJavaScript('if (window.recenterDriver) window.recenterDriver(); true;');
