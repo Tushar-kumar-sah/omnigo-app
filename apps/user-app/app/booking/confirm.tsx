@@ -38,15 +38,20 @@ export default function ConfirmBookingScreen() {
   const [dropoffAddr, setDropoffAddr]         = useState<string>((params.dropoff as string) || '');
   const [showMapPicker, setShowMapPicker]     = useState(false);
   const [mapPickerType, setMapPickerType]     = useState<'pickup' | 'dropoff'>('pickup');
-  const [pickupCoords, setPickupCoords]       = useState<{ latitude: number; longitude: number }>({ latitude: 0, longitude: 0 });
-  const [dropoffCoords, setDropoffCoords]     = useState<{ latitude: number; longitude: number }>({ latitude: 0, longitude: 0 });
+  const initialPickupLat = parseFloat(params.pickupLat as string) || 0;
+  const initialPickupLng = parseFloat(params.pickupLng as string) || 0;
+  const initialDropoffLat = parseFloat(params.dropoffLat as string) || 0;
+  const initialDropoffLng = parseFloat(params.dropoffLng as string) || 0;
+
+  const [pickupCoords, setPickupCoords]       = useState<{ latitude: number; longitude: number }>({ latitude: initialPickupLat, longitude: initialPickupLng });
+  const [dropoffCoords, setDropoffCoords]     = useState<{ latitude: number; longitude: number }>({ latitude: initialDropoffLat, longitude: initialDropoffLng });
 
   const vehicleName  = (params.vehicleName as string) || 'Hatchback (Small Car)';
   const vehiclePlate = (params.vehiclePlate as string) || 'MH 12 AB 1234';
   const serviceIssue = (params.serviceIssue as string) || 'Breakdown';
   const distanceVal  = parseFloat(params.distance as string) || 8;
 
-  // Auto-detect current GPS location if pickup is empty or placeholder
+  // Auto-detect current GPS location immediately if missing
   useEffect(() => {
     (async () => {
       try {
@@ -54,11 +59,20 @@ export default function ConfirmBookingScreen() {
         setPricingRules(rules);
       } catch (e) {}
 
-      if (!pickupAddr || pickupAddr === '—' || pickupAddr === 'Current Location (GPS)') {
+      if (pickupCoords.latitude === 0 || !pickupAddr || pickupAddr === '—' || pickupAddr === 'Current Location (GPS)') {
         try {
           const { status } = await Location.requestForegroundPermissionsAsync();
           if (status === 'granted') {
-            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            // 1. Instant cached position
+            try {
+              const cached = await Location.getLastKnownPositionAsync();
+              if (cached?.coords) {
+                setPickupCoords({ latitude: cached.coords.latitude, longitude: cached.coords.longitude });
+              }
+            } catch {}
+
+            // 2. High-accuracy real GPS
+            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
             setPickupCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
             try {
               const geocode = await Location.reverseGeocodeAsync({
@@ -76,10 +90,10 @@ export default function ConfirmBookingScreen() {
               setPickupAddr(`GPS Location (${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)})`);
             }
           } else {
-            setPickupAddr('Current Location (GPS)');
+            if (!pickupAddr) setPickupAddr('Current Location (GPS)');
           }
         } catch {
-          setPickupAddr('Current Location (GPS)');
+          if (!pickupAddr) setPickupAddr('Current Location (GPS)');
         }
       }
 
@@ -106,13 +120,38 @@ export default function ConfirmBookingScreen() {
 
   const handleConfirm = async () => {
     try {
+      let finalPickup = { ...pickupCoords };
+      // Guarantee real GPS position: if not yet resolved, resolve right now!
+      if (finalPickup.latitude === 0) {
+        try {
+          const cached = await Location.getLastKnownPositionAsync();
+          if (cached?.coords) {
+            finalPickup = { latitude: cached.coords.latitude, longitude: cached.coords.longitude };
+          } else {
+            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+            finalPickup = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          }
+        } catch (err) {
+          console.warn('[Confirm] GPS resolution before create failed', err);
+        }
+      }
+
+      let finalDropoff = { ...dropoffCoords };
+      if (finalDropoff.latitude === 0 && finalPickup.latitude !== 0) {
+        // Place dropoff realistically in the SAME local area (5-8 km offset)
+        finalDropoff = {
+          latitude: finalPickup.latitude + 0.025,
+          longitude: finalPickup.longitude + 0.025,
+        };
+      }
+
       const user = await fetchCurrentUser();
       const booking = await createNewBooking({
         userId: user?.uuid || user?.id || USER_ID,
         vehicleTypeId: (params.vehicleType as string) || 'hatchback',
         customerVehicle: { make: '—', model: vehicleName, plate: vehiclePlate, color: '—' },
-        pickup: { address: pickupAddr || 'Current Location', coordinates: pickupCoords.latitude !== 0 ? pickupCoords : { latitude: 18.5204, longitude: 73.8567 } },
-        dropoff: { address: dropoffAddr || 'Nearest Workshop', coordinates: dropoffCoords.latitude !== 0 ? dropoffCoords : { latitude: 18.5004, longitude: 73.8167 } },
+        pickup: { address: pickupAddr || 'Current Location', coordinates: finalPickup },
+        dropoff: { address: dropoffAddr || 'Nearest Workshop', coordinates: finalDropoff },
         estimatedPrice: total,
         distance: distanceVal,
         paymentMethod: selectedPayment,
@@ -385,6 +424,7 @@ export default function ConfirmBookingScreen() {
         type={mapPickerType}
         title={mapPickerType === 'pickup' ? 'Select Pickup on Map' : 'Select Drop-off on Map'}
         initialAddress={mapPickerType === 'pickup' ? pickupAddr : dropoffAddr}
+        initialCoordinates={mapPickerType === 'pickup' ? (pickupCoords.latitude !== 0 ? pickupCoords : undefined) : (dropoffCoords.latitude !== 0 ? dropoffCoords : (pickupCoords.latitude !== 0 ? pickupCoords : undefined))}
         onSelectLocation={({ address, coordinates }) => {
           if (mapPickerType === 'pickup') {
             setPickupAddr(address);

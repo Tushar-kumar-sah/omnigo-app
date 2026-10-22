@@ -31,12 +31,12 @@ export default function LiveRouteMap({
   height = 340,
   interactive = true,
 }: LiveRouteMapProps) {
-  const dLat = driverCoords?.latitude || 18.5204;
-  const dLng = driverCoords?.longitude || 73.8567;
-  const pLat = pickupCoords?.latitude || 18.5304;
-  const pLng = pickupCoords?.longitude || 73.8667;
-  const dropLat = dropoffCoords?.latitude || 18.5504;
-  const dropLng = dropoffCoords?.longitude || 73.8967;
+  const pLat = pickupCoords?.latitude || 22.5726;
+  const pLng = pickupCoords?.longitude || 88.3639;
+  const dLat = driverCoords?.latitude || (pLat + 0.015);
+  const dLng = driverCoords?.longitude || (pLng + 0.015);
+  const dropLat = dropoffCoords?.latitude || (pLat + 0.035);
+  const dropLng = dropoffCoords?.longitude || (pLng + 0.035);
 
   const [routeData, setRouteData] = useState<RouteResult | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
@@ -84,6 +84,19 @@ export default function LiveRouteMap({
       isMounted = false;
     };
   }, [dLat, dLng, pLat, pLng]);
+
+  // Dynamically update route line without reloading HTML
+  useEffect(() => {
+    if (routeData?.coordinates && routeData.coordinates.length > 0) {
+      const pts = routeData.coordinates.map(c => [c.latitude, c.longitude]);
+      webViewRef.current?.injectJavaScript(`
+        if (window.updateRoutePolyline) {
+          window.updateRoutePolyline(${JSON.stringify(pts)});
+        }
+        true;
+      `);
+    }
+  }, [routeData]);
 
   const htmlContent = useMemo(() => {
     // Road coordinates array
@@ -251,8 +264,16 @@ export default function LiveRouteMap({
       .bindPopup('<b>DROP-OFF (B)</b><br/>${dropoffAddress.replace(/'/g, "\\'")}');
 
     // Real Google Routes Road Path Polyline
-    L.polyline(roadCoords, { color: '#0077FF', weight: 8, opacity: 0.45, lineCap: 'round', lineJoin: 'round' }).addTo(map);
-    L.polyline(roadCoords, { color: '#00CFFF', weight: 5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+    window.routePolyline = L.polyline(roadCoords, { color: '#00CFFF', weight: 5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+    L.polyline(roadCoords, { color: '#0077FF', weight: 8, opacity: 0.40, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+
+    window.updateRoutePolyline = function(newPoints) {
+      if (window.routePolyline && newPoints && newPoints.length > 0) {
+        window.routePolyline.setLatLngs(newPoints);
+        const newBounds = L.latLngBounds(newPoints);
+        map.fitBounds(newBounds, { padding: [45, 45] });
+      }
+    };
 
     // Fit map bounds
     const bounds = L.latLngBounds(roadCoords);
@@ -279,7 +300,7 @@ export default function LiveRouteMap({
 </body>
 </html>
     `;
-  }, [dLat, dLng, pLat, pLng, dropLat, dropLng, driverName, driverVehicle, driverPlate, pickupAddress, dropoffAddress, speed, routeData]);
+  }, [pLat, pLng, dropLat, dropLng, driverName, driverVehicle, driverPlate, pickupAddress, dropoffAddress]);
 
   return (
     <View style={[styles.container, { height }]}>

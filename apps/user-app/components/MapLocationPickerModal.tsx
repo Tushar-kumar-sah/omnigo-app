@@ -53,7 +53,9 @@ export default function MapLocationPickerModal({
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [searching, setSearching] = useState(false);
   const [coords, setCoords] = useState<{ latitude: number; longitude: number }>(
-    initialCoordinates || { latitude: 18.5204, longitude: 73.8567 }
+    initialCoordinates && initialCoordinates.latitude !== 0
+      ? initialCoordinates
+      : { latitude: 22.5726, longitude: 88.3639 }
   );
   const [zoomLevel, setZoomLevel] = useState(16);
   const [locating, setLocating] = useState(false);
@@ -151,13 +153,23 @@ export default function MapLocationPickerModal({
     }
   }, []);
 
-  // GPS current location
+  // GPS current location (instant cached + accurate live)
   const handleGetCurrentLocation = async () => {
     try {
       setLocating(true);
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        try {
+          const cached = await Location.getLastKnownPositionAsync();
+          if (cached?.coords) {
+            setCoords({ latitude: cached.coords.latitude, longitude: cached.coords.longitude });
+            if (webViewRef.current) {
+              webViewRef.current.injectJavaScript(`if (window.setMapLocation) { window.setMapLocation(${cached.coords.latitude}, ${cached.coords.longitude}, 16); } true;`);
+            }
+          }
+        } catch {}
+
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
         const { latitude, longitude } = loc.coords;
         setCoords({ latitude, longitude });
 
@@ -268,7 +280,7 @@ export default function MapLocationPickerModal({
 </body>
 </html>
     `;
-  }, [coords.latitude, coords.longitude, zoomLevel]);
+  }, []);
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>

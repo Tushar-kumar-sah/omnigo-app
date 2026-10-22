@@ -80,11 +80,40 @@ export default function HomeScreen() {
           const { status } = await Location.requestForegroundPermissionsAsync();
           if (status !== 'granted') return;
 
+          // 1. Instant cached broadcast
+          try {
+            const cached = await Location.getLastKnownPositionAsync();
+            if (cached?.coords && isMounted) {
+              updateDriverLocation(
+                DRIVER_ID,
+                cached.coords.latitude,
+                cached.coords.longitude,
+                cached.coords.heading || 0,
+                cached.coords.speed ? Math.max(0, Math.round(cached.coords.speed * 3.6)) : 0
+              ).catch(console.warn);
+            }
+          } catch (e) {}
+
+          // 2. Immediate high-accuracy GPS fix
+          try {
+            const curr = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+            if (curr?.coords && isMounted) {
+              updateDriverLocation(
+                DRIVER_ID,
+                curr.coords.latitude,
+                curr.coords.longitude,
+                curr.coords.heading || 0,
+                curr.coords.speed ? Math.max(0, Math.round(curr.coords.speed * 3.6)) : 0
+              ).catch(console.warn);
+            }
+          } catch (e) {}
+
+          // 3. Continuous high-frequency GPS tracking stream
           locationSub = await Location.watchPositionAsync(
             {
-              accuracy: Location.Accuracy.Balanced,
-              timeInterval: 5000,
-              distanceInterval: 10,
+              accuracy: Location.Accuracy.High,
+              timeInterval: 3000,
+              distanceInterval: 5,
             },
             (loc) => {
               if (!isMounted) return;

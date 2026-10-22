@@ -29,10 +29,10 @@ export default function DriverNavigationMap({
   isSimulating = false,
   onToggleSimulate,
 }: DriverNavigationMapProps) {
-  const dLat = driverCoords?.latitude || 22.5726;
-  const dLng = driverCoords?.longitude || 88.3639;
   const uLat = userCoords?.latitude || 22.5515;
   const uLng = userCoords?.longitude || 88.3524;
+  const dLat = driverCoords?.latitude || uLat;
+  const dLng = driverCoords?.longitude || uLng;
 
   const [routeData, setRouteData] = useState<RouteResult | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
@@ -65,6 +65,19 @@ export default function DriverNavigationMap({
       isMounted = false;
     };
   }, [uLat, uLng]);
+
+  // Dynamically update road route polyline without reloading HTML
+  useEffect(() => {
+    if (routeData?.coordinates && routeData.coordinates.length > 0) {
+      const pts = routeData.coordinates.map(c => [c.latitude, c.longitude]);
+      webViewRef.current?.injectJavaScript(`
+        if (window.updateRoutePolyline) {
+          window.updateRoutePolyline(${JSON.stringify(pts)});
+        }
+        true;
+      `);
+    }
+  }, [routeData]);
 
   // Smoothly update driver marker position without reloading HTML
   useEffect(() => {
@@ -247,8 +260,16 @@ export default function DriverNavigationMap({
       .bindPopup('<b>${customerName.replace(/'/g, "\\'")}</b><br/>${customerVehicle.replace(/'/g, "\\'")}<br/><span style="color:#00FF97">${pickupAddress.replace(/'/g, "\\'")}</span>');
 
     // Real road route polyline
-    L.polyline(roadCoords, { color: '#0077FF', weight: 9, opacity: 0.45, lineCap: 'round', lineJoin: 'round' }).addTo(map);
-    L.polyline(roadCoords, { color: '#00FF97', weight: 5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+    window.routePolyline = L.polyline(roadCoords, { color: '#00FF97', weight: 5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+    L.polyline(roadCoords, { color: '#0077FF', weight: 9, opacity: 0.40, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+
+    window.updateRoutePolyline = function(newPoints) {
+      if (window.routePolyline && newPoints && newPoints.length > 0) {
+        window.routePolyline.setLatLngs(newPoints);
+        const newBounds = L.latLngBounds(newPoints);
+        map.fitBounds(newBounds, { padding: [120, 50] });
+      }
+    };
 
     // Fit route bounds with padding for HUD cards
     const bounds = L.latLngBounds(roadCoords);
@@ -272,7 +293,7 @@ export default function DriverNavigationMap({
 </body>
 </html>
     `;
-  }, [dLat, dLng, uLat, uLng, customerName, customerVehicle, pickupAddress, routeData]);
+  }, [uLat, uLng, customerName, customerVehicle, pickupAddress]);
 
   return (
     <View style={StyleSheet.absoluteFill}>

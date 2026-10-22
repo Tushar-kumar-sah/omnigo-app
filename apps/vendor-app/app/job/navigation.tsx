@@ -51,8 +51,9 @@ export default function NavigationScreen() {
         longitude: bAny.pickup_location.coordinates[0],
       };
     }
-    return { latitude: 22.5726, longitude: 88.3639 };
-  }, [booking]);
+    // If booking still loading, use driverCoords instead of another state fallback
+    return driverCoords;
+  }, [booking, driverCoords]);
 
   const handleRouteCalculated = (route: any) => {
     if (route?.coordinates && route.coordinates.length > 0) {
@@ -146,7 +147,27 @@ export default function NavigationScreen() {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') return;
 
-        // Immediate initial position
+        // 1. Instant cached position (0ms latency)
+        try {
+          const cached = await Location.getLastKnownPositionAsync();
+          if (cached?.coords && isMounted) {
+            setDriverCoords({
+              latitude: cached.coords.latitude,
+              longitude: cached.coords.longitude,
+            });
+            if (cached.coords.heading != null) setDriverHeading(cached.coords.heading);
+            if (cached.coords.speed != null) setDriverSpeed(Math.max(0, Math.round(cached.coords.speed * 3.6)));
+            updateDriverLocation(
+              DRIVER_ID,
+              cached.coords.latitude,
+              cached.coords.longitude,
+              cached.coords.heading || 0,
+              cached.coords.speed ? Math.max(0, Math.round(cached.coords.speed * 3.6)) : 0
+            ).catch(console.warn);
+          }
+        } catch (e) {}
+
+        // 2. High-accuracy live position lock
         try {
           const initialLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
           if (initialLoc?.coords && isMounted) {
@@ -156,14 +177,21 @@ export default function NavigationScreen() {
             });
             if (initialLoc.coords.heading != null) setDriverHeading(initialLoc.coords.heading);
             if (initialLoc.coords.speed != null) setDriverSpeed(Math.max(0, Math.round(initialLoc.coords.speed * 3.6)));
+            updateDriverLocation(
+              DRIVER_ID,
+              initialLoc.coords.latitude,
+              initialLoc.coords.longitude,
+              initialLoc.coords.heading || 0,
+              initialLoc.coords.speed ? Math.max(0, Math.round(initialLoc.coords.speed * 3.6)) : 0
+            ).catch(console.warn);
           }
         } catch (e) {}
 
         locationSub = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 3000,
-            distanceInterval: 5,
+            timeInterval: 2000,
+            distanceInterval: 3,
           },
           (loc) => {
             if (!isMounted) return;

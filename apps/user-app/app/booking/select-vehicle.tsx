@@ -73,6 +73,8 @@ export default function SelectVehicleScreen() {
   // Location & Service details
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
+  const [pickupCoords, setPickupCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [dropoffCoords, setDropoffCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [distanceKm, setDistanceKm] = useState('8');
   const [issueReason, setIssueReason] = useState('Breakdown');
   const [locatingGps, setLocatingGps] = useState(false);
@@ -96,7 +98,16 @@ export default function SelectVehicleScreen() {
       setLocatingGps(true);
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        // Fast cached location first (instant 0ms response)
+        try {
+          const cached = await Location.getLastKnownPositionAsync();
+          if (cached?.coords) {
+            setPickupCoords({ latitude: cached.coords.latitude, longitude: cached.coords.longitude });
+          }
+        } catch {}
+
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        setPickupCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
         try {
           const geocode = await Location.reverseGeocodeAsync({
             latitude: loc.coords.latitude,
@@ -647,7 +658,11 @@ export default function SelectVehicleScreen() {
                 vehicleName: `${brand} ${model}`.trim() || 'Vehicle',
                 vehiclePlate: licensePlate || 'MH-12-AB-1234',
                 pickup: pickup.trim() || 'Current Location (GPS)',
+                pickupLat: pickupCoords?.latitude ? pickupCoords.latitude.toString() : '',
+                pickupLng: pickupCoords?.longitude ? pickupCoords.longitude.toString() : '',
                 dropoff: dropoff.trim() || 'Nearest Service Center / Workshop',
+                dropoffLat: dropoffCoords?.latitude ? dropoffCoords.latitude.toString() : '',
+                dropoffLng: dropoffCoords?.longitude ? dropoffCoords.longitude.toString() : '',
                 distance: distNum.toString(),
                 baseFare: pricing.baseFare.toString(),
                 distanceFee: distanceFee.toString(),
@@ -695,11 +710,18 @@ export default function SelectVehicleScreen() {
         type={mapPickerType}
         title={mapPickerType === 'pickup' ? 'Select Pickup on Map' : 'Select Drop-off on Map'}
         initialAddress={mapPickerType === 'pickup' ? pickup : dropoff}
+        initialCoordinates={mapPickerType === 'pickup' ? (pickupCoords || undefined) : (dropoffCoords || pickupCoords || undefined)}
         onSelectLocation={({ address, coordinates }) => {
           if (mapPickerType === 'pickup') {
             setPickup(address);
+            if (coordinates && coordinates.latitude !== 0) {
+              setPickupCoords(coordinates);
+            }
           } else {
             setDropoff(address);
+            if (coordinates && coordinates.latitude !== 0) {
+              setDropoffCoords(coordinates);
+            }
           }
         }}
       />

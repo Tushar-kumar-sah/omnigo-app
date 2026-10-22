@@ -195,11 +195,11 @@ export async function createBooking(data: any): Promise<any | null> {
     const pickupAddr = data.pickup_address || data.pickup?.address || 'Current Location (GPS)';
     const dropoffAddr = data.dropoff_address || data.dropoff?.address || 'Nearest Authorized Service Center';
 
-    const pickupLat = data.pickup?.coordinates?.latitude ?? data.pickup_location?.coordinates?.[1] ?? 22.5726;
-    const pickupLng = data.pickup?.coordinates?.longitude ?? data.pickup_location?.coordinates?.[0] ?? 88.3639;
+    const pickupLat = data.pickup?.coordinates?.latitude ?? data.pickup_location?.coordinates?.[1] ?? (data.latitude || 22.5726);
+    const pickupLng = data.pickup?.coordinates?.longitude ?? data.pickup_location?.coordinates?.[0] ?? (data.longitude || 88.3639);
 
-    const dropoffLat = data.dropoff?.coordinates?.latitude ?? data.dropoff_location?.coordinates?.[1] ?? 22.5186;
-    const dropoffLng = data.dropoff?.coordinates?.longitude ?? data.dropoff_location?.coordinates?.[0] ?? 88.3976;
+    const dropoffLat = data.dropoff?.coordinates?.latitude ?? data.dropoff_location?.coordinates?.[1] ?? (data.dropoff_latitude || pickupLat + 0.025);
+    const dropoffLng = data.dropoff?.coordinates?.longitude ?? data.dropoff_location?.coordinates?.[0] ?? (data.dropoff_longitude || pickupLng + 0.025);
 
     const insertPayload: any = {
       user_id: userId,
