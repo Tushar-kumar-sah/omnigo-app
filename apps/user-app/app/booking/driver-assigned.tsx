@@ -35,7 +35,7 @@ export default function DriverAssignedScreen() {
                 <View style={styles.avatar}><Ionicons name="person" size={30} color="#fff" /></View>
                 <View style={styles.details}>
                   <Text style={styles.name}>{driver.name}</Text>
-                  <Text style={styles.rating}><Ionicons name="star" size={14} color="#FFD700" /> {driver.rating}</Text>
+                  <Text style={styles.rating}><Ionicons name="star" size={14} color={driver.hasRatings ? "#FFD700" : "rgba(255,255,255,0.4)"} /> {driver.hasRatings && driver.rating ? `${Number(driver.rating).toFixed(1)} (${driver.reviewCount || 1})` : 'New Partner'}</Text>
                 </View>
                 <View style={styles.etaBox}><Text style={styles.etaLabel}>ETA</Text><Text style={styles.etaValue}>{driver.eta}</Text></View>
               </View>

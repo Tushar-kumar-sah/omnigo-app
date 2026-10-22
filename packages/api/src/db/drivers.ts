@@ -71,7 +71,9 @@ export function mapDbDriverToDriver(dbDriver: any): any {
     phone: dbDriver.phone || '—',
     email: dbDriver.email || '—',
     avatar: dbDriver.avatar,
-    rating: Number(dbDriver.rating || 0),
+    rating: dbDriver.rating != null ? Number(dbDriver.rating) : 0,
+    hasRatings: dbDriver.rating != null && Number(dbDriver.rating) > 0,
+    reviewCount: dbDriver.review_count !== undefined ? Number(dbDriver.review_count) : (dbDriver.rating && Number(dbDriver.rating) > 0 ? 1 : 0),
     totalTrips: dbDriver.total_trips || 0,
     acceptanceRate: `${dbDriver.acceptance_rate || 0}%`,
     onlineHours: dbDriver.online_hours || '0 hrs',
@@ -132,9 +134,98 @@ export async function getDriverById(id: string): Promise<any | null> {
       .maybeSingle();
 
     if (error || !data) return null;
-    return mapDbDriverToDriver(data);
+
+    // Fetch real ratings from completed bookings for this driver
+    const { data: ratedBookings } = await supabase
+      .from('bookings')
+      .select('driver_rating')
+      .eq('driver_id', id)
+      .not('driver_rating', 'is', null);
+
+    const reviewCount = ratedBookings?.length || 0;
+    let avgRating = 0;
+    let hasRatings = false;
+
+    if (reviewCount > 0) {
+      const sum = ratedBookings!.reduce((acc: number, b: any) => acc + Number(b.driver_rating || 0), 0);
+      avgRating = Math.round((sum / reviewCount) * 10) / 10;
+      hasRatings = true;
+    }
+
+    const mapped = mapDbDriverToDriver(data);
+    mapped.rating = hasRatings ? avgRating : 0;
+    mapped.hasRatings = hasRatings;
+    mapped.reviewCount = reviewCount;
+    return mapped;
   } catch (err) {
     return null;
+  }
+}
+
+export async function rateDriverBooking(
+  bookingId: string,
+  rating: number,
+  feedbackNotes?: string
+): Promise<{ success: boolean; averageRating?: number; reviewCount?: number }> {
+  if (!isSupabaseConfigured || !supabase) return { success: false };
+  try {
+    const isUuid = bookingId.includes('-');
+    let query = supabase.from('bookings').select('id, driver_id, status');
+    if (isUuid) {
+      query = query.eq('id', bookingId);
+    } else {
+      query = query.or(`id.eq.${bookingId},booking_number.eq.${bookingId}`);
+    }
+
+    const { data: booking, error: bErr } = await query.maybeSingle();
+    if (bErr || !booking) {
+      console.warn('rateDriverBooking: booking not found', bookingId);
+      return { success: false };
+    }
+
+    // 1. Update booking row with driver_rating
+    const updatePayload: any = {
+      driver_rating: rating,
+      updated_at: new Date().toISOString(),
+    };
+
+    await supabase
+      .from('bookings')
+      .update(updatePayload)
+      .eq('id', booking.id);
+
+    const driverId = booking.driver_id;
+    if (!driverId) {
+      return { success: true, averageRating: rating, reviewCount: 1 };
+    }
+
+    // 2. Fetch all ratings for this driver to compute real mathematical average
+    const { data: allRatings } = await supabase
+      .from('bookings')
+      .select('driver_rating')
+      .eq('driver_id', driverId)
+      .not('driver_rating', 'is', null);
+
+    const reviewCount = allRatings?.length || 1;
+    const sum = (allRatings || [{ driver_rating: rating }]).reduce(
+      (acc: number, r: any) => acc + Number(r.driver_rating || 0),
+      0
+    );
+    const avg = Math.round((sum / reviewCount) * 10) / 10;
+
+    // 3. Update driver row in Supabase with new real average
+    await supabase
+      .from('drivers')
+      .update({
+        rating: avg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', driverId);
+
+    return { success: true, averageRating: avg, reviewCount };
+  } catch (err) {
+    console.warn('rateDriverBooking error:', err);
+    return { success: false };
   }
 }
 
@@ -170,8 +261,8 @@ export async function updateDriverLocation(id: string, lat: number, lng: number,
         id,
         name: 'OmniGo Partner (Live Driver)',
         phone: '+91' + id.replace(/-/g, '').slice(0, 10),
-        rating: 4.9,
-        total_trips: 45,
+        rating: null,
+        total_trips: 0,
         is_online: true,
         is_verified: true,
         kyc_status: 'verified',
@@ -226,8 +317,8 @@ export async function toggleDriverOnline(id: string, isOnline: boolean): Promise
         id,
         name: 'OmniGo Partner (Live Driver)',
         phone: '+91' + id.replace(/-/g, '').slice(0, 10),
-        rating: 4.9,
-        total_trips: 45,
+        rating: null,
+        total_trips: 0,
         is_online: isOnline,
         is_verified: true,
         kyc_status: 'verified',
@@ -290,7 +381,7 @@ export async function createDriver(data: any): Promise<any | null> {
       phone: data.phone || fallbackPhone,
       email: data.email || null,
       avatar: data.avatar || null,
-      rating: data.rating || 5.0,
+      rating: data.rating !== undefined ? data.rating : null,
       total_trips: data.totalTrips || 0,
       acceptance_rate: 100,
       cancellation_rate: 0,

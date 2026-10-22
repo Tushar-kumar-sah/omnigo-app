@@ -101,7 +101,7 @@ export async function signInWithGoogleDriver(customProfile?: {
       isVerified: false,
       kycStatus: 'pending_review',
       vehicleType: 'flatbed',
-      rating: 5.0,
+      rating: null,
       totalTrips: 0,
     });
 
@@ -228,7 +228,7 @@ export async function verifyDriverPhoneOtp(params: {
       isVerified: false,
       kycStatus: 'pending_review',
       vehicleType: 'flatbed',
-      rating: 5.0,
+      rating: null,
       totalTrips: 0,
     });
 
@@ -412,7 +412,7 @@ export async function registerDriverWithCredentials(params: {
       isVerified: false,
       kycStatus: 'pending_review',
       vehicleType: 'flatbed',
-      rating: 5.0,
+      rating: null,
       totalTrips: 0,
     });
 

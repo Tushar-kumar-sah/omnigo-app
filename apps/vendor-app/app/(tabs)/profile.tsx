@@ -52,8 +52,12 @@ export default function ProfileScreen() {
         <Text style={styles.name}>{displayDriver.name || displayDriver.user?.name}</Text>
         <Text style={styles.phone}>{displayDriver.phone || displayDriver.user?.phone} · ID: {displayDriver.id}</Text>
         <View style={styles.ratingBadge}>
-          <Ionicons name="star" size={16} color="#FFD700" />
-          <Text style={styles.ratingText}>{displayDriver.rating || displayDriver.performance?.rating || 0} Rating</Text>
+          <Ionicons name="star" size={16} color={displayDriver.hasRatings ? "#FFD700" : "rgba(255,255,255,0.4)"} />
+          <Text style={styles.ratingText}>
+            {displayDriver.hasRatings && displayDriver.rating
+              ? `${Number(displayDriver.rating).toFixed(1)} Rating (${displayDriver.reviewCount || 1} ${displayDriver.reviewCount === 1 ? 'review' : 'reviews'})`
+              : 'New Partner · No ratings yet'}
+          </Text>
         </View>
         
         {/* Performance & Operations Metrics */}

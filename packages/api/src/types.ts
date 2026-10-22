@@ -23,6 +23,8 @@ export interface Driver {
   email: string;
   avatar: string;
   rating: number;
+  hasRatings?: boolean;
+  reviewCount?: number;
   totalTrips: number;
   isOnline: boolean;
   isVerified: boolean;

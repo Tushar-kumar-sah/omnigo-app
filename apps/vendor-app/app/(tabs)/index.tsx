@@ -156,7 +156,7 @@ export default function HomeScreen() {
           setIncomingJob({
             id: job.id,
             customerName: job.customer_vehicle?.model ? `Customer (${job.customer_vehicle.model})` : (job.users?.name || 'Customer'),
-            customerRating: '4.9',
+            customerRating: job.users?.rating ? Number(job.users.rating).toFixed(1) : (job.customer_rating ? Number(job.customer_rating).toFixed(1) : '5.0'),
             vehicleModel: job.customer_vehicle?.model || job.vehicle_type_id || 'Vehicle',
             vehicleColor: job.customer_vehicle?.color || 'White',
             issue: job.service_type || 'Towing Assistance',
@@ -387,9 +387,9 @@ export default function HomeScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
-              <Ionicons name="star" size={22} color="#FFD60A" />
-              <Text style={styles.statValue}>{driver?.rating || 0}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
+              <Ionicons name="star" size={22} color={driver?.hasRatings ? "#FFD60A" : "rgba(255,255,255,0.35)"} />
+              <Text style={styles.statValue}>{driver?.hasRatings && driver?.rating ? `${Number(driver.rating).toFixed(1)}` : 'New'}</Text>
+              <Text style={styles.statLabel}>{driver?.hasRatings ? `${driver.reviewCount || 1} ${driver.reviewCount === 1 ? 'Review' : 'Reviews'}` : 'No reviews'}</Text>
             </View>
           </View>
         </BlurView>

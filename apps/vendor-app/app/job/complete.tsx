@@ -32,7 +32,6 @@ export default function CompleteScreen() {
   const handleSubmit = async () => {
     try {
       await updateBookingStatus(jobId, 'completed', {
-        driverRating: rating,
         notes: notes
       });
       router.replace('/(tabs)');

@@ -32,7 +32,7 @@ const mapToUIRide = (b: any) => {
       (typeof b.dropoff_location === 'object' && b.dropoff_location ? b.dropoff_location?.address : null) ||
       'Unknown Location',
     driver: b.driver || (b.driver_id ? 'Driver Assigned' : 'Unassigned'),
-    driverRating: b.driver?.rating ? b.driver.rating.toString() : '—',
+    driverRating: (b.driverRating || b.driver_rating) ? Number(b.driverRating || b.driver_rating).toFixed(1) : (b.driver?.rating ? Number(b.driver.rating).toFixed(1) : null),
     driverPlate: b.vehiclePlate || '—',
     distance: b.distanceKm ? b.distanceKm + ' km' : (b.distance ? b.distance + ' km' : '—'),
     duration: b.durationMin ? b.durationMin + ' min' : (b.estimatedETA ? b.estimatedETA + ' min' : '—'),
@@ -180,7 +180,7 @@ export default function WalletScreen() {
                   <Text style={modal.sectionTitle}>SERVICE DETAILS</Text>
                   <View style={modal.row}>
                     <Text style={modal.label}>Driver Name</Text>
-                    <Text style={modal.value}>{selectedRide.driver} ({selectedRide.driverRating} ★)</Text>
+                    <Text style={modal.value}>{selectedRide.driver} {selectedRide.driverRating ? `(${selectedRide.driverRating} ★)` : '(Unrated)'}</Text>
                   </View>
                   <View style={modal.row}>
                     <Text style={modal.label}>Vehicle</Text>

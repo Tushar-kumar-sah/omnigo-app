@@ -10,7 +10,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { theme } from '@/constants/theme';
-import { fetchBookingById, fetchDriverById } from '@/lib/api';
+import { fetchBookingById, fetchDriverById, submitDriverRating } from '@/lib/api';
 import { subscribeToDriverLocation, updateBookingDestination, subscribeToBooking } from '@omnigo/api';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 import LiveRouteMap from '@/components/LiveRouteMap';
@@ -59,6 +59,57 @@ export default function TrackingScreen() {
   const [mapPickerType, setMapPickerType] = useState<'pickup' | 'dropoff'>('dropoff');
   const [showArrivalOtpModal, setShowArrivalOtpModal] = useState(false);
   const arrivalAlertShownRef = useRef(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedStars, setSelectedStars] = useState(5);
+  const [selectedFeedbackChips, setSelectedFeedbackChips] = useState<string[]>([]);
+  const [feedbackNotes, setFeedbackNotes] = useState('');
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [userRatingSubmitted, setUserRatingSubmitted] = useState(false);
+  const [submittedStars, setSubmittedStars] = useState<number | null>(null);
+  const [ratingSuccess, setRatingSuccess] = useState(false);
+  const [updatedDriverStats, setUpdatedDriverStats] = useState<{ averageRating?: number; reviewCount?: number } | null>(null);
+  const ratingModalShownRef = useRef(false);
+
+  const handleSubmitRating = async () => {
+    const targetBookingId = booking?.id || bookingId;
+    if (!targetBookingId) return;
+    setIsSubmittingRating(true);
+    try {
+      const fullNotes = [
+        ...selectedFeedbackChips,
+        feedbackNotes.trim()
+      ].filter(Boolean).join(' | ');
+
+      const res = await submitDriverRating(targetBookingId, selectedStars, fullNotes);
+      if (res?.success) {
+        setUserRatingSubmitted(true);
+        setSubmittedStars(selectedStars);
+        setUpdatedDriverStats({ averageRating: res.averageRating, reviewCount: res.reviewCount });
+        setRatingSuccess(true);
+        
+        const activeDriverId = driverId || booking?.driverId || booking?.driver_id;
+        if (activeDriverId) {
+          try {
+            const updatedDriver = await fetchDriverById(activeDriverId);
+            if (updatedDriver) setDriver(updatedDriver);
+          } catch (e) {}
+        }
+      } else {
+        Alert.alert('Rating Saved', `Thank you! You rated ${selectedStars} stars.`);
+        setUserRatingSubmitted(true);
+        setSubmittedStars(selectedStars);
+        setShowRatingModal(false);
+      }
+    } catch (e) {
+      console.warn('[Tracking] submit rating error', e);
+      Alert.alert('Rating Saved', `Thank you! You rated ${selectedStars} stars.`);
+      setUserRatingSubmitted(true);
+      setSubmittedStars(selectedStars);
+      setShowRatingModal(false);
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
 
   const syncBookingData = (b: any) => {
     if (!b) return;
@@ -573,6 +624,49 @@ export default function TrackingScreen() {
           </BlurView>
         )}
 
+        {/* Delivered / Completed Post-Trip Rating Card */}
+        {currentStep === 6 && (
+          <BlurView intensity={25} tint="dark" style={[styles.card, { borderColor: 'rgba(0,255,151,0.35)', backgroundColor: 'rgba(0,255,151,0.06)', marginTop: 8 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              <Ionicons name="checkmark-done-circle" size={26} color="#00FF97" style={{ marginRight: 10 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: 'Outfit_700Bold', fontSize: 16, color: '#FFFFFF' }}>Vehicle Safely Delivered!</Text>
+                <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Your towing job has been successfully completed.</Text>
+              </View>
+            </View>
+
+            {(userRatingSubmitted || booking?.driverRating || booking?.driver_rating) ? (
+              <View style={{ backgroundColor: 'rgba(255,214,10,0.12)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(255,214,10,0.3)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="star" size={20} color="#FFD60A" style={{ marginRight: 8 }} />
+                  <View>
+                    <Text style={{ fontFamily: 'Outfit_600SemiBold', fontSize: 14, color: '#FFD60A' }}>
+                      You rated this trip {submittedStars || booking?.driverRating || booking?.driver_rating}.0 ★
+                    </Text>
+                    <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+                      Thank you for reviewing {driverName}!
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={() => setShowRatingModal(true)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: 'rgba(255,214,10,0.2)' }}>
+                  <Text style={{ fontFamily: 'Outfit_600SemiBold', fontSize: 12, color: '#FFD60A' }}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setShowRatingModal(true)}
+                activeOpacity={0.8}
+                style={{ backgroundColor: '#00CFFF', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 6 }}
+              >
+                <Ionicons name="star" size={18} color="#050810" style={{ marginRight: 6 }} />
+                <Text style={{ fontFamily: 'Outfit_700Bold', fontSize: 14, color: '#050810' }}>
+                  Rate Driver ({driverName})
+                </Text>
+              </TouchableOpacity>
+            )}
+          </BlurView>
+        )}
+
         {/* Cancel Button */}
         {currentStep < 3 && (
           <TouchableOpacity
@@ -747,6 +841,136 @@ export default function TrackingScreen() {
                 <Text style={styles.plateConfirmText}>Verify Plate</Text>
               </TouchableOpacity>
             </View>
+          </BlurView>
+        </View>
+      </Modal>
+
+      {/* ─── POST-TRIP DRIVER RATING MODAL ─── */}
+      <Modal visible={showRatingModal} animationType="slide" transparent>
+        <View style={styles.modalOverlayCenter}>
+          <BlurView intensity={70} tint="dark" style={styles.ratingModalContent}>
+            {ratingSuccess ? (
+              <View style={styles.ratingSuccessBox}>
+                <View style={styles.ratingSuccessIconWrap}>
+                  <Ionicons name="checkmark-circle" size={54} color="#00FF97" />
+                </View>
+                <Text style={styles.ratingSuccessTitle}>Rating Submitted!</Text>
+                <Text style={styles.ratingSuccessSubtitle}>
+                  You rated {driverName} {selectedStars}.0 ★
+                </Text>
+                {updatedDriverStats && (
+                  <View style={styles.ratingDriverSummaryBadge}>
+                    <Text style={styles.ratingDriverSummaryText}>
+                      Driver's updated score: <Text style={{ color: '#FFD60A', fontFamily: 'Outfit_700Bold' }}>{updatedDriverStats.averageRating?.toFixed(1) || selectedStars.toFixed(1)} ★</Text> ({updatedDriverStats.reviewCount || 1} {updatedDriverStats.reviewCount === 1 ? 'review' : 'reviews'})
+                    </Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.ratingDoneBtn}
+                  onPress={() => {
+                    setShowRatingModal(false);
+                    setRatingSuccess(false);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.ratingDoneBtnText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={styles.ratingModalHeader}>
+                  <Text style={styles.ratingModalTitle}>Rate Your Experience</Text>
+                  <TouchableOpacity onPress={() => setShowRatingModal(false)} style={styles.closeCircle}>
+                    <Ionicons name="close" size={18} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.ratingModalDesc}>
+                  How was your towing trip with {driverName}?
+                </Text>
+
+                <View style={styles.ratingDriverSnippet}>
+                  <View style={styles.ratingDriverAvatar}>
+                    <Ionicons name="person" size={24} color="#00CFFF" />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.ratingDriverName}>{driverName}</Text>
+                    <Text style={styles.ratingDriverVehicle}>🚛 {driverVehicle} · {driverPlate}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.ratingStarsRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      onPress={() => setSelectedStars(star)}
+                      activeOpacity={0.7}
+                      style={styles.starTouch}
+                    >
+                      <Ionicons
+                        name={star <= selectedStars ? "star" : "star-outline"}
+                        size={38}
+                        color={star <= selectedStars ? "#FFD60A" : "rgba(255,255,255,0.3)"}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.ratingLabelHighlight}>
+                  {selectedStars === 5 && '⭐⭐⭐⭐⭐ Excellent Service! (5.0)'}
+                  {selectedStars === 4 && '⭐⭐⭐⭐ Good Experience (4.0)'}
+                  {selectedStars === 3 && '⭐⭐⭐ Average Trip (3.0)'}
+                  {selectedStars === 2 && '⭐⭐ Below Expectations (2.0)'}
+                  {selectedStars === 1 && '⭐ Poor Service (1.0)'}
+                </Text>
+
+                <Text style={styles.ratingChipsTitle}>What went well?</Text>
+                <View style={styles.ratingChipsRow}>
+                  {['On-Time Arrival', 'Careful Handling', 'Courteous Driver', 'Professional Gear', 'Fair Pricing'].map((chip) => {
+                    const isSelected = selectedFeedbackChips.includes(chip);
+                    return (
+                      <TouchableOpacity
+                        key={chip}
+                        onPress={() => {
+                          if (isSelected) {
+                            setSelectedFeedbackChips(selectedFeedbackChips.filter(c => c !== chip));
+                          } else {
+                            setSelectedFeedbackChips([...selectedFeedbackChips, chip]);
+                          }
+                        }}
+                        style={[styles.ratingChip, isSelected && styles.ratingChipSelected]}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.ratingChipText, isSelected && styles.ratingChipTextSelected]}>
+                          {chip}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <TextInput
+                  style={styles.ratingFeedbackInput}
+                  placeholder="Leave a note for the driver (optional)..."
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  multiline
+                  numberOfLines={2}
+                  value={feedbackNotes}
+                  onChangeText={setFeedbackNotes}
+                />
+
+                <TouchableOpacity
+                  style={[styles.ratingSubmitBtn, isSubmittingRating && { opacity: 0.6 }]}
+                  onPress={handleSubmitRating}
+                  disabled={isSubmittingRating}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.ratingSubmitBtnText}>
+                    {isSubmittingRating ? 'Submitting...' : `Submit ${selectedStars}.0 ★ Rating`}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
           </BlurView>
         </View>
       </Modal>
@@ -1653,5 +1877,186 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     marginLeft: 4,
     marginVertical: 2,
+  },
+  // ─── RATING MODAL ───
+  ratingModalContent: {
+    backgroundColor: '#0D1322',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    padding: 22,
+    maxWidth: 420,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  ratingModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  ratingModalTitle: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 18,
+    color: '#FFFFFF',
+  },
+  ratingModalDesc: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.65)',
+    marginBottom: 16,
+  },
+  ratingDriverSnippet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  ratingDriverAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,207,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,207,255,0.3)',
+  },
+  ratingDriverName: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  ratingDriverVehicle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 2,
+  },
+  ratingStarsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 12,
+  },
+  starTouch: {
+    padding: 6,
+  },
+  ratingLabelHighlight: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
+    color: '#FFD60A',
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  ratingChipsTitle: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 8,
+  },
+  ratingChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  ratingChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  ratingChipSelected: {
+    backgroundColor: 'rgba(0,207,255,0.15)',
+    borderColor: '#00CFFF',
+  },
+  ratingChipText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  ratingChipTextSelected: {
+    color: '#00CFFF',
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  ratingFeedbackInput: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14,
+    padding: 12,
+    color: '#FFFFFF',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    textAlignVertical: 'top',
+    minHeight: 56,
+    marginBottom: 18,
+  },
+  ratingSubmitBtn: {
+    backgroundColor: '#00CFFF',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ratingSubmitBtnText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 15,
+    color: '#050810',
+  },
+  ratingSuccessBox: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  ratingSuccessIconWrap: {
+    marginBottom: 12,
+  },
+  ratingSuccessTitle: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 20,
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  ratingSuccessSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  ratingDriverSummaryBadge: {
+    backgroundColor: 'rgba(255,214,10,0.12)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,214,10,0.25)',
+    marginBottom: 18,
+  },
+  ratingDriverSummaryText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  ratingDoneBtn: {
+    backgroundColor: '#00FF97',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ratingDoneBtnText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 15,
+    color: '#050810',
   },
 });

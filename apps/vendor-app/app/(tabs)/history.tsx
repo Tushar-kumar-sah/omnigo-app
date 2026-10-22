@@ -39,7 +39,7 @@ export default function HistoryScreen() {
     distanceFare: `₹${Math.round((job.estimatedPrice || 0) * 0.2)}`,
     tip: '—',
     platformFee: '—',
-    rating: job.driverRating || 0,
+    rating: job.driverRating ? Number(job.driverRating) : 0,
     distance: job.distance ? job.distance + ' km' : '—',
     duration: job.estimatedETA ? job.estimatedETA + ' mins' : '—',
     status: job.status === 'completed' ? 'completed' : (job.status === 'cancelled' ? 'cancelled' : 'completed')
@@ -134,7 +134,7 @@ export default function HistoryScreen() {
                 )}
                 
                 <View style={styles.jobFooter}>
-                  <Text style={styles.ratingText}>⭐ {job.rating}.0</Text>
+                  <Text style={[styles.ratingText, !job.rating && { color: 'rgba(255,255,255,0.4)' }]}>{job.rating > 0 ? `⭐ ${Number(job.rating).toFixed(1)}` : '⭐ Unrated'}</Text>
                   <Text style={styles.distanceText}>{job.distance} • {job.duration}</Text>
                 </View>
               </BlurView>

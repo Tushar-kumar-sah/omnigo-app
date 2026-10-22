@@ -21,6 +21,7 @@ import {
   deleteNotification as apiDeleteNotification,
   createSOSIncident,
   getVehicleTypes,
+  rateDriverBooking,
 } from '@omnigo/api';
 
 // Default Google profile photo when signed in via Google SSO
@@ -792,6 +793,19 @@ export async function fetchDriverById(id: string): Promise<any> {
   } catch (e) {
     console.warn('[api] fetchDriverById failed', e);
     return null;
+  }
+}
+
+export async function submitDriverRating(
+  bookingId: string,
+  rating: number,
+  notes?: string
+): Promise<{ success: boolean; averageRating?: number; reviewCount?: number }> {
+  try {
+    return await rateDriverBooking(bookingId, rating, notes);
+  } catch (e) {
+    console.warn('[api] submitDriverRating failed', e);
+    return { success: false };
   }
 }
 
