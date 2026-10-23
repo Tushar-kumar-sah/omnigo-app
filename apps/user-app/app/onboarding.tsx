@@ -6,8 +6,9 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
-  Dimensions,
+  useWindowDimensions,
   Animated,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -15,22 +16,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
 
-const { width, height } = Dimensions.get('window');
-
 const SLIDES = [
   {
     id: '1',
     image: require('../assets/onboarding_1.jpg'),
-    icon: 'flash-outline',
+    icon: 'flash',
+    accentColor: '#00FF97',
+    badgeText: 'SECURE RESCUE',
+    badgeIcon: 'shield-checkmark',
     title: 'Intelligent Rescue System',
     description:
-      'Experience next-gen roadside assistance powered by AI. Our system detects breakdowns in real-time and dispatches the nearest rescue vehicle within seconds — ensuring you\'re never stranded.',
+      "Experience next-gen roadside assistance powered by AI. Our system detects breakdowns in real-time and dispatches the nearest rescue vehicle within seconds — ensuring you're never stranded.",
     buttonText: 'Next',
   },
   {
     id: '2',
     image: require('../assets/onboarding_2.jpg'),
-    icon: 'hardware-chip-outline',
+    icon: 'hardware-chip',
+    accentColor: '#00CFFF',
+    badgeText: 'OMNI-AI',
+    badgeIcon: 'hardware-chip-outline',
     title: 'AI Engine Diagnostic',
     description:
       'Meet OMNI-AI — your smart mobility assistant. Get instant diagnostic reports, maintenance alerts, and smart recommendations powered by advanced artificial intelligence.',
@@ -39,7 +44,10 @@ const SLIDES = [
   {
     id: '3',
     image: require('../assets/onboarding_3.jpg'),
-    icon: 'navigate-outline',
+    icon: 'navigate',
+    accentColor: '#00FF97',
+    badgeText: 'LIVE GPS',
+    badgeIcon: 'navigate-circle-outline',
     title: 'Realtime GPS LIVE Tracking',
     description:
       'Track your rescue vehicle in real-time with precision GPS. See exact arrival times, live route updates, and communicate directly with your driver — complete transparency at every step.',
@@ -50,26 +58,28 @@ const SLIDES = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
 
-  // Glow pulse for AI assistant
-  const glowAnim = useRef(new Animated.Value(0.5)).current;
+  // Glow pulse animation for AI assistant
+  const glowAnim = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
-    // Glow pulse loop
     Animated.loop(
       Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
-        Animated.timing(glowAnim, { toValue: 0.5, duration: 1200, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 0.9, duration: 1200, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 0.4, duration: 1200, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [glowAnim]);
 
   const handleNext = () => {
     if (currentIndex < SLIDES.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
+      const nextIndex = currentIndex + 1;
+      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+      setCurrentIndex(nextIndex);
     } else {
       handleFinish();
     }
@@ -79,13 +89,17 @@ export default function OnboardingScreen() {
     router.replace('/(auth)/register');
   };
 
+  // Responsive hero card size (never collapses or overflows on any screen size)
+  const cardWidth = Math.min(width - 48, 350);
+  const cardHeight = Math.round(Math.min(Math.max(height * 0.35, 240), 300));
+
   return (
     <View style={styles.container}>
       {/* Background Gradient */}
       <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
 
       {/* Top Header Bar */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 40) }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 38) }]}>
         <TouchableOpacity style={styles.skipBtn} onPress={handleFinish} activeOpacity={0.7}>
           <Text style={styles.skipText}>SKIP</Text>
         </TouchableOpacity>
@@ -99,78 +113,102 @@ export default function OnboardingScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        style={styles.flatList}
+        contentContainerStyle={styles.flatListContent}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
           useNativeDriver: false,
         })}
         onMomentumScrollEnd={(e) => {
           const index = Math.round(e.nativeEvent.contentOffset.x / width);
-          setCurrentIndex(index);
+          if (index >= 0 && index < SLIDES.length) {
+            setCurrentIndex(index);
+          }
         }}
+        getItemLayout={(_, index) => ({
+          length: width,
+          offset: width * index,
+          index,
+        })}
         renderItem={({ item, index }) => (
-          <View style={styles.slideWidthContainer}>
+          <View style={[styles.slideWidthContainer, { width }]}>
             <View style={styles.slideContent}>
               {/* Hero Graphic Card */}
-              {index === 0 ? (
-                // ── Slide 1: Intelligent Rescue System Image ──
-                <View style={[styles.heroCardContainer, styles.rescueCardBorder]}>
-                  <Image source={item.image} style={styles.heroImage} resizeMode="cover" />
-                  <LinearGradient
-                    colors={['transparent', 'rgba(5, 8, 16, 0.75)', '#050810']}
-                    style={styles.heroOverlay}
-                  />
-                  {/* Glowing rescue badge */}
-                  <View style={styles.rescueBadge}>
-                    <Ionicons name="shield-checkmark" size={11} color="#00FF97" />
-                    <Text style={styles.rescueBadgeText}>SECURE RESCUE</Text>
-                  </View>
+              <View
+                style={[
+                  styles.heroCardContainer,
+                  {
+                    width: cardWidth,
+                    height: cardHeight,
+                    borderColor:
+                      item.accentColor === '#00CFFF'
+                        ? 'rgba(0, 207, 255, 0.45)'
+                        : 'rgba(0, 255, 151, 0.4)',
+                  },
+                  Platform.OS === 'ios' && {
+                    shadowColor: item.accentColor,
+                    shadowOpacity: 0.45,
+                    shadowRadius: 18,
+                  },
+                ]}
+              >
+                {/* Glow ring behind mascot on slide 2 */}
+                {index === 1 && (
+                  <Animated.View style={[styles.omniGlow, { opacity: glowAnim }]} />
+                )}
+
+                <Image
+                  source={item.image}
+                  style={styles.heroImage}
+                  resizeMode="cover"
+                />
+
+                {/* Subtle dark gradient overlay at the bottom */}
+                <LinearGradient
+                  colors={['transparent', 'rgba(5, 8, 16, 0.35)', 'rgba(5, 8, 16, 0.85)']}
+                  style={styles.heroOverlay}
+                />
+
+                {/* Floating pill badge on top-right */}
+                <View
+                  style={[
+                    styles.floatingBadge,
+                    {
+                      borderColor:
+                        item.accentColor === '#00CFFF'
+                          ? 'rgba(0, 207, 255, 0.4)'
+                          : 'rgba(0, 255, 151, 0.4)',
+                    },
+                  ]}
+                >
+                  <Ionicons name={item.badgeIcon as any} size={12} color={item.accentColor} />
+                  <Text style={[styles.floatingBadgeText, { color: item.accentColor }]}>
+                    {item.badgeText}
+                  </Text>
                 </View>
-              ) : index === 1 ? (
-                // ── Slide 2: OMNI AI Assistant ──
-                <View style={[styles.heroCardContainer, styles.omniCardBorder]}>
-                  <View style={styles.omniBg}>
-                    {/* Subtle neon glow behind character */}
-                    <Animated.View style={[styles.omniGlow, { opacity: glowAnim }]} />
-                    <Image
-                      source={item.image}
-                      style={styles.omniImage}
-                      resizeMode="cover"
-                    />
-                    {/* Overlay sheen */}
-                    <LinearGradient
-                      colors={['transparent', 'rgba(5,8,16,0.7)', '#050810']}
-                      style={styles.heroOverlay}
-                    />
-                  </View>
-                  {/* OMNI AI badge */}
-                  <View style={styles.omniBadge}>
-                    <Ionicons name="hardware-chip-outline" size={11} color="#00CFFF" />
-                    <Text style={styles.omniBadgeText}>OMNI-AI</Text>
-                  </View>
-                </View>
-              ) : (
-                // ── Slide 3: Static GPS Tracking Image with Pickup, Drop-off & Tow Truck ──
-                <View style={[styles.heroCardContainer, styles.gpsCardBorder]}>
-                  <Image source={item.image} style={styles.heroImage} resizeMode="cover" />
-                  <LinearGradient
-                    colors={['transparent', 'rgba(5, 8, 16, 0.5)', '#050810']}
-                    style={styles.heroOverlay}
-                  />
-                  {/* Live GPS badge */}
-                  <View style={styles.gpsBadge}>
-                    <Ionicons name="navigate-circle-outline" size={12} color="#00FF97" />
-                    <Text style={styles.gpsBadgeText}>LIVE GPS</Text>
-                  </View>
-                </View>
-              )}
+              </View>
 
               {/* Center Icon Badge */}
-              <View style={styles.iconBadge}>
-                <Ionicons name={item.icon as any} size={22} color="#00FF97" />
+              <View
+                style={[
+                  styles.iconBadge,
+                  {
+                    borderColor:
+                      item.accentColor === '#00CFFF'
+                        ? 'rgba(0, 207, 255, 0.35)'
+                        : 'rgba(0, 255, 151, 0.35)',
+                    backgroundColor:
+                      item.accentColor === '#00CFFF'
+                        ? 'rgba(0, 207, 255, 0.12)'
+                        : 'rgba(0, 255, 151, 0.12)',
+                  },
+                ]}
+              >
+                <Ionicons name={item.icon as any} size={22} color={item.accentColor} />
               </View>
 
               {/* Title & Description Text */}
               <View style={styles.textWrapper}>
-                <Text style={styles.title}>{item.title}</Text>
+                <Text style={[styles.title, { color: item.accentColor }]}>{item.title}</Text>
                 <Text style={styles.description}>{item.description}</Text>
               </View>
             </View>
@@ -179,19 +217,29 @@ export default function OnboardingScreen() {
       />
 
       {/* Bottom Navigation Control Bar */}
-      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom + 20, 30) }]}>
-        {/* Pagination Dots */}
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom + 18, 26) }]}>
+        {/* Interactive Pagination Dots */}
         <View style={styles.paginationContainer}>
-          {SLIDES.map((_, index) => {
+          {SLIDES.map((slide, index) => {
             const isActive = index === currentIndex;
             return (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  isActive ? styles.dotActive : styles.dotInactive,
-                ]}
-              />
+              <TouchableOpacity
+                key={slide.id}
+                onPress={() => {
+                  flatListRef.current?.scrollToIndex({ index, animated: true });
+                  setCurrentIndex(index);
+                }}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.dot,
+                    isActive ? styles.dotActive : styles.dotInactive,
+                    isActive && { backgroundColor: SLIDES[currentIndex].accentColor },
+                  ]}
+                />
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -199,13 +247,17 @@ export default function OnboardingScreen() {
         {/* Next / Get Started Button */}
         <TouchableOpacity style={styles.nextBtnTouch} onPress={handleNext} activeOpacity={0.85}>
           <LinearGradient
-            colors={['#00FF97', '#00CC7A']}
+            colors={
+              currentIndex === 1
+                ? ['#00CFFF', '#0099CC']
+                : ['#00FF97', '#00CC7A']
+            }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.nextBtn}
           >
             <Text style={styles.nextBtnText}>{SLIDES[currentIndex].buttonText}</Text>
-            <Ionicons name="chevron-forward" size={18} color="#000" style={{ marginLeft: 4 }} />
+            <Ionicons name="chevron-forward" size={18} color="#000000" style={{ marginLeft: 4 }} />
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -234,141 +286,47 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     letterSpacing: 1.5,
   },
-  slideWidthContainer: {
-    width: width,
+  flatList: {
+    flex: 1,
+  },
+  flatListContent: {
     alignItems: 'center',
   },
-  slideContent: {
+  slideWidthContainer: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 24,
     justifyContent: 'center',
   },
+  slideContent: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
   heroCardContainer: {
-    width: width * 0.85,
-    height: height * 0.38,
     borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 207, 255, 0.25)',
+    borderWidth: 1.5,
     marginBottom: 20,
     position: 'relative',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  // Intelligent Rescue System styles
-  rescueCardBorder: {
-    borderColor: 'rgba(0,255,151,0.3)',
-    shadowColor: '#00FF97',
-    shadowOpacity: 0.45,
-    shadowRadius: 20,
-  },
-  rescueBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,255,151,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,255,151,0.3)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  rescueBadgeText: {
-    fontFamily: 'Outfit_700Bold',
-    fontSize: 10,
-    color: '#00FF97',
-    letterSpacing: 1,
+    backgroundColor: '#08101E',
+    flexShrink: 0,
+    elevation: Platform.OS === 'android' ? 0 : 8,
   },
   heroImage: {
     width: '100%',
     height: '100%',
   },
-  // OMNI AI character styles
-  omniCardBorder: {
-    borderColor: 'rgba(0,207,255,0.35)',
-    shadowColor: '#00CFFF',
-    shadowOpacity: 0.5,
-    shadowRadius: 22,
-  },
-  omniBg: {
-    flex: 1,
-    backgroundColor: '#040d1a',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
   omniGlow: {
     position: 'absolute',
-    width: 200,
-    height: 200,
+    top: '20%',
+    left: '20%',
+    width: '60%',
+    height: '60%',
     borderRadius: 100,
-    backgroundColor: 'rgba(0,207,255,0.08)',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 60,
-    elevation: 0,
+    backgroundColor: 'rgba(0, 207, 255, 0.25)',
+    zIndex: 1,
   },
-  omniImage: {
-    width: '100%',
-    height: '100%',
-  },
-  omniBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,207,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,207,255,0.35)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  omniBadgeText: {
-    fontFamily: 'Outfit_700Bold',
-    fontSize: 10,
-    color: '#00CFFF',
-    letterSpacing: 1,
-  },
-
-  // GPS Slide styles
-  gpsCardBorder: {
-    borderColor: 'rgba(0,255,151,0.35)',
-    shadowColor: '#00FF97',
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-  },
-  gpsBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,255,151,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,255,151,0.35)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  gpsBadgeText: {
-    fontFamily: 'Outfit_700Bold',
-    fontSize: 10,
-    color: '#00FF97',
-    letterSpacing: 1,
-  },
-
   heroOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -376,21 +334,34 @@ const styles = StyleSheet.create({
     right: 0,
     height: 80,
   },
-  iconBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 255, 151, 0.1)',
+  floatingBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(5, 8, 16, 0.78)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 151, 0.3)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    zIndex: 5,
+  },
+  floatingBadgeText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 10.5,
+    letterSpacing: 0.8,
+  },
+  iconBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#00FF97',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 4,
+    marginBottom: 14,
+    flexShrink: 0,
   },
   textWrapper: {
     alignItems: 'center',
@@ -398,18 +369,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'Outfit_700Bold',
-    fontSize: 24,
-    color: '#00FF97',
+    fontSize: 23,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     letterSpacing: 0.5,
   },
   description: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 14,
-    color: theme.colors.textSecondary,
+    fontSize: 13.5,
+    color: 'rgba(255, 255, 255, 0.65)',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 21,
+    paddingHorizontal: 6,
   },
   bottomBar: {
     flexDirection: 'row',
@@ -421,15 +392,14 @@ const styles = StyleSheet.create({
   paginationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   dot: {
     height: 6,
     borderRadius: 3,
-    marginRight: 6,
   },
   dotActive: {
     width: 24,
-    backgroundColor: '#00FF97',
   },
   dotInactive: {
     width: 6,
@@ -438,17 +408,13 @@ const styles = StyleSheet.create({
   nextBtnTouch: {
     borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: '#00FF97',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 6,
+    elevation: 4,
   },
   nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 14,
+    paddingVertical: 13,
   },
   nextBtnText: {
     fontFamily: 'Outfit_700Bold',
