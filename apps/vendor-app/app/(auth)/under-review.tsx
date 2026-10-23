@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,13 +45,13 @@ export default function UnderReviewScreen() {
         </Text>
 
         {/* Time Estimate */}
-        <BlurView intensity={20} tint="dark" style={styles.timeBadge}>
+        <View style={[styles.timeBadge, { backgroundColor: Platform.OS === 'android' ? '#0d1a30' : 'rgba(0, 207, 255, 0.12)' }]}>
           <Ionicons name="time-outline" size={18} color="#FFD60A" />
           <Text style={styles.timeText}>Usually takes 2–3 hours (max 12 hours)</Text>
-        </BlurView>
+        </View>
 
         {/* What's Next Steps */}
-        <BlurView intensity={15} tint="dark" style={styles.stepsCard}>
+        <View style={[styles.stepsCard, { backgroundColor: Platform.OS === 'android' ? '#0d1a30' : 'rgba(10, 28, 60, 0.55)' }]}>
           <Text style={styles.stepsTitle}>What happens next?</Text>
           
           <View style={styles.stepRow}>
@@ -68,14 +68,14 @@ export default function UnderReviewScreen() {
             </View>
             <Text style={styles.stepText}>Start accepting jobs & earning!</Text>
           </View>
-        </BlurView>
+        </View>
 
         {/* Contact Support */}
         <TouchableOpacity style={styles.supportBtn} activeOpacity={0.8}>
-          <BlurView intensity={20} tint="dark" style={styles.supportBtnInner}>
+          <View style={[styles.supportBtnInner, { backgroundColor: Platform.OS === 'android' ? '#0d1a30' : 'rgba(10, 28, 60, 0.55)' }]}>
             <Ionicons name="chatbubble-ellipses-outline" size={18} color={THEME.colors.primary} />
             <Text style={styles.supportBtnText}>Contact Support</Text>
-          </BlurView>
+          </View>
         </TouchableOpacity>
 
         {/* Login Link */}

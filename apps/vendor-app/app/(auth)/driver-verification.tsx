@@ -181,21 +181,30 @@ export default function DriverVerificationScreen() {
     value: string,
     onChangeText: (t: string) => void,
     options?: { keyboardType?: any; autoCapitalize?: any; multiline?: boolean }
-  ) => (
-    <BlurView intensity={30} tint="dark" style={[styles.inputWrapper, options?.multiline && { height: 80, alignItems: 'flex-start', paddingTop: 14 }]}>
-      <Ionicons name={icon as any} size={18} color={THEME.colors.primary} style={styles.inputIcon} />
-      <TextInput
-        style={[styles.input, options?.multiline && { textAlignVertical: 'top' }]}
-        placeholder={placeholder}
-        placeholderTextColor="rgba(255, 255, 255, 0.5)"
-        value={value}
-        onChangeText={onChangeText}
-        keyboardType={options?.keyboardType || 'default'}
-        autoCapitalize={options?.autoCapitalize || 'sentences'}
-        multiline={options?.multiline}
-      />
-    </BlurView>
-  );
+  ) => {
+    const isIos = Platform.OS === 'ios';
+    const InputContainer = isIos ? BlurView : View;
+    const containerProps = isIos ? { intensity: 30, tint: 'dark' as const } : {};
+
+    return (
+      <InputContainer
+        {...containerProps}
+        style={[styles.inputWrapper, options?.multiline && { height: 80, alignItems: 'flex-start', paddingTop: 14 }]}
+      >
+        <Ionicons name={icon as any} size={18} color={THEME.colors.primary} style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, options?.multiline && { textAlignVertical: 'top' }]}
+          placeholder={placeholder}
+          placeholderTextColor="rgba(255, 255, 255, 0.5)"
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType={options?.keyboardType || 'default'}
+          autoCapitalize={options?.autoCapitalize || 'sentences'}
+          multiline={options?.multiline}
+        />
+      </InputContainer>
+    );
+  };
 
   const renderUploadBox = (
     docKey: DocKey,
@@ -391,12 +400,12 @@ export default function DriverVerificationScreen() {
           </View>
 
           {/* Info Banner */}
-          <BlurView intensity={20} tint="dark" style={styles.infoBanner}>
+          <View style={[styles.infoBanner, { backgroundColor: Platform.OS === 'android' ? '#0c1b33' : 'rgba(10, 28, 60, 0.55)' }]}>
             <Ionicons name="shield-checkmark" size={20} color={THEME.colors.primary} />
             <Text style={styles.infoText}>
               All photos are securely submitted to OmniGo partner verification servers. Approval typically takes 2–3 hours.
             </Text>
-          </BlurView>
+          </View>
 
           {/* Submit Button */}
           <TouchableOpacity
@@ -527,19 +536,21 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(10, 28, 60, 0.55)',
-    borderRadius: 20,
+    backgroundColor: Platform.OS === 'android' ? '#0d1a30' : 'rgba(10, 28, 60, 0.55)',
+    borderRadius: 16,
     paddingHorizontal: 16,
     marginBottom: 12,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(0, 207, 255, 0.35)',
     height: 56,
-    overflow: 'hidden',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#00CFFF',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 10,
+    } : {
+      elevation: 0,
+    }),
   },
   inputIcon: {
     marginRight: 12,
@@ -550,6 +561,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: 'Inter_500Medium',
     fontSize: 14,
+    paddingVertical: 0,
   },
   docNote: {
     fontFamily: 'Inter_400Regular',
@@ -573,22 +585,25 @@ const styles = StyleSheet.create({
   uploadBox: {
     flex: 1,
     height: 146,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1.5,
     borderColor: 'rgba(0, 207, 255, 0.35)',
     borderStyle: 'dashed',
-    backgroundColor: 'rgba(10, 28, 60, 0.45)',
+    backgroundColor: Platform.OS === 'android' ? '#0d1a30' : 'rgba(10, 28, 60, 0.45)',
     overflow: 'hidden',
   },
   uploadBoxDone: {
     borderColor: '#00FF97',
     borderStyle: 'solid',
     backgroundColor: '#050810',
-    shadowColor: '#00FF97',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#00FF97',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+    } : {
+      elevation: 0,
+    }),
   },
   emptyBoxTouch: {
     flex: 1,

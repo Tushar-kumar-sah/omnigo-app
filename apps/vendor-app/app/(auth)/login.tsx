@@ -123,10 +123,10 @@ export default function LoginScreen() {
         >
           {/* Top Badge */}
           <View style={styles.topBadgeContainer}>
-            <BlurView intensity={20} tint="dark" style={styles.topBadge}>
+            <View style={styles.topBadge}>
               <Ionicons name="car-sport" size={12} color={THEME.colors.primary} style={{ marginRight: 6 }} />
               <Text style={styles.topBadgeText}>DRIVER PARTNER LOGIN</Text>
-            </BlurView>
+            </View>
           </View>
 
           {/* Title & Subtitle */}
@@ -236,7 +236,7 @@ export default function LoginScreen() {
 
           {/* Form Input Fields */}
           <View style={styles.formContainer}>
-            <BlurView intensity={30} tint="dark" style={styles.inputWrapper}>
+            <View style={styles.inputWrapper}>
               <Ionicons
                 name={activeTab === 'email' ? 'mail-outline' : 'call-outline'}
                 size={18}
@@ -252,9 +252,9 @@ export default function LoginScreen() {
                 value={emailOrPhone}
                 onChangeText={setEmailOrPhone}
               />
-            </BlurView>
+            </View>
 
-            <BlurView intensity={30} tint="dark" style={styles.inputWrapper}>
+            <View style={styles.inputWrapper}>
               <Ionicons name="lock-closed-outline" size={18} color={THEME.colors.primary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
@@ -267,7 +267,7 @@ export default function LoginScreen() {
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
                 <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="rgba(255, 255, 255, 0.6)" />
               </TouchableOpacity>
-            </BlurView>
+            </View>
 
             <View style={styles.actionRow}>
               {activeTab === 'phone' ? (
@@ -433,17 +433,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(13, 28, 60, 0.55)',
+    backgroundColor: Platform.OS === 'android' ? '#0d1a30' : 'rgba(13, 28, 60, 0.55)',
     paddingVertical: 14,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
-    overflow: 'hidden',
+    borderRadius: 16,
+    borderWidth: 1.2,
+    borderColor: 'rgba(0, 207, 255, 0.35)',
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#00CFFF',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 10,
+    } : {
+      elevation: 0,
+    }),
   },
   ssoBtnText: {
     fontFamily: 'Outfit_700Bold',
@@ -516,19 +518,21 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(10, 28, 60, 0.55)',
-    borderRadius: 20,
+    backgroundColor: Platform.OS === 'android' ? '#0d1a30' : 'rgba(10, 28, 60, 0.55)',
+    borderRadius: 16,
     paddingHorizontal: 16,
     marginBottom: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(0, 207, 255, 0.35)',
     height: 56,
-    overflow: 'hidden',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#00CFFF',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 10,
+    } : {
+      elevation: 0,
+    }),
   },
   inputIcon: {
     marginRight: 12,
@@ -538,6 +542,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: 'Inter_500Medium',
     fontSize: 14,
+    paddingVertical: 0,
   },
   eyeBtn: {
     padding: 6,
@@ -571,11 +576,14 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     overflow: 'hidden',
     marginBottom: 12,
-    shadowColor: '#00FF97',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#00FF97',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.5,
+      shadowRadius: 12,
+    } : {
+      elevation: 0,
+    }),
   },
   signInBtn: {
     flexDirection: 'row',

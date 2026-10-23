@@ -168,7 +168,7 @@ export default function OtpVerifyScreen() {
               </View>
             ) : null}
 
-            <BlurView intensity={20} tint="dark" style={styles.glassCard}>
+            <View style={[styles.glassCard, { backgroundColor: Platform.OS === 'android' ? '#0d1a30' : 'rgba(13, 28, 60, 0.55)' }]}>
               <View style={styles.otpContainer}>
                 {otp.map((digit, index) => (
                   <TextInput
@@ -222,7 +222,7 @@ export default function OtpVerifyScreen() {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
-            </BlurView>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -338,11 +338,14 @@ const styles = StyleSheet.create({
   otpInputActive: {
     borderColor: '#00FF97',
     backgroundColor: 'rgba(0, 255, 151, 0.08)',
-    shadowColor: '#00FF97',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#00FF97',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+    } : {
+      elevation: 0,
+    }),
   },
   resendContainer: {
     alignItems: 'center',
