@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   Pressable,
+  Platform,
 } from 'react-native';
 import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
@@ -35,6 +36,17 @@ const WALLET_TRANSACTIONS: WalletTransaction[] = [];
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
+
+  const CardWrapper = ({ children, style }: { children: React.ReactNode; style: any }) => {
+    if (Platform.OS === 'android') {
+      return <View style={[style, styles.cardAndroid]}>{children}</View>;
+    }
+    return (
+      <BlurView intensity={25} tint="dark" style={style}>
+        {children}
+      </BlurView>
+    );
+  };
   const [filter, setFilter] = useState<TransactionFilter>('all');
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [selectedAuditTx, setSelectedAuditTx] = useState<WalletTransaction | null>(null);
@@ -124,9 +136,11 @@ export default function WalletScreen() {
       >
         {/* Header */}
         <View style={styles.headerRow}>
-          <View>
+          <View style={styles.headerLeft}>
             <Text style={styles.title}>Driver Wallet</Text>
-            <Text style={styles.subtitle}>Payouts, Instant Withdrawals & Bank</Text>
+            <Text style={styles.subtitle} numberOfLines={1}>
+              Payouts, Instant Withdrawals & Bank
+            </Text>
           </View>
           <View style={styles.statusPill}>
             <View style={styles.greenDot} />
@@ -135,7 +149,7 @@ export default function WalletScreen() {
         </View>
 
         {/* Main Wallet Balance Card */}
-        <BlurView intensity={25} tint="dark" style={styles.walletCard}>
+        <CardWrapper style={styles.walletCard}>
           <LinearGradient
             colors={['rgba(0, 255, 151, 0.12)', 'rgba(0, 207, 255, 0.05)', 'transparent']}
             start={{ x: 0, y: 0 }}
@@ -175,16 +189,16 @@ export default function WalletScreen() {
 
           {/* Auto-Payout Note */}
           <View style={styles.autoPayoutNote}>
-            <Ionicons name="calendar-outline" size={12} color={THEME.colors.textSecondary} />
+            <Ionicons name="calendar-outline" size={13} color={THEME.colors.textSecondary} style={{ marginRight: 6 }} />
             <Text style={styles.autoPayoutText}>
               Auto-payout every Tuesday to registered bank (Zero fee)
             </Text>
           </View>
-        </BlurView>
+        </CardWrapper>
 
         {/* Approved Bank Account Card */}
         <Text style={styles.sectionHeading}>Linked Bank Account</Text>
-        <BlurView intensity={20} tint="dark" style={styles.bankCard}>
+        <CardWrapper style={styles.bankCard}>
           <View style={styles.bankHeader}>
             <View style={styles.bankIconCircle}>
               <Ionicons name="business" size={22} color={THEME.colors.primary} />
@@ -217,7 +231,7 @@ export default function WalletScreen() {
             <Text style={styles.bankInfoLabel}>Payout Method</Text>
             <Text style={[styles.bankInfoVal, { color: THEME.colors.success }]}>IMPS / Direct NEFT</Text>
           </View>
-        </BlurView>
+        </CardWrapper>
 
         {/* Transaction History Section */}
         <View style={styles.historyHeaderRow}>
@@ -431,6 +445,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+    gap: 8,
+  },
+  headerLeft: {
+    flex: 1,
+    paddingRight: 6,
   },
   title: {
     fontFamily: THEME.fonts.outfit.bold,
@@ -450,9 +469,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 100,
-    gap: 6,
+    gap: 5,
     borderWidth: 1,
     borderColor: 'rgba(0, 255, 151, 0.25)',
+    flexShrink: 0,
   },
   greenDot: {
     width: 6,
@@ -519,15 +539,28 @@ const styles = StyleSheet.create({
     color: '#000',
     letterSpacing: 0.5,
   },
+  cardAndroid: {
+    backgroundColor: '#0d1428',
+  },
   autoPayoutNote: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    alignSelf: 'center',
+    maxWidth: '100%',
   },
   autoPayoutText: {
     fontFamily: THEME.fonts.inter.regular,
     fontSize: 11,
     color: THEME.colors.textSecondary,
+    textAlign: 'center',
+    flexShrink: 1,
   },
   sectionHeading: {
     fontFamily: THEME.fonts.outfit.bold,
