@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Image, Animated, Text } from 'react-native';
+import { View, StyleSheet, Image, Animated, Text, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 
 export default function SplashScreen() {
@@ -82,7 +82,9 @@ export default function SplashScreen() {
           resizeMode="contain"
         />
         <View style={styles.badgeContainer}>
-          <Text style={styles.badgeText}>DRIVER & TOWING PARTNER</Text>
+          <Text style={styles.badgeText} numberOfLines={1}>
+            DRIVER & TOWING PARTNER
+          </Text>
         </View>
       </Animated.View>
     </View>
@@ -97,31 +99,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoContainer: {
-    width: 250,
     alignItems: 'center',
-    shadowColor: '#00CFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 30,
-    elevation: 20,
+    justifyContent: 'center',
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#00CFFF',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.9,
+      shadowRadius: 30,
+    } : {
+      elevation: 0,
+    }),
   },
   logoImage: {
     width: 210,
     height: 210,
   },
   badgeContainer: {
-    marginTop: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 207, 255, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 207, 255, 0.35)',
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 100,
+    backgroundColor: Platform.OS === 'android' ? '#0d1a30' : 'rgba(0, 207, 255, 0.12)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(0, 207, 255, 0.4)',
+    alignSelf: 'center',
   },
   badgeText: {
     fontFamily: 'Outfit_700Bold',
     fontSize: 12,
     color: '#00CFFF',
-    letterSpacing: 2,
+    letterSpacing: 1.2,
+    textAlign: 'center',
+    includeFontPadding: false,
   },
 });
