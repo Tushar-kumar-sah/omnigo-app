@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ScrollView, Platform } from 'react-native';
 import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 
@@ -23,6 +23,17 @@ const QUICK_CHATS = [
 
 export default function NavigationScreen() {
   const router = useRouter();
+
+  const CardWrapper = ({ children, style }: { children: React.ReactNode; style: any }) => {
+    if (Platform.OS === 'android') {
+      return <View style={[style, styles.cardAndroid]}>{children}</View>;
+    }
+    return (
+      <BlurView intensity={80} tint="dark" style={style}>
+        {children}
+      </BlurView>
+    );
+  };
   const params = useLocalSearchParams();
   const jobId = (params.id as string);
   const DRIVER_ID = getAuthenticatedDriverId();
@@ -351,7 +362,7 @@ export default function NavigationScreen() {
 
       {/* Bottom Floating Control Card */}
       <View style={styles.bottomContainer}>
-        <BlurView intensity={80} tint="dark" style={styles.card}>
+        <CardWrapper style={styles.card}>
           <View style={styles.customerHeader}>
             <View style={{ flex: 1 }}>
               <Text style={styles.customerName}>Customer</Text>
@@ -411,7 +422,7 @@ export default function NavigationScreen() {
             </View>
           )}
 
-          <TouchableOpacity style={styles.mainActionBtn} onPress={handleMainAction}>
+          <TouchableOpacity style={styles.mainActionBtn} onPress={handleMainAction} activeOpacity={0.85}>
             <LinearGradient
               colors={navState === 'EN_ROUTE_PICKUP' 
                 ? [THEME.colors.primary, THEME.colors.secondary] 
@@ -420,7 +431,12 @@ export default function NavigationScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.btnGradient}
             >
-              <Text style={styles.mainActionBtnText}>
+              <Text
+                style={styles.mainActionBtnText}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.82}
+              >
                 {navState === 'EN_ROUTE_PICKUP' ? 'I HAVE ARRIVED AT PICKUP' : 'VERIFY CUSTOMER & PRE-INSPECT'}
               </Text>
             </LinearGradient>
@@ -432,7 +448,7 @@ export default function NavigationScreen() {
           >
             <Text style={styles.cancelBtnText}>Cancel Job / Report Issue</Text>
           </TouchableOpacity>
-        </BlurView>
+        </CardWrapper>
       </View>
 
       {/* ─── MODAL 1: SOS EMERGENCY ASSISTANCE ───────────── */}
@@ -757,21 +773,28 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#fff',
   },
+  cardAndroid: {
+    backgroundColor: '#0d1428',
+  },
   mainActionBtn: {
     borderRadius: THEME.borderRadius.md,
     overflow: 'hidden',
     marginBottom: 12,
   },
   btnGradient: {
-    height: 54,
+    minHeight: 54,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   mainActionBtnText: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 16,
+    fontSize: 15,
     color: '#000',
     letterSpacing: 0.5,
+    textAlign: 'center',
+    width: '100%',
   },
   cancelBtn: {
     alignItems: 'center',
