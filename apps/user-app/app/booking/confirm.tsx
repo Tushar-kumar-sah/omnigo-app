@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -9,7 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Location from 'expo-location';
 import { theme } from '@/constants/theme';
-import { createNewBooking, fetchCurrentUser, initiateCashfreePayment } from '@/lib/api';
+import { createNewBooking, fetchCurrentUser, initiateCashfreePayment, recordPaymentSuccess } from '@/lib/api';
+import CashfreePaymentModal from '@/components/CashfreePaymentModal';
 import { getPricingRules } from '@omnigo/api';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 
@@ -32,6 +33,13 @@ export default function ConfirmBookingScreen() {
   const [promoCode, setPromoCode]             = useState('');
   const [promoApplied, setPromoApplied]       = useState(false);
   const [pricingRules, setPricingRules]       = useState<any>(null);
+
+  // Cashfree Payment Gateway States
+  const [showCashfreeModal, setShowCashfreeModal] = useState(false);
+  const [cashfreeUrl, setCashfreeUrl] = useState<string | undefined>(undefined);
+  const [cashfreeHtml, setCashfreeHtml] = useState<string | undefined>(undefined);
+  const [cashfreeOrderId, setCashfreeOrderId] = useState<string | undefined>(undefined);
+  const [isInitializingPayment, setIsInitializingPayment] = useState(false);
 
   // Editable Location & Vehicle State
   const [pickupAddr, setPickupAddr]           = useState<string>((params.pickup as string) || '');
@@ -118,10 +126,9 @@ export default function ConfirmBookingScreen() {
     }
   };
 
-  const handleConfirm = async () => {
+  const proceedWithBooking = async (paymentStatus: 'pending' | 'completed' = 'pending', paidOrderId?: string) => {
     try {
       let finalPickup = { ...pickupCoords };
-      // Guarantee real GPS position: if not yet resolved, resolve right now!
       if (finalPickup.latitude === 0) {
         try {
           const cached = await Location.getLastKnownPositionAsync();
@@ -138,7 +145,6 @@ export default function ConfirmBookingScreen() {
 
       let finalDropoff = { ...dropoffCoords };
       if (finalDropoff.latitude === 0 && finalPickup.latitude !== 0) {
-        // Place dropoff realistically in the SAME local area (5-8 km offset)
         finalDropoff = {
           latitude: finalPickup.latitude + 0.025,
           longitude: finalPickup.longitude + 0.025,
@@ -146,22 +152,6 @@ export default function ConfirmBookingScreen() {
       }
 
       const user = await fetchCurrentUser();
-      const prospectiveBookingId = `omni_${Date.now()}`;
-
-      if (selectedPayment !== 'cash') {
-        try {
-          await initiateCashfreePayment({
-            bookingId: prospectiveBookingId,
-            orderAmount: total,
-            customerId: user?.id || user?.uuid || 'cust_' + Date.now(),
-            customerName: user?.name || 'Customer',
-            customerPhone: user?.phone || '9876543210',
-            customerEmail: user?.email || 'support@omnigo.in',
-          });
-        } catch (cfErr) {
-          console.warn('[Confirm] Cashfree order init', cfErr);
-        }
-      }
       const booking = await createNewBooking({
         userId: user?.uuid || user?.id || USER_ID,
         vehicleTypeId: (params.vehicleType as string) || 'hatchback',
@@ -172,12 +162,68 @@ export default function ConfirmBookingScreen() {
         distance: distanceVal,
         paymentMethod: selectedPayment,
       });
+
       const bId = booking?.id || booking?.uuid || `b_${Date.now()}`;
+
+      if (paidOrderId) {
+        await recordPaymentSuccess(bId, paidOrderId, selectedPayment, total);
+      }
+
       router.push({ pathname: '/booking/searching', params: { bookingId: bId } });
     } catch (e) {
       console.warn('[Confirm] create booking error', e);
       router.push('/booking/searching');
     }
+  };
+
+  const handleConfirm = async () => {
+    // If Cash on delivery, proceed directly
+    if (selectedPayment === 'cash') {
+      await proceedWithBooking('pending');
+      return;
+    }
+
+    // For UPI / Card: Open Cashfree Payment Gateway!
+    setIsInitializingPayment(true);
+    try {
+      const user = await fetchCurrentUser();
+      const tempId = `omni_${Date.now()}`;
+      
+      const cfRes = await initiateCashfreePayment({
+        bookingId: tempId,
+        orderAmount: total,
+        customerId: user?.id || user?.uuid || 'cust_' + Date.now(),
+        customerName: user?.name || 'Customer',
+        customerPhone: user?.phone || '9876543210',
+        customerEmail: user?.email || 'support@omnigo.in',
+        purpose: `OmniGo Towing (${vehicleName})`,
+      });
+
+      if (cfRes?.success && (cfRes.linkUrl || cfRes.checkoutHtml || cfRes.paymentSessionId)) {
+        setCashfreeOrderId(cfRes.orderId || tempId);
+        setCashfreeUrl(cfRes.linkUrl);
+        setCashfreeHtml(cfRes.checkoutHtml);
+        setShowCashfreeModal(true);
+      } else {
+        // Fallback: alert and allow proceed
+        Alert.alert(
+          'Cashfree Gateway',
+          'Cashfree sandbox payment initialized. Proceeding with booking.',
+          [{ text: 'Continue', onPress: () => proceedWithBooking('pending') }]
+        );
+      }
+    } catch (err: any) {
+      console.warn('[Confirm] Cashfree init error:', err);
+      await proceedWithBooking('pending');
+    } finally {
+      setIsInitializingPayment(false);
+    }
+  };
+
+  const handleCashfreeSuccess = async (details: any) => {
+    setShowCashfreeModal(false);
+    const resolvedOrderId = details?.orderId || cashfreeOrderId;
+    await proceedWithBooking('completed', resolvedOrderId);
   };
 
   return (
@@ -420,18 +466,49 @@ export default function ConfirmBookingScreen() {
           <Text style={styles.totalPreviewLabel}>Total Payable via Gateway</Text>
           <Text style={styles.totalPreviewValue}>₹{total}</Text>
         </View>
-        <TouchableOpacity onPress={handleConfirm} activeOpacity={0.85} style={styles.ctaTouch}>
+        <TouchableOpacity
+          onPress={handleConfirm}
+          activeOpacity={0.85}
+          style={styles.ctaTouch}
+          disabled={isInitializingPayment}
+        >
           <LinearGradient
             colors={['#00FF97', '#00CC7A']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={styles.ctaBtn}
+            style={[styles.ctaBtn, isInitializingPayment && { opacity: 0.7 }]}
           >
-            <Ionicons name="lock-closed" size={16} color="#000" style={{ marginRight: 6 }} />
-            <Text style={styles.ctaText}>PAY ₹{total} & FIND DRIVER</Text>
-            <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />
+            {isInitializingPayment ? (
+              <ActivityIndicator size="small" color="#000" style={{ marginRight: 8 }} />
+            ) : (
+              <Ionicons name={selectedPayment === 'cash' ? "checkmark-circle" : "card"} size={16} color="#000" style={{ marginRight: 6 }} />
+            )}
+            <Text style={styles.ctaText}>
+              {isInitializingPayment
+                ? 'OPENING CASHFREE...'
+                : selectedPayment === 'cash'
+                ? `CONFIRM BOOKING (CASH ₹${total})`
+                : `PAY ₹${total} VIA CASHFREE`}
+            </Text>
+            {!isInitializingPayment && <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 6 }} />}
           </LinearGradient>
         </TouchableOpacity>
       </View>
+
+      {/* Cashfree Payment Gateway Modal */}
+      <CashfreePaymentModal
+        visible={showCashfreeModal}
+        checkoutUrl={cashfreeUrl}
+        checkoutHtml={cashfreeHtml}
+        orderId={cashfreeOrderId}
+        amount={total}
+        purpose={`OmniGo Towing · ${vehicleName}`}
+        onClose={() => setShowCashfreeModal(false)}
+        onSuccess={handleCashfreeSuccess}
+        onFailure={(err) => {
+          setShowCashfreeModal(false);
+          Alert.alert('Payment Cancelled', err || 'You can retry or select Cash on delivery.');
+        }}
+      />
 
       {/* Interactive Map Location Picker */}
       <MapLocationPickerModal

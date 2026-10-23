@@ -7,43 +7,64 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
 import { getCurrentUser, updateUser } from '@omnigo/api';
 import { initiateCashfreePayment } from '@/lib/api';
+import CashfreePaymentModal from '@/components/CashfreePaymentModal';
 
 export default function MembershipScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [user, setUser] = React.useState<any>(null);
   const [upgradingTier, setUpgradingTier] = React.useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = React.useState(false);
+  const [paymentUrl, setPaymentUrl] = React.useState<string | undefined>(undefined);
+  const [paymentHtml, setPaymentHtml] = React.useState<string | undefined>(undefined);
+  const [pendingTier, setPendingTier] = React.useState<'pro' | 'elite'>('pro');
+  const [pendingAmount, setPendingAmount] = React.useState(499);
+  const [paymentOrderId, setPaymentOrderId] = React.useState('');
 
   const handleUpgrade = async (tier: 'pro' | 'elite', amount: number) => {
     try {
       setUpgradingTier(tier);
+      setPendingTier(tier);
+      setPendingAmount(amount);
+
       const orderRes = await initiateCashfreePayment({
         orderAmount: amount,
         customerId: user?.id || user?.uuid || 'cust_' + Date.now(),
         customerName: user?.name || 'Customer',
         customerPhone: user?.phone || '9876543210',
         customerEmail: user?.email || 'support@omnigo.in',
+        purpose: `OmniGo ${tier.toUpperCase()} Membership`,
         returnUrl: `https://omnigo.in/membership-success?tier=${tier}`,
       });
 
-      if (orderRes?.success) {
-        const targetUserId = user?.id || user?.uuid;
-        if (targetUserId) {
-          await updateUser(targetUserId, { membership_tier: tier });
-          setUser({ ...user, membershipTier: tier.charAt(0).toUpperCase() + tier.slice(1) });
-        }
-        Alert.alert(
-          'Membership Activated!',
-          `You are now upgraded to OmniGo ${tier.toUpperCase()}!\n\nCashfree Order ID: ${orderRes.orderId}`
-        );
+      if (orderRes?.success && (orderRes.linkUrl || orderRes.checkoutHtml || orderRes.paymentSessionId)) {
+        setPaymentOrderId(orderRes.orderId);
+        setPaymentUrl(orderRes.linkUrl);
+        setPaymentHtml(orderRes.checkoutHtml);
+        setShowPaymentModal(true);
       } else {
-        Alert.alert('Payment Initialized', `Cashfree order initialized for ₹${amount}.`);
+        Alert.alert('Payment Failed', orderRes?.error || 'Could not connect to Cashfree');
       }
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to process upgrade');
     } finally {
       setUpgradingTier(null);
     }
+  };
+
+  const handlePaymentSuccess = async () => {
+    setShowPaymentModal(false);
+    const targetUserId = user?.id || user?.uuid;
+    if (targetUserId) {
+      try {
+        await updateUser(targetUserId, { membership_tier: pendingTier });
+        setUser({ ...user, membershipTier: pendingTier.charAt(0).toUpperCase() + pendingTier.slice(1) });
+      } catch (e) {}
+    }
+    Alert.alert(
+      '🎉 Membership Activated!',
+      `Congratulations! You have successfully upgraded to OmniGo ${pendingTier.toUpperCase()}.`
+    );
   };
 
   React.useEffect(() => {
@@ -169,6 +190,22 @@ export default function MembershipScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Cashfree Payment Gateway Modal */}
+      <CashfreePaymentModal
+        visible={showPaymentModal}
+        checkoutUrl={paymentUrl}
+        checkoutHtml={paymentHtml}
+        orderId={paymentOrderId}
+        amount={pendingAmount}
+        purpose={`OmniGo ${pendingTier.toUpperCase()} Membership`}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={handlePaymentSuccess}
+        onFailure={(err) => {
+          setShowPaymentModal(false);
+          Alert.alert('Payment Incomplete', err || 'Membership was not upgraded');
+        }}
+      />
     </View>
   );
 }

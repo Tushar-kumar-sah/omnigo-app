@@ -50,6 +50,28 @@ export interface CashfreeOrderResponse {
   orderStatus?: string;
   orderAmount?: number;
   paymentUrl?: string;
+  checkoutHtml?: string;
+  error?: string;
+  raw?: any;
+}
+
+export interface CreatePaymentLinkParams {
+  linkId?: string;
+  linkAmount: number;
+  linkCurrency?: string;
+  linkPurpose?: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  returnUrl?: string;
+  notifyUrl?: string;
+}
+
+export interface CashfreePaymentLinkResponse {
+  success: boolean;
+  linkId: string;
+  linkUrl?: string;
+  linkStatus?: string;
   error?: string;
   raw?: any;
 }
@@ -65,15 +87,103 @@ export interface CashfreeVerificationResponse {
 }
 
 /**
+ * Generates mobile-responsive HTML that initializes the official Cashfree Drop SDK
+ */
+export function generateCashfreeDropHtml(paymentSessionId: string, isProduction: boolean = false): string {
+  const mode = isProduction ? 'production' : 'sandbox';
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OmniGo Cashfree Checkout</title>
+  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #050810;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    #loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      padding: 24px;
+    }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(0, 207, 255, 0.2);
+      border-top-color: #00CFFF;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 16px;
+      font-weight: 600;
+      color: #00CFFF;
+      margin-bottom: 8px;
+    }
+    .loading-sub {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-container">
+    <div class="spinner"></div>
+    <div class="loading-text">Connecting to Cashfree Gateway...</div>
+    <div class="loading-sub">Preparing secure UPI, Cards & NetBanking options</div>
+  </div>
+
+  <script>
+    try {
+      const cashfree = Cashfree({ mode: "${mode}" });
+      cashfree.checkout({
+        paymentSessionId: "${paymentSessionId}",
+        redirectTarget: "_self"
+      }).then(function(result) {
+        if (result && result.error) {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'CASHFREE_ERROR', error: result.error }));
+          }
+        }
+      }).catch(function(err) {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'CASHFREE_ERROR', error: err ? err.message : 'Checkout failed' }));
+        }
+      });
+    } catch(e) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'CASHFREE_ERROR', error: e.message }));
+      }
+    }
+  </script>
+</body>
+</html>`;
+}
+
+/**
  * Creates a Cashfree PG Order
  */
 export async function createCashfreeOrder(params: CreateOrderParams): Promise<CashfreeOrderResponse> {
   try {
     const rawOrderId = params.orderId || `omni_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    // Cashfree order_id allows alphanumeric, hyphens and underscores (up to 45 chars)
     const sanitizedOrderId = rawOrderId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 45);
 
-    // Sanitize phone (Indian 10-digit without country code prefix)
     let cleanPhone = (params.customerPhone || '9876543210').replace(/[^0-9]/g, '');
     if (cleanPhone.length > 10 && cleanPhone.startsWith('91')) {
       cleanPhone = cleanPhone.slice(2);
@@ -122,6 +232,8 @@ export async function createCashfreeOrder(params: CreateOrderParams): Promise<Ca
       };
     }
 
+    const checkoutHtml = generateCashfreeDropHtml(data.payment_session_id, CASHFREE_CONFIG.env === 'PROD');
+
     return {
       success: true,
       orderId: data.order_id,
@@ -129,7 +241,8 @@ export async function createCashfreeOrder(params: CreateOrderParams): Promise<Ca
       paymentSessionId: data.payment_session_id,
       orderStatus: data.order_status,
       orderAmount: data.order_amount,
-      paymentUrl: `https://sandbox.cashfree.com/pg/orders/${data.order_id}`,
+      paymentUrl: data.payment_session_id ? `https://sandbox.cashfree.com/pg/orders/${data.order_id}` : undefined,
+      checkoutHtml,
       raw: data,
     };
   } catch (err: any) {
@@ -139,6 +252,64 @@ export async function createCashfreeOrder(params: CreateOrderParams): Promise<Ca
       orderId: params.orderId || '',
       error: err?.message || 'Network error connecting to Cashfree PG',
     };
+  }
+}
+
+/**
+ * Creates a hosted Payment Link on Cashfree (Direct hosted page URL)
+ */
+export async function createCashfreePaymentLink(params: CreatePaymentLinkParams): Promise<CashfreePaymentLinkResponse> {
+  try {
+    const rawLinkId = params.linkId || `omni_link_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const sanitizedLinkId = rawLinkId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 45);
+
+    let cleanPhone = (params.customerPhone || '9876543210').replace(/[^0-9]/g, '');
+    if (cleanPhone.length > 10 && cleanPhone.startsWith('91')) cleanPhone = cleanPhone.slice(2);
+    if (cleanPhone.length < 10) cleanPhone = '9876543210';
+
+    const payload = {
+      link_id: sanitizedLinkId,
+      link_amount: Math.max(1, Math.round(params.linkAmount * 100) / 100),
+      link_currency: params.linkCurrency || 'INR',
+      link_purpose: params.linkPurpose || 'OmniGo Emergency Tow Service',
+      customer_details: {
+        customer_phone: cleanPhone,
+        customer_name: params.customerName || 'Customer',
+        customer_email: params.customerEmail || 'support@omnigo.in',
+      },
+      link_meta: {
+        return_url: params.returnUrl || `https://omnigo.in/payment/cashfree-return?link_id=${sanitizedLinkId}`,
+        notify_url: params.notifyUrl || undefined,
+      },
+    };
+
+    const response = await fetch(`${CASHFREE_CONFIG.baseUrl}/links`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-client-id': CASHFREE_CONFIG.appId,
+        'x-client-secret': CASHFREE_CONFIG.secretKey,
+        'x-api-version': CASHFREE_CONFIG.apiVersion,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.warn('[Cashfree] createPaymentLink error:', data);
+      return { success: false, linkId: sanitizedLinkId, error: data.message || 'Failed to create payment link' };
+    }
+
+    return {
+      success: true,
+      linkId: data.link_id,
+      linkUrl: data.link_url,
+      linkStatus: data.link_status,
+      raw: data,
+    };
+  } catch (err: any) {
+    console.warn('[Cashfree] createPaymentLink network error:', err);
+    return { success: false, linkId: params.linkId || '', error: err?.message };
   }
 }
 

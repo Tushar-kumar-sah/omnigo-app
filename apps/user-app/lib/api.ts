@@ -23,6 +23,7 @@ import {
   getVehicleTypes,
   rateDriverBooking,
   createCashfreeOrder,
+  createCashfreePaymentLink,
   verifyCashfreePayment,
   recordCashfreePaymentSuccess,
 } from '@omnigo/api';
@@ -906,10 +907,12 @@ export async function initiateCashfreePayment(params: {
   customerPhone: string;
   customerEmail?: string;
   returnUrl?: string;
+  purpose?: string;
 }): Promise<any> {
   try {
-    return await createCashfreeOrder({
-      orderId: params.bookingId ? `omni_${params.bookingId}_${Date.now()}` : undefined,
+    const rawId = params.bookingId ? `omni_${params.bookingId}_${Date.now()}` : undefined;
+    const orderRes = await createCashfreeOrder({
+      orderId: rawId,
       orderAmount: params.orderAmount,
       customerId: params.customerId,
       customerName: params.customerName,
@@ -917,6 +920,29 @@ export async function initiateCashfreePayment(params: {
       customerEmail: params.customerEmail,
       returnUrl: params.returnUrl,
     });
+
+    let linkUrl: string | undefined = undefined;
+    try {
+      const linkRes = await createCashfreePaymentLink({
+        linkId: rawId ? `lnk_${rawId.slice(0, 35)}` : undefined,
+        linkAmount: params.orderAmount,
+        customerName: params.customerName,
+        customerPhone: params.customerPhone,
+        customerEmail: params.customerEmail,
+        linkPurpose: params.purpose || 'OmniGo Tow Service',
+        returnUrl: params.returnUrl,
+      });
+      if (linkRes?.success && linkRes.linkUrl) {
+        linkUrl = linkRes.linkUrl;
+      }
+    } catch (lErr) {
+      console.warn('[api] link fallback failed', lErr);
+    }
+
+    return {
+      ...orderRes,
+      linkUrl: linkUrl || orderRes.paymentUrl,
+    };
   } catch (e) {
     console.warn('[api] initiateCashfreePayment failed', e);
     return { success: false, error: 'Payment initialization failed' };
