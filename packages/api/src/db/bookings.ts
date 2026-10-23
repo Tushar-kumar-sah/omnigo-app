@@ -93,10 +93,12 @@ export function mapDbBookingToBooking(dbBooking: any): any {
     customerVehicle: vehicleObj,
     pickup: pickupAddr,
     pickupCoords,
-    pickupOtp,
+    pickupOtp: String(pickupOtp),
     drop: dropoffAddr,
     dropoffCoords,
-    dropoffOtp,
+    dropoffOtp: String(dropoffOtp),
+    otp: String(pickupOtp),
+    customerOtp: String(pickupOtp),
     dropoff: {
       address: dropoffAddr,
       landmark: dbBooking.dropoff_landmark || '',
@@ -216,6 +218,9 @@ export async function createBooking(data: any): Promise<any | null> {
     const dropoffLat = data.dropoff?.coordinates?.latitude ?? data.dropoff_location?.coordinates?.[1] ?? (data.dropoff_latitude || pickupLat + 0.025);
     const dropoffLng = data.dropoff?.coordinates?.longitude ?? data.dropoff_location?.coordinates?.[0] ?? (data.dropoff_longitude || pickupLng + 0.025);
 
+    const genPickupOtp = data.customer_otp || data.pickupOtp || String(Math.floor(1000 + Math.random() * 9000));
+    const genDropoffOtp = data.dropoff_otp || data.dropoffOtp || String(Math.floor(1000 + Math.random() * 9000));
+
     const insertPayload: any = {
       user_id: userId,
       driver_id: data.driverId || data.driver_id || null,
@@ -225,6 +230,8 @@ export async function createBooking(data: any): Promise<any | null> {
       pickup_location: `SRID=4326;POINT(${pickupLng} ${pickupLat})`,
       dropoff_address: dropoffAddr,
       dropoff_location: `SRID=4326;POINT(${dropoffLng} ${dropoffLat})`,
+      customer_otp: genPickupOtp,
+      dropoff_otp: genDropoffOtp,
       status: data.status || 'searching',
       estimated_price: data.estimatedPrice ?? data.estimated_price ?? 999,
       distance_km: data.distance ?? data.distance_km ?? 8,
@@ -251,20 +258,36 @@ export async function createBooking(data: any): Promise<any | null> {
 }
 
 export async function updateBookingStatus(id: string, status: BookingStatus, extraData?: any): Promise<any | null> {
-  if (!isSupabaseConfigured || !supabase) return null;
+  if (!isSupabaseConfigured || !supabase || !id) return null;
   try {
+    const isUuid = UUID_REGEX.test(id);
     const updatePayload: any = { status, updated_at: new Date().toISOString() };
     if (extraData?.finalPrice) updatePayload.final_price = extraData.finalPrice;
     if (extraData?.driverRating) updatePayload.driver_rating = extraData.driverRating;
 
-    const { data: updated, error } = await supabase
-      .from('bookings')
-      .update(updatePayload)
-      .or(`id.eq.${id},booking_number.eq.${id}`)
-      .select('*, users(name, phone), drivers(name, vehicle_plate)')
-      .single();
+    let query = supabase.from('bookings').update(updatePayload);
+    if (isUuid) {
+      query = query.eq('id', id);
+    } else {
+      query = query.eq('booking_number', id);
+    }
 
-    if (error || !updated) return null;
+    const { data: updated, error } = await query
+      .select('*, users(name, phone), drivers(name, vehicle_plate)')
+      .maybeSingle();
+
+    if (error || !updated) {
+      if (!isUuid) {
+        const { data: fallback } = await supabase
+          .from('bookings')
+          .update(updatePayload)
+          .ilike('booking_number', `%${id}%`)
+          .select('*, users(name, phone), drivers(name, vehicle_plate)')
+          .maybeSingle();
+        if (fallback) return mapDbBookingToBooking(fallback);
+      }
+      return null;
+    }
     return mapDbBookingToBooking(updated);
   } catch (err) {
     console.warn('updateBookingStatus error:', err);
@@ -293,7 +316,7 @@ export async function acceptBooking(
       const { data: bRow, error: fetchErr } = await supabase
         .from('bookings')
         .select('id, driver_id, status')
-        .or(`id.eq.${bookingId},booking_number.eq.${bookingId}`)
+        .eq('booking_number', bookingId)
         .maybeSingle();
 
       if (fetchErr || !bRow) {
@@ -364,12 +387,16 @@ export async function updateBookingDestination(
       dropoff_location: `SRID=4326;POINT(${lng} ${lat})`,
       updated_at: new Date().toISOString(),
     };
-    const { data, error } = await supabase
-      .from('bookings')
-      .update(updatePayload)
-      .or(`id.eq.${bookingId},booking_number.eq.${bookingId}`)
+    const isUuid = UUID_REGEX.test(bookingId);
+    let query = supabase.from('bookings').update(updatePayload);
+    if (isUuid) {
+      query = query.eq('id', bookingId);
+    } else {
+      query = query.eq('booking_number', bookingId);
+    }
+    const { data, error } = await query
       .select('*, users(name, phone), drivers(name, vehicle_plate)')
-      .single();
+      .maybeSingle();
     if (error || !data) return null;
     return mapDbBookingToBooking(data);
   } catch (err) {
@@ -400,12 +427,12 @@ export async function verifyPickupOtp(
       return { success: false, message: 'Booking not found' };
     }
 
-    const validOtp = String(booking.pickupOtp || '').trim();
+    const validOtp = String(booking.pickupOtp || booking.customerOtp || booking.otp || '').trim();
     const inputOtp = String(enteredOtp || '').trim();
 
     // Allow correct OTP, or master test OTP '1234' for developer testing convenience
     if (inputOtp === validOtp || inputOtp === '1234') {
-      const updated = await updateBookingStatus(bookingId, 'towing');
+      const updated = await updateBookingStatus(bookingId, 'vehicle_loaded');
       return { success: true, booking: updated };
     }
 

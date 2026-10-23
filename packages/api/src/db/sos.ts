@@ -1,3 +1,4 @@
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { supabase, isSupabaseConfigured } from '../supabase';
 
 export async function createSOSIncident(data: any): Promise<any> {
@@ -102,12 +103,11 @@ export async function updateSOSStatus(id: string, status: string, extraData?: an
         updatePayload.assigned_driver_phone = extraData.assignedDriverPhone || extraData.assigned_driver_phone || extraData.driverPhone || extraData.driver_phone;
       }
     }
-    const { data, error } = await supabase
-      .from('sos_incidents')
-      .update(updatePayload)
-      .or(`id.eq.${id},incident_number.eq.${id}`)
-      .select()
-      .single();
+    const isUuid = UUID_REGEX.test(id);
+    let q = supabase.from('sos_incidents').update(updatePayload);
+    if (isUuid) q = q.eq('id', id);
+    else q = q.eq('incident_number', id);
+    const { data, error } = await q.select().maybeSingle();
 
     if (error || !data) return { id, status, ...extraData };
     return data;
@@ -119,18 +119,17 @@ export async function updateSOSStatus(id: string, status: string, extraData?: an
 export async function assignSOSDriver(incidentId: string, driverId: string, driverName: string, driverPhone: string): Promise<any> {
   if (!isSupabaseConfigured || !supabase) return { id: incidentId, driverId, status: 'assigned' };
   try {
-    const { data, error } = await supabase
-      .from('sos_incidents')
-      .update({
-        assigned_driver_id: driverId && driverId.includes('-') ? driverId : null,
-        assigned_driver_name: driverName,
-        assigned_driver_phone: driverPhone,
-        status: 'assigned',
-        updated_at: new Date().toISOString(),
-      })
-      .or(`id.eq.${incidentId},incident_number.eq.${incidentId}`)
-      .select()
-      .single();
+    const isUuid = UUID_REGEX.test(incidentId);
+    let q = supabase.from('sos_incidents').update({
+      assigned_driver_id: driverId && driverId.includes('-') ? driverId : null,
+      assigned_driver_name: driverName,
+      assigned_driver_phone: driverPhone,
+      status: 'assigned',
+      updated_at: new Date().toISOString(),
+    });
+    if (isUuid) q = q.eq('id', incidentId);
+    else q = q.eq('incident_number', incidentId);
+    const { data, error } = await q.select().maybeSingle();
 
     if (error || !data) return { id: incidentId, driverId, status: 'assigned' };
     return data;

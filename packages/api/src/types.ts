@@ -82,6 +82,10 @@ export interface Booking {
   createdAt: string;
   completedAt?: string;
   driverRating?: number;
+  pickupOtp?: string;
+  dropoffOtp?: string;
+  otp?: string;
+  customerOtp?: string;
   paymentMethod: PaymentMethod;
   paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
   paymentId?: string;

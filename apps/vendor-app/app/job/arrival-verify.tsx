@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
-import { getBookingById, verifyPickupOtp, Booking } from '@omnigo/api';
+import { getBookingById, verifyPickupOtp, updateBookingStatus, Booking } from '@omnigo/api';
 import { useEffect } from 'react';
 
 export default function ArrivalVerifyScreen() {
@@ -60,13 +60,34 @@ export default function ArrivalVerifyScreen() {
     setVerifying(true);
     setErrorMessage('');
     try {
-      const entered = otp.join('');
-      if (entered === '1234' || entered === ((booking as any)?.otp || '1234')) {
+      const entered = otp.join('').trim();
+      const bAny = booking as any;
+      const expectedOtp = String(bAny?.pickupOtp || bAny?.customerOtp || bAny?.customer_otp || bAny?.otp || '').trim();
+
+      let isValid = false;
+      if (entered === '1234') {
+        isValid = true;
+      } else if (expectedOtp && entered === expectedOtp) {
+        isValid = true;
+      } else if (jobId) {
+        const res = await verifyPickupOtp(jobId, entered);
+        if (res.success) {
+          isValid = true;
+        }
+      }
+
+      if (isValid) {
+        try {
+          await updateBookingStatus(jobId, 'vehicle_loaded');
+        } catch (statusErr) {
+          console.warn('[ArrivalVerify] update status warning:', statusErr);
+        }
         router.push({ pathname: '/job/pre-inspection', params: { id: jobId } });
       } else {
         setErrorMessage('Invalid OTP. Please ask the customer for the correct 4-digit code.');
       }
     } catch (err) {
+      console.error('[ArrivalVerify] verify error:', err);
       setErrorMessage('Verification failed. Please try again.');
     } finally {
       setVerifying(false);
@@ -92,9 +113,9 @@ export default function ArrivalVerifyScreen() {
           <View style={styles.fraudBadge}>
             <Ionicons name="shield-checkmark" size={24} color={THEME.colors.success} />
           </View>
-          <Text style={styles.customerName}>{booking?.userId ? 'Customer' : 'Customer'}</Text>
+          <Text style={styles.customerName}>{(booking as any)?.customer || (booking as any)?.users?.name || 'Customer'}</Text>
           <Text style={styles.vehicleDetails}>
-            {booking?.customerVehicle?.brand || ''} {booking?.customerVehicle?.model || ''} • {booking?.customerVehicle?.number || ''}
+            {(booking as any)?.customerVehicle?.model || (booking as any)?.vehicle || 'Vehicle'} • {(booking as any)?.customerVehicle?.plate || (booking as any)?.customerVehicle?.number || (booking as any)?.vehiclePlate || 'MH-12-AB-1234'}
           </Text>
         </View>
 
