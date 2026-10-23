@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   headerArea: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.08)' },
   headerTitle: { fontFamily: 'Outfit_700Bold', fontSize: 26, color: '#FFFFFF' },
   headerSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 13, color: 'rgba(255, 255, 255, 0.65)', marginTop: 4 },
-  list: { padding: 16, paddingBottom: 120 },
+  list: { padding: 16, paddingBottom: 150 },
   profileCardTouch: { marginBottom: 20, borderRadius: 24, overflow: 'hidden' },
   profileCard: {
     padding: 20,

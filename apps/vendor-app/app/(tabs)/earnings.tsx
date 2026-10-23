@@ -6,8 +6,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getDriverEarnings, getBookingsByDriver, getDriverById, getPayouts, getDriverLedger, createSettlement, Driver, Booking, DriverEarnings, PayoutRecord } from '@omnigo/api';
 import { getAuthenticatedDriverId } from '@/lib/auth';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function EarningsScreen() {
+  const insets = useSafeAreaInsets();
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [activeTab, setActiveTab] = useState<'overview' | 'wallet' | 'payouts'>('overview');
 
@@ -111,7 +113,7 @@ export default function EarningsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 10, 50), paddingBottom: Math.max(insets.bottom + 140, 160) }]} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.headerRow}>
         <View>

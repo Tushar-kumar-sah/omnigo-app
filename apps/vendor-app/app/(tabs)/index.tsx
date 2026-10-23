@@ -332,7 +332,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 10, 50), paddingBottom: Math.max(insets.bottom + 90, 110) }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 10, 50), paddingBottom: Math.max(insets.bottom + 140, 160) }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Greeting */}

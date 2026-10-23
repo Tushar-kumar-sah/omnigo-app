@@ -130,7 +130,7 @@ export default function BookingsScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom + 90, 100) }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom + 120, 140) }]}
         showsVerticalScrollIndicator={false}
       >
         {filtered.length === 0 && (

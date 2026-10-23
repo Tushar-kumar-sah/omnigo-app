@@ -118,7 +118,7 @@ export default function WalletScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: Math.max(insets.top + 10, 50), paddingBottom: 100 },
+          { paddingTop: Math.max(insets.top + 10, 50), paddingBottom: Math.max(insets.bottom + 140, 160) },
         ]}
         showsVerticalScrollIndicator={false}
       >

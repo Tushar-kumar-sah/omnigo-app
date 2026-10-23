@@ -99,7 +99,7 @@ export default function WalletScreen() {
         <Text style={styles.headerSubtitle}>View past request logs & download receipts</Text>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom + 90, 110) }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom + 120, 140) }]} showsVerticalScrollIndicator={false}>
         {rides.map((ride) => (
           <TouchableOpacity key={ride.id} onPress={() => setSelectedRide(ride)} activeOpacity={0.85} style={styles.cardTouch}>
             <View style={[styles.card, Platform.OS === 'android' && { backgroundColor: 'rgba(13,20,40,0.96)' }]}>
