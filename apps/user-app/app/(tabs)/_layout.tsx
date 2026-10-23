@@ -7,8 +7,11 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 60 + insets.bottom : 62;
-  const TAB_PADDING_BOTTOM = Platform.OS === 'ios' ? Math.max(insets.bottom, 10) : 8;
+  // On Android with 3-button navigation, insets.bottom is typically 24-48px.
+  // When insets.bottom is 0 (or undefined), provide standard 10px padding.
+  const bottomInset = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'android' ? 10 : 0);
+  const TAB_BAR_HEIGHT = 60 + bottomInset;
+  const TAB_PADDING_BOTTOM = Math.max(bottomInset, 8);
 
   return (
     <Tabs
