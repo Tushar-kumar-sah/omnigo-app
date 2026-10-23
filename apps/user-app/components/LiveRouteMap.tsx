@@ -22,11 +22,11 @@ export default function LiveRouteMap({
   driverCoords,
   pickupCoords,
   dropoffCoords,
-  driverName = 'Rajesh Kumar',
-  driverVehicle = 'Tata 407 Flatbed',
-  driverPlate = 'MH-12-AB-1234',
-  pickupAddress = 'Breakdown Location',
-  dropoffAddress = 'Authorized Workshop',
+  driverName = 'Assigned Partner',
+  driverVehicle = 'Tow Truck',
+  driverPlate = '—',
+  pickupAddress = 'Pickup Location (GPS)',
+  dropoffAddress = 'Destination',
   speed = 42,
   height = 340,
   interactive = true,
@@ -291,6 +291,10 @@ export default function LiveRouteMap({
     window.updateDriverPosition = function(newLat, newLng, newSpeed) {
       if (driverMarker) {
         driverMarker.setLatLng([newLat, newLng]);
+        if (map && pLat && pLng) {
+          const currentBounds = L.latLngBounds([[newLat, newLng], [pLat, pLng]]);
+          map.fitBounds(currentBounds, { padding: [45, 45], maxZoom: 17 });
+        }
       }
     };
 
@@ -300,7 +304,7 @@ export default function LiveRouteMap({
 </body>
 </html>
     `;
-  }, [pLat, pLng, dropLat, dropLng, driverName, driverVehicle, driverPlate, pickupAddress, dropoffAddress]);
+  }, [dLat, dLng, pLat, pLng, dropLat, dropLng, driverName, driverVehicle, driverPlate, pickupAddress, dropoffAddress]);
 
   return (
     <View style={[styles.container, { height }]}>

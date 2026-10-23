@@ -36,12 +36,12 @@ export function subscribeToBooking(bookingId: string, callback: (payload: any) =
   let lastDriverId: any = null;
   interval = setInterval(async () => {
     try {
-      const isUuid = bookingId.includes('-') && bookingId.length > 30;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingId);
       let query = supabase.from('bookings').select('*');
       if (isUuid) {
         query = query.eq('id', bookingId);
       } else {
-        query = query.or(`id.eq.${bookingId},booking_number.eq.${bookingId}`);
+        query = query.eq('booking_number', bookingId);
       }
       const { data } = await query.maybeSingle();
       if (data && (data.status !== lastStatus || data.driver_id !== lastDriverId)) {

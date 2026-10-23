@@ -169,12 +169,12 @@ export async function rateDriverBooking(
 ): Promise<{ success: boolean; averageRating?: number; reviewCount?: number }> {
   if (!isSupabaseConfigured || !supabase) return { success: false };
   try {
-    const isUuid = bookingId.includes('-');
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingId);
     let query = supabase.from('bookings').select('id, driver_id, status');
     if (isUuid) {
       query = query.eq('id', bookingId);
     } else {
-      query = query.or(`id.eq.${bookingId},booking_number.eq.${bookingId}`);
+      query = query.eq('booking_number', bookingId);
     }
 
     const { data: booking, error: bErr } = await query.maybeSingle();

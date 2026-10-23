@@ -288,27 +288,47 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {recentBookings.map((booking, idx) => (
-          <TouchableOpacity key={booking.id || booking.uuid || idx} style={styles.activityItemTouch} activeOpacity={0.8} onPress={() => router.push('/(tabs)/bookings')}>
-            <View style={styles.activityItem}>
-              <View style={[styles.activityIconBadge, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]}>
-                <Ionicons name="car-sport" size={20} color="#00CFFF" />
+        {recentBookings.map((booking, idx) => {
+          const rawStatus = (booking.status || booking.bookingStatus || '').toLowerCase();
+          const isActive = rawStatus !== 'completed' && rawStatus !== 'cancelled';
+          return (
+            <TouchableOpacity
+              key={booking.id || booking.uuid || idx}
+              style={styles.activityItemTouch}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (isActive) {
+                  router.push({
+                    pathname: '/booking/tracking',
+                    params: { bookingId: booking.uuid || booking.id || booking.booking_number, driverId: booking.driver_id || booking.driverId },
+                  });
+                } else {
+                  router.push('/(tabs)/bookings');
+                }
+              }}
+            >
+              <View style={styles.activityItem}>
+                <View style={[styles.activityIconBadge, { backgroundColor: isActive ? 'rgba(0, 255, 151, 0.18)' : 'rgba(0, 207, 255, 0.15)' }]}>
+                  <Ionicons name={isActive ? 'navigate' : 'car-sport'} size={20} color={isActive ? '#00FF97' : '#00CFFF'} />
+                </View>
+                <View style={styles.activityInfo}>
+                  <Text style={styles.activityTitle}>{booking.service_type || booking.service || 'Tow Service'}</Text>
+                  <Text style={styles.activitySubtitle} numberOfLines={1}>
+                    {booking.pickup ||
+                      (typeof booking.pickup_location === 'object' ? booking.pickup_location?.address : null) ||
+                      'Unknown Location'}
+                  </Text>
+                </View>
+                <View style={styles.activityRight}>
+                  <Text style={styles.activityAmount}>₹{booking.price || booking.estimatedPrice || booking.fare || 0}</Text>
+                  <Text style={[styles.activityTime, isActive && { color: '#00FF97', fontFamily: 'Outfit_700Bold' }]}>
+                    {isActive ? '● Live Track' : booking.status}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.activityInfo}>
-                <Text style={styles.activityTitle}>{booking.service_type || booking.service || 'Tow Service'}</Text>
-                <Text style={styles.activitySubtitle}>
-                  {booking.pickup ||
-                    (typeof booking.pickup_location === 'object' ? booking.pickup_location?.address : null) ||
-                    'Unknown Location'}
-                </Text>
-              </View>
-              <View style={styles.activityRight}>
-                <Text style={styles.activityAmount}>₹{booking.price || booking.estimatedPrice || booking.fare || 0}</Text>
-                <Text style={styles.activityTime}>{booking.status}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );

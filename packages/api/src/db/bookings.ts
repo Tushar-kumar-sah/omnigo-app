@@ -1,6 +1,8 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { Booking, BookingStatus } from '../types';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function parseGeometryPoint(geo: any): { latitude: number; longitude: number } {
   let lat = 22.5726;
   let lng = 88.3639;
@@ -77,8 +79,10 @@ export function mapDbBookingToBooking(dbBooking: any): any {
   const dropoffOtp = dbBooking.dropoff_otp || fallbackDropoffOtp;
 
   return {
-    id: dbBooking.booking_number || (dbBooking.id ? `JOB-${dbBooking.id.substring(0, 4).toUpperCase()}` : '—'),
+    id: dbBooking.id || dbBooking.booking_number,
     uuid: dbBooking.id,
+    bookingNumber: dbBooking.booking_number || (dbBooking.id ? `JOB-${dbBooking.id.substring(0, 4).toUpperCase()}` : '—'),
+    displayId: dbBooking.booking_number || (dbBooking.id ? `JOB-${dbBooking.id.substring(0, 4).toUpperCase()}` : '—'),
     userId: dbBooking.user_id,
     driverId: dbBooking.driver_id,
     customer: customerName,
@@ -148,22 +152,33 @@ export async function getBookings(filters?: { status?: string; userId?: string; 
 }
 
 export async function getBookingById(id: string): Promise<any | null> {
-  if (!isSupabaseConfigured || !supabase) return null;
+  if (!isSupabaseConfigured || !supabase || !id) return null;
   try {
-    const isUuid = id.includes('-');
+    const isUuid = UUID_REGEX.test(id);
     let query = supabase
       .from('bookings')
-      .select('*, users(name, phone), drivers(name, vehicle_plate)');
+      .select('*, users(name, phone), drivers(name, vehicle_plate, phone, rating, vehicle_type)');
 
     if (isUuid) {
       query = query.eq('id', id);
     } else {
-      query = query.or(`id.eq.${id},booking_number.eq.${id}`);
+      query = query.eq('booking_number', id);
     }
 
     const { data, error } = await query.maybeSingle();
-    if (error || !data) return null;
-    return mapDbBookingToBooking(data);
+    if (!error && data) return mapDbBookingToBooking(data);
+
+    if (!isUuid) {
+      const { data: fallback } = await supabase
+        .from('bookings')
+        .select('*, users(name, phone), drivers(name, vehicle_plate, phone, rating, vehicle_type)')
+        .ilike('booking_number', `%${id}%`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (fallback) return mapDbBookingToBooking(fallback);
+    }
+    return null;
   } catch (err) {
     return null;
   }

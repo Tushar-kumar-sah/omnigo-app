@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Platform,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,11 +19,15 @@ const mapToUIBooking = (b: any) => {
   const discount = Number(b.promoDiscount || b.promo_discount || 0);
   const total = Number(b.finalPrice || b.final_price || estPrice || 0);
 
+  const rawStatus = (b.bookingStatus || b.status || '').toLowerCase();
+  const isCompleted = rawStatus === 'completed';
+  const isCancelled = rawStatus === 'cancelled';
+
   return {
     id: b.id || (b.uuid ? `JOB-${b.uuid.substring(0, 4).toUpperCase()}` : 'JOB-0000'),
-    status: b.status === 'completed' || b.status === 'Completed' ? 'Completed'
-          : b.status === 'cancelled' || b.status === 'Cancelled' ? 'Cancelled'
-          : 'Active',
+    rawId: b.uuid || b.id || b.booking_number,
+    driverId: b.driver_id || b.driverId,
+    status: isCompleted ? 'Completed' : isCancelled ? 'Cancelled' : 'Active',
     date: new Date(b.created_at || b.createdAt || Date.now()).toLocaleString('en-IN'),
     service: b.service_type || b.service || 'Flatbed Tow',
     vehicle: b.vehicle || b.customerVehicle?.model || 'User Vehicle',
@@ -61,6 +66,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 // ─── Component ───────────────────────────────────────────────
 export default function BookingsScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<Tab>('All');
   const [bookings, setBookings] = useState<any[]>([]);
@@ -190,6 +196,16 @@ export default function BookingsScreen() {
 
             {/* Actions */}
             <View style={styles.actionRow}>
+              {booking.status === 'Active' && (
+                <TouchableOpacity
+                  style={styles.trackLiveBtn}
+                  onPress={() => router.push({ pathname: '/booking/tracking', params: { bookingId: booking.rawId || booking.id, driverId: booking.driverId } })}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="navigate" size={15} color="#000" />
+                  <Text style={styles.trackLiveBtnText}>Track Live</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.invoiceBtn} onPress={() => setInvoice(booking)} activeOpacity={0.8}>
                 <Ionicons name="document-text-outline" size={15} color={theme.colors.primary} />
                 <Text style={styles.invoiceBtnText}>View Invoice</Text>
@@ -319,6 +335,8 @@ const styles = StyleSheet.create({
   refundBadge:  { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,255,151,0.06)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,255,151,0.15)', marginTop: 10 },
   refundText:   { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#00FF97', flex: 1 },
   actionRow:    { flexDirection: 'row', gap: 10, marginTop: 12 },
+  trackLiveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 100, backgroundColor: '#00FF97' },
+  trackLiveBtnText: { fontFamily: 'Outfit_700Bold', fontSize: 13, color: '#000' },
   invoiceBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 100, borderWidth: 1, borderColor: 'rgba(0,207,255,0.3)', backgroundColor: 'rgba(0,207,255,0.06)' },
   invoiceBtnText: { fontFamily: 'Outfit_700Bold', fontSize: 13, color: theme.colors.primary },
   rebookBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 100, backgroundColor: theme.colors.primary },

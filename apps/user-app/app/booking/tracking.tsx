@@ -10,7 +10,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { theme } from '@/constants/theme';
-import { fetchBookingById, fetchDriverById, submitDriverRating } from '@/lib/api';
+import * as Location from 'expo-location';
+import { fetchBookingById, fetchDriverById, submitDriverRating, fetchCurrentUser, fetchUserBookings } from '@/lib/api';
 import { subscribeToDriverLocation, updateBookingDestination, subscribeToBooking } from '@omnigo/api';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 import LiveRouteMap from '@/components/LiveRouteMap';
@@ -37,6 +38,21 @@ const CANCEL_REASONS = [
   'Other',
 ];
 
+function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
+
 export default function TrackingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -49,9 +65,9 @@ export default function TrackingScreen() {
   const [driverPlate, setDriverPlate] = useState('—');
   const [pickupAddr, setPickupAddr] = useState('Fetching...');
   const [dropoffAddr, setDropoffAddr] = useState('Fetching...');
-  const [pickupCoords, setPickupCoords] = useState({ latitude: 22.5515, longitude: 88.3524 });
-  const [dropoffCoords, setDropoffCoords] = useState({ latitude: 22.5735, longitude: 88.4331 });
-  const [driverCoords, setDriverCoords] = useState({ latitude: 22.5600, longitude: 88.3700 });
+  const [pickupCoords, setPickupCoords] = useState<{ latitude: number; longitude: number }>({ latitude: 0, longitude: 0 });
+  const [dropoffCoords, setDropoffCoords] = useState<{ latitude: number; longitude: number }>({ latitude: 0, longitude: 0 });
+  const [driverCoords, setDriverCoords] = useState<{ latitude: number; longitude: number }>({ latitude: 0, longitude: 0 });
   const [booking, setBooking] = useState<any>(null);
   const [driver, setDriver] = useState<any>(null);
   const [mapMode, setMapMode] = useState<'live_map' | 'radar'>('live_map');
@@ -144,95 +160,174 @@ export default function TrackingScreen() {
     setDriverPlate(b.vehiclePlate || '—');
     setDriverVehicle(b.driverVehicle || b.vehicle || '—');
     
-    if (b.pickup && typeof b.pickup === 'string') setPickupAddr(b.pickup);
-    else if (b.pickup?.address) setPickupAddr(b.pickup.address);
-    else if (b.pickup_location?.address) setPickupAddr(b.pickup_location.address);
+    if (b.pickup && typeof b.pickup === 'string' && b.pickup !== '—') setPickupAddr(b.pickup);
+    else if (b.pickup?.address && b.pickup.address !== '—') setPickupAddr(b.pickup.address);
+    else if (b.pickupLocation?.address && b.pickupLocation.address !== '—') setPickupAddr(b.pickupLocation.address);
+    else if (b.pickup_address && b.pickup_address !== '—') setPickupAddr(b.pickup_address);
+    else if (b.pickup_location?.address && b.pickup_location.address !== '—') setPickupAddr(b.pickup_location.address);
     
-    if (b.dropoff && typeof b.dropoff === 'string') setDropoffAddr(b.dropoff);
-    else if (b.dropoff?.address) setDropoffAddr(b.dropoff.address);
-    else if (b.dropoff_location?.address) setDropoffAddr(b.dropoff_location.address);
+    if (b.drop && typeof b.drop === 'string' && b.drop !== '—') setDropoffAddr(b.drop);
+    else if (b.dropoff && typeof b.dropoff === 'string' && b.dropoff !== '—') setDropoffAddr(b.dropoff);
+    else if (b.dropoff?.address && b.dropoff.address !== '—') setDropoffAddr(b.dropoff.address);
+    else if (b.dropoffLocation?.address && b.dropoffLocation.address !== '—') setDropoffAddr(b.dropoffLocation.address);
+    else if (b.dropoff_address && b.dropoff_address !== '—') setDropoffAddr(b.dropoff_address);
+    else if (b.dropoff_location?.address && b.dropoff_location.address !== '—') setDropoffAddr(b.dropoff_location.address);
 
     const pCoords = b.pickupCoords || b.pickupLocation?.coordinates || (b.pickup_location && typeof b.pickup_location === 'object' && b.pickup_location.coordinates ? { latitude: b.pickup_location.coordinates[1], longitude: b.pickup_location.coordinates[0] } : null);
-    if (pCoords?.latitude && pCoords?.longitude) {
+    if (pCoords?.latitude && pCoords?.longitude && pCoords.latitude !== 0) {
       setPickupCoords({ latitude: Number(pCoords.latitude), longitude: Number(pCoords.longitude) });
     }
 
     const dCoords = b.dropoffCoords || b.dropoffLocation?.coordinates || (b.dropoff_location && typeof b.dropoff_location === 'object' && b.dropoff_location.coordinates ? { latitude: b.dropoff_location.coordinates[1], longitude: b.dropoff_location.coordinates[0] } : null);
-    if (dCoords?.latitude && dCoords?.longitude) {
+    if (dCoords?.latitude && dCoords?.longitude && dCoords.latitude !== 0) {
       setDropoffCoords({ latitude: Number(dCoords.latitude), longitude: Number(dCoords.longitude) });
+    } else if (pCoords?.latitude && pCoords?.longitude && pCoords.latitude !== 0) {
+      setDropoffCoords({ latitude: Number(pCoords.latitude) + 0.02, longitude: Number(pCoords.longitude) + 0.02 });
     }
   };
 
+  // User current GPS location on mount
   useEffect(() => {
-    if (bookingId) {
-      // Immediate fetch on mount
-      fetchBookingById(bookingId).then(syncBookingData).catch(() => {});
-
-      // Polling every 2.5s
-      const interval = setInterval(async () => {
-        try {
-          const b = await fetchBookingById(bookingId);
-          syncBookingData(b);
-        } catch (e) {
-          console.warn('[Tracking] poll booking error', e);
-        }
-      }, 2500);
-
-      // Real-time Supabase subscription
-      let unsubBooking: any = null;
+    (async () => {
       try {
-        unsubBooking = subscribeToBooking(bookingId, (updated) => {
-          syncBookingData(updated);
-        });
-      } catch (e) {}
-
-      return () => {
-        clearInterval(interval);
-        if (unsubBooking) {
-          if (typeof unsubBooking === 'function') unsubBooking();
-          else if (typeof unsubBooking.unsubscribe === 'function') unsubBooking.unsubscribe();
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          if (loc?.coords) {
+            setPickupCoords((prev) => (prev.latitude === 0 ? { latitude: loc.coords.latitude, longitude: loc.coords.longitude } : prev));
+          }
         }
-      };
+      } catch (e) {}
+    })();
+  }, []);
+
+  // Booking loader: auto-discovers latest active booking if bookingId is missing
+  useEffect(() => {
+    let isMounted = true;
+    let unsubBooking: any = null;
+    let interval: any = null;
+
+    async function initBooking() {
+      let targetId = bookingId;
+      if (!targetId) {
+        try {
+          const u = await fetchCurrentUser();
+          const uid = u?.uuid || u?.id;
+          if (uid) {
+            const userBookings = await fetchUserBookings(uid);
+            const active = userBookings?.find(
+              (b: any) =>
+                (b.bookingStatus || b.status || '').toLowerCase() !== 'completed' &&
+                (b.bookingStatus || b.status || '').toLowerCase() !== 'cancelled'
+            );
+            if (active && isMounted) {
+              targetId = active.uuid || active.id;
+              syncBookingData(active);
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (targetId && isMounted) {
+        fetchBookingById(targetId).then((b) => {
+          if (isMounted && b) syncBookingData(b);
+        }).catch(() => {});
+
+        interval = setInterval(async () => {
+          try {
+            const b = await fetchBookingById(targetId);
+            if (isMounted && b) syncBookingData(b);
+          } catch (e) {}
+        }, 2500);
+
+        try {
+          unsubBooking = subscribeToBooking(targetId, (updated) => {
+            if (isMounted && updated) syncBookingData(updated);
+          });
+        } catch (e) {}
+      }
     }
+
+    initBooking();
+
+    return () => {
+      isMounted = false;
+      if (interval) clearInterval(interval);
+      if (unsubBooking) {
+        if (typeof unsubBooking === 'function') unsubBooking();
+        else if (typeof unsubBooking.unsubscribe === 'function') unsubBooking.unsubscribe();
+      }
+    };
   }, [bookingId]);
 
+  // Real-time live tracking of assigned driver (Supabase subscription + 2s polling)
   useEffect(() => {
     let unsub: any = null;
-    const activeDriverId = driverId || booking?.driverId || 'b0000000-0000-0000-0000-000000000001';
+    let pollInterval: any = null;
+    const activeDriverId = driverId || booking?.driverId || booking?.driver_id;
     if (activeDriverId) {
       const setup = async () => {
         try {
           const d = await fetchDriverById(activeDriverId);
           if (d) {
             setDriver(d);
-            if (d.latitude && d.longitude) {
-              setDriverCoords({ latitude: d.latitude, longitude: d.longitude });
+            if (d.name) setDriverName(d.name);
+            if (d.vehiclePlate) setDriverPlate(d.vehiclePlate);
+            if (d.vehicle) setDriverVehicle(d.vehicle);
+            if (d.latitude && d.longitude && d.latitude !== 0 && d.longitude !== 0) {
+              setDriverCoords({ latitude: Number(d.latitude), longitude: Number(d.longitude) });
+            }
+            if (d.speed != null) {
+              const spd = typeof d.speed === 'number' ? Math.round(d.speed) : parseInt(d.speed, 10);
+              if (!isNaN(spd)) setSpeedVal(spd);
             }
           }
+
+          // Active 2s polling for driver coordinates
+          pollInterval = setInterval(async () => {
+            try {
+              const latest = await fetchDriverById(activeDriverId);
+              if (latest && latest.latitude && latest.longitude && latest.latitude !== 0 && latest.longitude !== 0) {
+                setDriverCoords((prev) => {
+                  if (Math.abs(prev.latitude - latest.latitude) > 0.00003 || Math.abs(prev.longitude - latest.longitude) > 0.00003) {
+                    return { latitude: Number(latest.latitude), longitude: Number(latest.longitude) };
+                  }
+                  return prev;
+                });
+                if (latest.speed != null) {
+                  const spd = typeof latest.speed === 'number' ? Math.round(latest.speed) : parseInt(latest.speed, 10);
+                  if (!isNaN(spd)) setSpeedVal(spd);
+                }
+              }
+            } catch (e) {}
+          }, 2000);
+
+          // Realtime Supabase postgres_changes event listener
           unsub = subscribeToDriverLocation(activeDriverId, (payload: any) => {
+            const lat = payload?.latitude ?? payload?.lat ?? payload?.location?.latitude;
+            const lng = payload?.longitude ?? payload?.lng ?? payload?.location?.longitude;
+            if (lat && lng && Number(lat) !== 0 && Number(lng) !== 0) {
+              setDriverCoords({ latitude: Number(lat), longitude: Number(lng) });
+            }
             if (payload?.speed != null) {
               const spd = typeof payload.speed === 'number' ? Math.round(payload.speed) : parseInt(payload.speed, 10);
               if (!isNaN(spd)) setSpeedVal(spd);
             }
-            const lat = payload?.latitude ?? payload?.lat ?? payload?.location?.latitude;
-            const lng = payload?.longitude ?? payload?.lng ?? payload?.location?.longitude;
-            if (lat && lng) {
-              setDriverCoords({ latitude: Number(lat), longitude: Number(lng) });
-            }
           });
         } catch (e) {
-          console.warn('[Tracking] poll driver error', e);
+          console.warn('[Tracking] setup driver tracking error', e);
         }
       };
       setup();
     }
     return () => {
+      if (pollInterval) clearInterval(pollInterval);
       if (unsub) {
         if (typeof unsub === 'function') unsub();
         else if (typeof unsub.unsubscribe === 'function') unsub.unsubscribe();
       }
     };
-  }, [driverId, booking?.driverId]);
+  }, [driverId, booking?.driverId, booking?.driver_id]);
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [showChat, setShowChat] = useState(false);
@@ -500,7 +595,7 @@ export default function TrackingScreen() {
           </View>
         </BlurView>
 
-        {/* ETA & Driver Fast Stats Banner */}
+        {/* ETA & Driver Fast Stats Banner (Real Dynamic Road Telemetry) */}
         <LinearGradient
           colors={['rgba(56,189,248,0.14)', 'rgba(56,189,248,0.03)']}
           style={styles.etaBanner}
@@ -508,10 +603,28 @@ export default function TrackingScreen() {
           <View>
             <Text style={styles.etaLabel}>Estimated Pickup Arrival</Text>
             <Text style={styles.etaValue}>
-              {currentStep < 3 ? '12 mins' : currentStep < 5 ? '4 mins' : 'Driver Arrived ✓'}
+              {(() => {
+                if (currentStep >= 5) return 'Delivered ✓';
+                if (currentStep >= 3) return 'In Transit';
+                if (currentStep === 2) return 'Driver Arrived ✓';
+                if (driverCoords.latitude === 0 || pickupCoords.latitude === 0) return 'Connecting...';
+                const dist = calculateDistanceKm(driverCoords.latitude, driverCoords.longitude, pickupCoords.latitude, pickupCoords.longitude);
+                if (dist <= 0.15) return 'Arriving Now';
+                if (dist <= 0.8) return '1 - 2 mins away';
+                const mins = Math.max(2, Math.round(dist * 2.2));
+                return `${mins} mins away · ${dist.toFixed(1)} km`;
+              })()}
             </Text>
             <Text style={styles.etaSubtext}>
-              {currentStep < 3 ? 'Navigating SV Road highway corridor' : 'Driver approaching exact pin'}
+              {(() => {
+                if (currentStep >= 5) return 'Tow completed safely at destination';
+                if (currentStep >= 3) return `Towing vehicle to ${dropoffAddr ? dropoffAddr.split(',')[0] : 'drop-off location'}`;
+                if (currentStep === 2) return 'Partner has arrived at your exact pickup location';
+                if (driverCoords.latitude === 0 || pickupCoords.latitude === 0) return 'Acquiring high-precision GPS telemetry';
+                const dist = calculateDistanceKm(driverCoords.latitude, driverCoords.longitude, pickupCoords.latitude, pickupCoords.longitude);
+                if (dist <= 0.15) return 'Driver is within 150m of your pickup pin';
+                return `Approaching ${pickupAddr ? pickupAddr.split(',')[0] : 'your location'} · ${speedVal > 0 ? speedVal + ' km/h' : 'In transit'}`;
+              })()}
             </Text>
           </View>
           <View style={styles.etaIconBox}>
@@ -563,7 +676,7 @@ export default function TrackingScreen() {
         <BlurView intensity={20} tint="dark" style={styles.card}>
           <View style={styles.driverRow}>
             <View style={styles.driverAvatar}>
-              <Text style={styles.driverAvatarText}>R</Text>
+              <Text style={styles.driverAvatarText}>{(driverName && driverName !== '—' ? driverName[0] : 'D').toUpperCase()}</Text>
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.driverName}>{driverName}</Text>
