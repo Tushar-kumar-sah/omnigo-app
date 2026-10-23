@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -58,22 +58,15 @@ const SLIDES = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
+  // Ensure safe fallback if dimensions are 0 during early layout
+  const width = windowWidth || 380;
+  const height = windowHeight || 800;
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
-
-  // Glow pulse animation for AI assistant
-  const glowAnim = useRef(new Animated.Value(0.4)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 0.9, duration: 1200, useNativeDriver: true }),
-        Animated.timing(glowAnim, { toValue: 0.4, duration: 1200, useNativeDriver: true }),
-      ])
-    ).start();
-  }, [glowAnim]);
 
   const handleNext = () => {
     if (currentIndex < SLIDES.length - 1) {
@@ -89,9 +82,9 @@ export default function OnboardingScreen() {
     router.replace('/(auth)/register');
   };
 
-  // Responsive hero card size (never collapses or overflows on any screen size)
-  const cardWidth = Math.min(width - 48, 350);
-  const cardHeight = Math.round(Math.min(Math.max(height * 0.35, 240), 300));
+  // Responsive hero card size (guaranteed non-zero, never squashed on any device)
+  const cardWidth = Math.min(width - 48, 340);
+  const cardHeight = Math.round(Math.min(Math.max(height * 0.34, 250), 300));
 
   return (
     <View style={styles.container}>
@@ -129,7 +122,7 @@ export default function OnboardingScreen() {
           offset: width * index,
           index,
         })}
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <View style={[styles.slideWidthContainer, { width }]}>
             <View style={styles.slideContent}>
               {/* Hero Graphic Card */}
@@ -151,11 +144,6 @@ export default function OnboardingScreen() {
                   },
                 ]}
               >
-                {/* Glow ring behind mascot on slide 2 */}
-                {index === 1 && (
-                  <Animated.View style={[styles.omniGlow, { opacity: glowAnim }]} />
-                )}
-
                 <Image
                   source={item.image}
                   style={styles.heroImage}
@@ -290,10 +278,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   flatListContent: {
-    alignItems: 'center',
+    flexGrow: 1,
   },
   slideWidthContainer: {
-    flex: 1,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -302,30 +290,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    maxHeight: 650,
   },
   heroCardContainer: {
+    minHeight: 240,
+    maxHeight: 320,
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1.5,
-    marginBottom: 20,
+    marginBottom: 18,
     position: 'relative',
     backgroundColor: '#08101E',
     flexShrink: 0,
-    elevation: Platform.OS === 'android' ? 0 : 8,
+    elevation: Platform.OS === 'android' ? 0 : 6,
   },
   heroImage: {
     width: '100%',
     height: '100%',
-  },
-  omniGlow: {
-    position: 'absolute',
-    top: '20%',
-    left: '20%',
-    width: '60%',
-    height: '60%',
-    borderRadius: 100,
-    backgroundColor: 'rgba(0, 207, 255, 0.25)',
-    zIndex: 1,
   },
   heroOverlay: {
     position: 'absolute',
