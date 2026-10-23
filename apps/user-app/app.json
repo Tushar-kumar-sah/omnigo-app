@@ -12,6 +12,11 @@
     },
     "android": {
       "package": "com.omnigo.userapp",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0E17"
@@ -23,6 +28,12 @@
     "plugins": [
       "expo-router",
       "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "OmniGo uses your location to pinpoint your breakdown location and dispatch the nearest tow truck."
+        }
+      ],
       [
         "expo-splash-screen",
         {
