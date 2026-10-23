@@ -399,3 +399,18 @@ CREATE POLICY "Enable all access for all" ON pricing_rules FOR ALL USING (true);
 
 CREATE POLICY "Enable read access for all" ON fraud_incidents FOR SELECT USING (true);
 CREATE POLICY "Enable all access for all" ON fraud_incidents FOR ALL USING (true);
+
+-- =============================================================================
+-- API Grants & Default Privileges (Supabase Data API Access)
+-- Ensures supabase-js, PostgREST, and GraphQL have explicit access
+-- to all existing and future tables in the public schema.
+-- =============================================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+
