@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function EarningsScreen() {
   const insets = useSafeAreaInsets();
+
+  const CardWrapper = ({ children, style }: { children: React.ReactNode; style: any }) => {
+    if (Platform.OS === 'android') {
+      return <View style={[style, styles.cardAndroid]}>{children}</View>;
+    }
+    return (
+      <BlurView intensity={20} tint="dark" style={style}>
+        {children}
+      </BlurView>
+    );
+  };
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [activeTab, setActiveTab] = useState<'overview' | 'wallet' | 'payouts'>('overview');
 
@@ -116,9 +127,11 @@ export default function EarningsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 10, 50), paddingBottom: Math.max(insets.bottom + 140, 160) }]} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <View>
+        <View style={styles.headerLeft}>
           <Text style={styles.title}>Earnings & Wallet</Text>
-          <Text style={styles.subtitle}>Track revenue, commissions & bank payouts</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>
+            Track revenue, commissions & bank payouts
+          </Text>
         </View>
         <View style={styles.statusPill}>
           <View style={styles.greenDot} />
@@ -126,30 +139,51 @@ export default function EarningsScreen() {
         </View>
       </View>
 
-      {/* Top Tab Switcher: Overview | Wallet | Payout History */}
+      {/* Top Tab Switcher: Overview | Wallet | Payouts */}
       <View style={styles.topTabs}>
         <TouchableOpacity
           style={[styles.topTab, activeTab === 'overview' && styles.topTabActive]}
           onPress={() => setActiveTab('overview')}
+          activeOpacity={0.8}
         >
-          <Ionicons name="stats-chart" size={15} color={activeTab === 'overview' ? '#000' : THEME.colors.textSecondary} />
-          <Text style={[styles.topTabText, activeTab === 'overview' && styles.topTabTextActive]}>Overview</Text>
+          <Ionicons
+            name="stats-chart"
+            size={14}
+            color={activeTab === 'overview' ? '#050810' : 'rgba(255, 255, 255, 0.55)'}
+          />
+          <Text style={[styles.topTabText, activeTab === 'overview' && styles.topTabTextActive]}>
+            Overview
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.topTab, activeTab === 'wallet' && styles.topTabActive]}
           onPress={() => setActiveTab('wallet')}
+          activeOpacity={0.8}
         >
-          <Ionicons name="wallet" size={15} color={activeTab === 'wallet' ? '#000' : THEME.colors.textSecondary} />
-          <Text style={[styles.topTabText, activeTab === 'wallet' && styles.topTabTextActive]}>Wallet & Bank</Text>
+          <Ionicons
+            name="wallet"
+            size={14}
+            color={activeTab === 'wallet' ? '#050810' : 'rgba(255, 255, 255, 0.55)'}
+          />
+          <Text style={[styles.topTabText, activeTab === 'wallet' && styles.topTabTextActive]}>
+            Wallet
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.topTab, activeTab === 'payouts' && styles.topTabActive]}
           onPress={() => setActiveTab('payouts')}
+          activeOpacity={0.8}
         >
-          <Ionicons name="receipt" size={15} color={activeTab === 'payouts' ? '#000' : THEME.colors.textSecondary} />
-          <Text style={[styles.topTabText, activeTab === 'payouts' && styles.topTabTextActive]}>Payout Logs</Text>
+          <Ionicons
+            name="receipt"
+            size={14}
+            color={activeTab === 'payouts' ? '#050810' : 'rgba(255, 255, 255, 0.55)'}
+          />
+          <Text style={[styles.topTabText, activeTab === 'payouts' && styles.topTabTextActive]}>
+            Payouts
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -175,7 +209,7 @@ export default function EarningsScreen() {
           </View>
 
           {/* Main Net Earnings Card */}
-          <BlurView intensity={20} tint="dark" style={styles.mainCard}>
+          <CardWrapper style={styles.mainCard}>
             <LinearGradient
               colors={['rgba(0, 255, 151, 0.12)', 'rgba(0, 207, 255, 0.04)', 'transparent']}
               start={{ x: 0, y: 0 }}
@@ -211,11 +245,11 @@ export default function EarningsScreen() {
                 <Text style={styles.statBoxLabel}>Acceptance</Text>
               </View>
             </View>
-          </BlurView>
+          </CardWrapper>
 
           {/* Transparent Commission & Fare Summary Box */}
           <Text style={styles.sectionTitle}>Commission & Fare Breakdown</Text>
-          <BlurView intensity={20} tint="dark" style={styles.breakdownCard}>
+          <CardWrapper style={styles.breakdownCard}>
             <View style={styles.feeRow}>
               <Text style={styles.feeLabel}>Gross Customer Payments</Text>
               <Text style={styles.feeValue}>₹0</Text>
@@ -233,12 +267,12 @@ export default function EarningsScreen() {
               <Text style={[styles.feeLabel, { fontFamily: THEME.fonts.outfit.bold, color: '#fff' }]}>Your Take-Home Earnings</Text>
               <Text style={[styles.feeValue, { fontFamily: THEME.fonts.outfit.bold, color: THEME.colors.success, fontSize: 16 }]}>{currentData.amount}</Text>
             </View>
-          </BlurView>
+          </CardWrapper>
 
           {/* Recent Trip Earnings List */}
           <Text style={styles.sectionTitle}>Recent Trip Earnings</Text>
           {jobsData.map((job) => (
-            <BlurView key={job.id} intensity={20} tint="dark" style={styles.tripCard}>
+            <CardWrapper key={job.id} style={styles.tripCard}>
               <View style={styles.tripCardHeader}>
                 <View style={styles.tripLeft}>
                   <View style={styles.towIconCircle}>
@@ -258,7 +292,7 @@ export default function EarningsScreen() {
               <View style={styles.tripDetailsPill}>
                 <Text style={styles.tripPillText}>Customer: {job.price}  |  OmniGo Fee: -{job.platformFee}  |  Tip: {job.tip}  |  Driver Net: {job.driverEarnings}</Text>
               </View>
-            </BlurView>
+            </CardWrapper>
           ))}
         </>
       )}
@@ -266,7 +300,7 @@ export default function EarningsScreen() {
       {/* ─── SECTION 2: WALLET & BANK TAB ──────────────────── */}
       {activeTab === 'wallet' && (
         <>
-          <BlurView intensity={20} tint="dark" style={styles.walletCard}>
+          <CardWrapper style={styles.walletCard}>
             <LinearGradient
               colors={['rgba(0, 207, 255, 0.15)', 'rgba(0, 255, 151, 0.08)', 'transparent']}
               style={StyleSheet.absoluteFill}
@@ -290,10 +324,10 @@ export default function EarningsScreen() {
               <Ionicons name="information-circle-outline" size={14} color={THEME.colors.textSecondary} />
               <Text style={styles.autoPayoutText}>Auto-transferred to your registered bank every Monday.</Text>
             </View>
-          </BlurView>
+          </CardWrapper>
 
           <Text style={styles.sectionTitle}>Approved Bank Account</Text>
-          <BlurView intensity={20} tint="dark" style={styles.bankCard}>
+          <CardWrapper style={styles.bankCard}>
             <View style={styles.bankHeader}>
               <View style={styles.bankIconCircle}>
                 <Ionicons name="business" size={22} color={THEME.colors.primary} />
@@ -326,7 +360,7 @@ export default function EarningsScreen() {
               <Text style={styles.bankInfoLabel}>Phone</Text>
               <Text style={[styles.bankInfoVal, { color: THEME.colors.primary }]}>{driverData.phone || '—'}</Text>
             </View>
-          </BlurView>
+          </CardWrapper>
         </>
       )}
 
@@ -337,7 +371,7 @@ export default function EarningsScreen() {
           <Text style={styles.sectionSub}>All funds are deposited directly to your verified bank account.</Text>
 
           {payoutsData.map((payout) => (
-            <BlurView key={payout.id} intensity={20} tint="dark" style={styles.payoutCard}>
+            <CardWrapper key={payout.id} style={styles.payoutCard}>
               <View style={styles.payoutTop}>
                 <View style={styles.payoutIconCircle}>
                   <Ionicons name="arrow-down-circle" size={24} color={THEME.colors.success} />
@@ -357,7 +391,7 @@ export default function EarningsScreen() {
                 <Text style={styles.payoutMetaLabel}>Ref UTR: {payout.utr}</Text>
                 <Text style={styles.payoutMetaBank}>{payout.bank}</Text>
               </View>
-            </BlurView>
+            </CardWrapper>
           ))}
         </>
       )}
@@ -378,8 +412,13 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 16,
+    gap: 8,
+  },
+  headerLeft: {
+    flex: 1,
+    paddingRight: 6,
   },
   title: {
     fontFamily: THEME.fonts.outfit.bold,
@@ -395,13 +434,14 @@ const styles = StyleSheet.create({
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 255, 151, 0.1)',
+    backgroundColor: 'rgba(0, 255, 151, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 151, 0.3)',
-    paddingHorizontal: 8,
+    borderColor: 'rgba(0, 255, 151, 0.25)',
+    paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 100,
     gap: 4,
+    flexShrink: 0,
   },
   greenDot: {
     width: 6,
@@ -414,22 +454,29 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: THEME.colors.success,
   },
+  cardAndroid: {
+    backgroundColor: '#0d1428',
+  },
   topTabs: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: THEME.borderRadius.full,
-    padding: 3,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: 4,
     marginBottom: 20,
-    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 6,
   },
   topTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: THEME.borderRadius.full,
-    gap: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+    gap: 6,
   },
   topTabActive: {
     backgroundColor: THEME.colors.primary,
@@ -437,10 +484,10 @@ const styles = StyleSheet.create({
   topTabText: {
     fontFamily: THEME.fonts.inter.medium,
     fontSize: 12,
-    color: THEME.colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.65)',
   },
   topTabTextActive: {
-    color: '#000',
+    color: '#050810',
     fontFamily: THEME.fonts.outfit.bold,
   },
   periodSelector: {
