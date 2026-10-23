@@ -9,16 +9,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Location from 'expo-location';
 import { theme } from '@/constants/theme';
-import { createNewBooking, fetchCurrentUser } from '@/lib/api';
+import { createNewBooking, fetchCurrentUser, initiateCashfreePayment } from '@/lib/api';
 import { getPricingRules } from '@omnigo/api';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 
 const USER_ID = 'a0000000-0000-0000-0000-000000000001';
 
 const PAYMENT_METHODS = [
-  { id: 'upi',  icon: 'qrcode-scan',       label: 'UPI',         sub: 'GPay · PhonePe · Paytm',  color: '#4CAF50' },
-  { id: 'card', icon: 'credit-card-outline', label: 'Card',       sub: 'Credit / Debit Card',      color: '#2196F3' },
-  { id: 'cash', icon: 'cash',               label: 'Cash',        sub: 'Pay driver on delivery',   color: '#FFD60A' },
+  { id: 'upi',  icon: 'qrcode-scan',       label: 'UPI (Instant)',  sub: 'Cashfree UPI · GPay · PhonePe',  color: '#4CAF50' },
+  { id: 'card', icon: 'credit-card-outline', label: 'Cards & NetBanking', sub: 'Cashfree PG · Visa/Mastercard', color: '#2196F3' },
+  { id: 'cash', icon: 'cash',               label: 'Cash on Delivery', sub: 'Pay partner after drop-off', color: '#FFD60A' },
 ] as const;
 
 type PaymentId = typeof PAYMENT_METHODS[number]['id'];
@@ -146,6 +146,22 @@ export default function ConfirmBookingScreen() {
       }
 
       const user = await fetchCurrentUser();
+      const prospectiveBookingId = `omni_${Date.now()}`;
+
+      if (selectedPayment !== 'cash') {
+        try {
+          await initiateCashfreePayment({
+            bookingId: prospectiveBookingId,
+            orderAmount: total,
+            customerId: user?.id || user?.uuid || 'cust_' + Date.now(),
+            customerName: user?.name || 'Customer',
+            customerPhone: user?.phone || '9876543210',
+            customerEmail: user?.email || 'support@omnigo.in',
+          });
+        } catch (cfErr) {
+          console.warn('[Confirm] Cashfree order init', cfErr);
+        }
+      }
       const booking = await createNewBooking({
         userId: user?.uuid || user?.id || USER_ID,
         vehicleTypeId: (params.vehicleType as string) || 'hatchback',
@@ -355,11 +371,11 @@ export default function ConfirmBookingScreen() {
               <Ionicons name="shield-checkmark" size={18} color="#00FF97" />
             </View>
             <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.sectionTitle}>OmniGo Payment Gateway</Text>
-              <Text style={styles.gatewaySub}>Secure Escrow Processing</Text>
+              <Text style={styles.sectionTitle}>OmniGo Cashfree Gateway</Text>
+              <Text style={styles.gatewaySub}>Powered by Cashfree Payments</Text>
             </View>
             <View style={styles.pciBadge}>
-              <Text style={styles.pciText}>256-BIT SSL</Text>
+              <Text style={styles.pciText}>CASHFREE PG</Text>
             </View>
           </View>
 

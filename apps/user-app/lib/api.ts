@@ -22,6 +22,9 @@ import {
   createSOSIncident,
   getVehicleTypes,
   rateDriverBooking,
+  createCashfreeOrder,
+  verifyCashfreePayment,
+  recordCashfreePaymentSuccess,
 } from '@omnigo/api';
 
 // Default Google profile photo when signed in via Google SSO
@@ -892,3 +895,55 @@ export async function fetchVehicleTypes(): Promise<any[]> {
     return [];
   }
 }
+
+// ─── Cashfree Payment Gateway ──────────────────────────────────────────
+
+export async function initiateCashfreePayment(params: {
+  bookingId?: string;
+  orderAmount: number;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  returnUrl?: string;
+}): Promise<any> {
+  try {
+    return await createCashfreeOrder({
+      orderId: params.bookingId ? `omni_${params.bookingId}_${Date.now()}` : undefined,
+      orderAmount: params.orderAmount,
+      customerId: params.customerId,
+      customerName: params.customerName,
+      customerPhone: params.customerPhone,
+      customerEmail: params.customerEmail,
+      returnUrl: params.returnUrl,
+    });
+  } catch (e) {
+    console.warn('[api] initiateCashfreePayment failed', e);
+    return { success: false, error: 'Payment initialization failed' };
+  }
+}
+
+export async function checkCashfreePaymentStatus(orderId: string): Promise<any> {
+  try {
+    return await verifyCashfreePayment(orderId);
+  } catch (e) {
+    console.warn('[api] checkCashfreePaymentStatus failed', e);
+    return { success: false, isPaid: false };
+  }
+}
+
+export async function recordPaymentSuccess(
+  bookingId: string,
+  orderId: string,
+  method?: string,
+  amount?: number
+): Promise<boolean> {
+  try {
+    const res = await recordCashfreePaymentSuccess(bookingId, orderId, method, amount);
+    return res.success;
+  } catch (e) {
+    console.warn('[api] recordPaymentSuccess failed', e);
+    return false;
+  }
+}
+
