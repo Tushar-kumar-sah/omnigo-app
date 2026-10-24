@@ -46,7 +46,7 @@ export default function TabLayout() {
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color as any} />
               {focused && <View style={styles.activeIndicator} />}
             </View>
           ),
@@ -60,7 +60,7 @@ export default function TabLayout() {
           title: 'Track',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'navigate' : 'navigate-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'navigate' : 'navigate-outline'} size={22} color={color as any} />
               {focused && <View style={styles.activeIndicator} />}
             </View>
           ),
@@ -99,7 +99,7 @@ export default function TabLayout() {
           title: 'History',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'time' : 'time-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'time' : 'time-outline'} size={22} color={color as any} />
               {focused && <View style={styles.activeIndicator} />}
             </View>
           ),
@@ -113,7 +113,7 @@ export default function TabLayout() {
           title: 'Settings',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={22} color={color as any} />
               {focused && <View style={styles.activeIndicator} />}
             </View>
           ),

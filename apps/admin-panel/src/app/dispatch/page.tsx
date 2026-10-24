@@ -215,7 +215,7 @@ export default function DispatchCenterPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                {selectedJob.recommendedDrivers.map((driver, index) => (
+                {selectedJob.recommendedDrivers.map((driver: any, index: number) => (
                   <div
                     key={driver.id}
                     style={{

@@ -38,7 +38,7 @@ export default function OtpVerifyScreen() {
   const [countdown, setCountdown] = useState(30);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const inputRefs = useRef<Array<TextInput | null>>([]);
+  const inputRefs = useRef<Array<any>>([]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;

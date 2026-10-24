@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic';
 import React from 'react';
 
 // Recharts does not support SSR — use dynamic imports to avoid prerender crash
-const LazyLoad = (importFn: () => Promise<any>, exportName: string) =>
+const LazyLoad = (importFn: () => Promise<any>, exportName: string): React.ComponentType<any> =>
   dynamic(() => importFn().then((mod: any) => ({ default: mod[exportName] })), { ssr: false });
 
 export const ResponsiveContainer = LazyLoad(() => import('recharts'), 'ResponsiveContainer');

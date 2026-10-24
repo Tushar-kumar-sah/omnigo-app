@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+const WebViewComponent = WebView as any;
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { checkCashfreePaymentStatus } from '@/lib/api';
@@ -149,7 +150,7 @@ export default function CashfreePaymentModal({
         {/* WebView */}
         <View style={styles.webviewWrapper}>
           {source ? (
-            <WebView
+            <WebViewComponent
               ref={webViewRef}
               source={source}
               style={styles.webview}
