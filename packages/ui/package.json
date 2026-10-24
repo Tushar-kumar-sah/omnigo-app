@@ -10,12 +10,5 @@
   "dependencies": {},
   "devDependencies": {
     "typescript": "^5.5.0"
-  },
-  "peerDependencies": {
-    "react": "*",
-    "react-native": "*",
-    "@expo/vector-icons": "*",
-    "expo-blur": "*",
-    "expo-linear-gradient": "*"
   }
 }
