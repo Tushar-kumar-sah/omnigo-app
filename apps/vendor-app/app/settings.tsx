@@ -13,7 +13,15 @@ export default function SettingsScreen() {
     router.replace('/(auth)/login');
   };
 
-  const handlePress = (label: string) => {
+  const handlePress = (id: string, label: string) => {
+    if (id === 'terms') {
+      router.push('/terms');
+      return;
+    }
+    if (id === 'privacy') {
+      router.push('/privacy');
+      return;
+    }
     Alert.alert('Settings', `Navigating to ${label}`);
   };
 
@@ -24,7 +32,7 @@ export default function SettingsScreen() {
       <BlurView intensity={20} tint="dark" style={styles.card}>
         {SETTINGS_ITEMS.map((item, index) => (
           <View key={item.id}>
-            <TouchableOpacity style={styles.itemRow} onPress={() => handlePress(item.label)}>
+            <TouchableOpacity style={styles.itemRow} onPress={() => handlePress(item.id, item.label)}>
               <View style={styles.itemLeft}>
                 <View style={styles.iconBox}>
                   <Ionicons name={item.icon as any} size={20} color={THEME.colors.primary} />

@@ -16,37 +16,42 @@ const TERMS_SECTIONS = [
   {
     id: 1,
     title: 'Acceptance of Terms',
-    content: 'By accessing or using the OmniGo towing and roadside assistance services, you agree to be bound by these Terms of Service. If you do not agree to all the terms and conditions, you must not access or use our services.',
+    content: 'By creating an account or booking any service on OmniGo, you agree to these Terms of Service. If you do not accept these terms, you must not use the platform or request roadside services.',
   },
   {
     id: 2,
-    title: 'Service Description',
-    content: 'OmniGo provides a technology platform connecting users requiring emergency roadside assistance, towing, and related services with independent third-party service providers. We do not provide towing services directly.',
+    title: 'Towing & Roadside Assistance Services',
+    content: 'OmniGo connects stranded vehicle owners with qualified, independent towing and breakdown partners. Available services include flatbed towing, wheel-lift towing, accident vehicle recovery, battery jumpstarts, tire changes, and fuel delivery.',
   },
   {
     id: 3,
-    title: 'User Responsibilities',
-    content: 'You must maintain accurate account information, ensure lawful use of the platform, not misuse the emergency SOS features, and agree to pay for all requested services. False emergency requests may lead to permanent account suspension.',
+    title: 'Vehicle Ownership & Authority',
+    content: 'By requesting a tow, you warrant that you are the registered owner of the vehicle or possess explicit legal authorization from the owner to arrange transport. The assigned driver may request to inspect the vehicle RC and your photo identification before hookup.',
   },
   {
     id: 4,
-    title: 'Payment Terms',
-    content: 'Fares are calculated based on a base fee plus distance and service type. Estimates are provided before confirming a booking. Payments can be securely processed via UPI, Credit/Debit Cards, or Cash directly to the driver.',
+    title: 'Pre-Inspection & Damage Verification',
+    content: 'Upon arriving at the pickup location, the assigned driver will conduct a mandatory digital pre-inspection documenting existing scratches, dents, and odometer readings. You have the right and duty to inspect these photos before providing your verification OTP.',
   },
   {
     id: 5,
-    title: 'Cancellation Policy',
-    content: 'You may cancel a service request free of charge within 2 minutes of a driver being assigned. Cancellations made after this period may be subject to a 10% cancellation fee based on the estimated fare.',
+    title: 'Fares, Surcharges & Waiting Charges',
+    content: 'All fares are estimated transparently upfront based on base fee, distance, and vehicle category. A complimentary 5-minute waiting period begins when the driver arrives at your pickup location. Subsequent waiting is billed at ₹10/minute. Customer no-shows after 5 minutes of driver arrival incur a ₹150 cancellation charge.',
   },
   {
     id: 6,
-    title: 'Limitation of Liability',
-    content: 'OmniGo shall not be liable for indirect, incidental, special, exemplary, punitive, or consequential damages, including lost profits or property damage related to, in connection with, or otherwise resulting from any use of the services.',
+    title: 'Cancellation & Refund Policy',
+    content: 'You may cancel any dispatch request free of charge within 2 minutes of driver assignment. Cancellations after 2 minutes or after the driver has traveled significant distance incur a nominal dispatch cancellation fee to compensate the towing partner.',
   },
   {
     id: 7,
-    title: 'Changes to Terms',
-    content: 'OmniGo reserves the right to modify these terms at any time. We will notify users of significant changes. Continued use of the platform after such modifications constitutes your consent to such changes.',
+    title: 'Road Safety & Emergency SOS',
+    content: 'While awaiting assistance, ensure your vehicle hazard blinkers are active and wait in a safe location away from oncoming traffic. The in-app SOS feature connects directly with local emergency helplines; fraudulent SOS alerts result in immediate account termination.',
+  },
+  {
+    id: 8,
+    title: 'Limitation of Liability',
+    content: 'OmniGo operates as a technology aggregator. Independent towing operators are responsible for transit care. In the event of transit damage, OmniGo facilitates direct arbitration between your insurer and the partner’s commercial carrier insurance.',
   },
 ];
 

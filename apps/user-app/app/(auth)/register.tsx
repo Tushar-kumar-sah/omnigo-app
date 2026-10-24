@@ -32,9 +32,14 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [googleModalVisible, setGoogleModalVisible] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   const handleSignUp = async () => {
     setErrorMsg(null);
+    if (!agreeTerms) {
+      setErrorMsg('Please agree to the Terms of Service and Privacy Policy to create an account.');
+      return;
+    }
     if (!fullName.trim() || fullName.trim().length < 2) {
       setErrorMsg('Please enter your full name.');
       return;
@@ -78,6 +83,10 @@ export default function RegisterScreen() {
 
   const handleGoogleSignUp = () => {
     setErrorMsg(null);
+    if (!agreeTerms) {
+      setErrorMsg('Please agree to the Terms of Service and Privacy Policy to continue with Google.');
+      return;
+    }
     setGoogleModalVisible(true);
   };
 
@@ -271,6 +280,44 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
               </View>
             )}
+          </View>
+
+          {/* Terms & Privacy Agreement Checkbox */}
+          <View style={styles.termsContainer}>
+            <TouchableOpacity
+              style={styles.checkboxTouchable}
+              onPress={() => {
+                setAgreeTerms(!agreeTerms);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkboxBox, agreeTerms && styles.checkboxBoxChecked]}>
+                {agreeTerms && <Ionicons name="checkmark-sharp" size={13} color="#000000" />}
+              </View>
+              <Text style={styles.termsLabel}>
+                I agree to OmniGo's{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push('/terms');
+                  }}
+                >
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push('/privacy');
+                  }}
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Create Account Primary Button */}
@@ -546,5 +593,42 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     fontSize: 14,
     color: '#00FF97',
+  },
+  termsContainer: {
+    marginBottom: 20,
+    marginTop: 4,
+    paddingHorizontal: 4,
+  },
+  checkboxTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkboxBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    flexShrink: 0,
+  },
+  checkboxBoxChecked: {
+    backgroundColor: '#00FF97',
+    borderColor: '#00FF97',
+  },
+  termsLabel: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    color: 'rgba(255, 255, 255, 0.75)',
+    lineHeight: 18,
+  },
+  termsLink: {
+    fontFamily: 'Outfit_700Bold',
+    color: '#00FF97',
+    textDecorationLine: 'underline',
   },
 });
