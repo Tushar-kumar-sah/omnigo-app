@@ -29,8 +29,6 @@ export default function ConfirmBookingScreen() {
   const params = useLocalSearchParams();
 
   const [selectedPayment, setSelectedPayment] = useState<PaymentId>('upi');
-  const [promoCode, setPromoCode]             = useState('');
-  const [promoApplied, setPromoApplied]       = useState(false);
   const [pricingRules, setPricingRules]       = useState<any>(null);
 
   // Cashfree Payment Gateway States
@@ -116,14 +114,7 @@ export default function ConfirmBookingScreen() {
   const platformFee  = pricingRules?.platformFee || 25;
   const subtotal     = baseFare + distanceFee + platformFee;
   const gst          = Math.round(subtotal * (pricingRules?.gstRate ? pricingRules.gstRate / 100 : 0.18));
-  const discount     = promoApplied ? (subtotal > 50 ? 50 : 0) : 0;
-  const total        = subtotal + gst - discount;
-
-  const handleApplyPromo = () => {
-    if (promoCode.trim().toUpperCase() === 'OMNI50') {
-      setPromoApplied(true);
-    }
-  };
+  const total        = subtotal + gst;
 
   const proceedWithBooking = async (paymentStatus: 'pending' | 'completed' = 'pending', paidOrderId?: string) => {
     try {
@@ -364,13 +355,6 @@ export default function ConfirmBookingScreen() {
             <Text style={styles.fareValue}>₹{gst}</Text>
           </View>
 
-          {promoApplied && (
-            <View style={styles.fareRow}>
-              <Text style={[styles.fareLabel, { color: '#00FF97' }]}>Promo: OMNI50</Text>
-              <Text style={[styles.fareValue, { color: '#00FF97' }]}>−₹{discount}</Text>
-            </View>
-          )}
-
           <View style={styles.fareTotalRow}>
             <View style={styles.divider} />
             <View style={styles.fareRow}>
@@ -384,29 +368,6 @@ export default function ConfirmBookingScreen() {
             <Ionicons name="shield-checkmark" size={14} color="#00FF97" />
             <Text style={styles.noHiddenText}>No hidden charges · All-inclusive fare</Text>
           </View>
-        </BlurView>
-
-        {/* Promo Code */}
-        <BlurView intensity={20} tint="dark" style={[styles.card, { flexDirection: 'row', gap: 10 }]}>
-          <Ionicons name="pricetag-outline" size={18} color={theme.colors.primary} style={{ marginTop: 2 }} />
-          <TextInput
-            style={styles.promoInput}
-            placeholder="Enter promo code"
-            placeholderTextColor="rgba(255,255,255,0.3)"
-            value={promoCode}
-            onChangeText={setPromoCode}
-            autoCapitalize="characters"
-            editable={!promoApplied}
-          />
-          <TouchableOpacity
-            onPress={handleApplyPromo}
-            disabled={promoApplied || promoCode.trim().length === 0}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.applyText, promoApplied && { color: '#00FF97' }]}>
-              {promoApplied ? '✓ Applied' : 'Apply'}
-            </Text>
-          </TouchableOpacity>
         </BlurView>
 
         {/* Payment Method — OmniGo Escrow Gateway */}
@@ -580,9 +541,6 @@ const styles = StyleSheet.create({
   fareTotalValue: { fontFamily: 'Outfit_700Bold', fontSize: 20, color: '#00FF97' },
   noHiddenBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: 'rgba(0,255,151,0.06)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,255,151,0.15)' },
   noHiddenText:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#00FF97', flex: 1 },
-
-  promoInput: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 14, color: '#fff', padding: 0 },
-  applyText:  { fontFamily: 'Outfit_700Bold', fontSize: 14, color: theme.colors.primary },
 
   gatewayHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   gatewayShieldCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,255,151,0.12)', justifyContent: 'center', alignItems: 'center' },
