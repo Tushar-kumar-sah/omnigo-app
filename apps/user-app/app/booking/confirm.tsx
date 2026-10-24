@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Location from 'expo-location';
 import { theme } from '@/constants/theme';
-import { createNewBooking, fetchCurrentUser, initiateCashfreePayment, recordPaymentSuccess } from '@/lib/api';
+import { createNewBooking, fetchCurrentUser, fetchActiveBooking, initiateCashfreePayment, recordPaymentSuccess } from '@/lib/api';
 import CashfreePaymentModal from '@/components/CashfreePaymentModal';
 import { getPricingRules } from '@omnigo/api';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
@@ -56,8 +56,40 @@ export default function ConfirmBookingScreen() {
   const serviceIssue = (params.serviceIssue as string) || 'Breakdown';
   const distanceVal  = parseFloat(params.distance as string) || 8;
 
-  // Auto-detect current GPS location immediately if missing
+  // Check active booking & auto-detect current GPS location immediately if missing
   useEffect(() => {
+    (async () => {
+      try {
+        const u = await fetchCurrentUser();
+        if (u?.id || u?.uuid) {
+          const active = await fetchActiveBooking(u.uuid || u.id);
+          if (active) {
+            Alert.alert(
+              'Active Booking in Progress',
+              'You already have an active tow truck in progress. A new booking can only be placed once your current vehicle has been dropped off.',
+              [
+                {
+                  text: 'Track Current Tow',
+                  onPress: () =>
+                    router.replace({
+                      pathname: '/booking/tracking',
+                      params: {
+                        bookingId: active.uuid || active.id,
+                        driverId: active.driverId || active.driver_id,
+                      },
+                    }),
+                },
+                {
+                  text: 'Back to Home',
+                  onPress: () => router.replace('/(tabs)'),
+                  style: 'cancel',
+                },
+              ]
+            );
+          }
+        }
+      } catch (err) {}
+    })();
     (async () => {
       try {
         const rules = await getPricingRules();
@@ -142,6 +174,28 @@ export default function ConfirmBookingScreen() {
       }
 
       const user = await fetchCurrentUser();
+      const uid = user?.uuid || user?.id || USER_ID;
+      const existingActive = await fetchActiveBooking(uid);
+      if (existingActive) {
+        Alert.alert(
+          'Active Booking in Progress',
+          'You already have an active tow truck in progress. Taking you to live tracking.',
+          [
+            {
+              text: 'Track Current Tow',
+              onPress: () =>
+                router.replace({
+                  pathname: '/booking/tracking',
+                  params: {
+                    bookingId: existingActive.uuid || existingActive.id,
+                    driverId: existingActive.driverId || existingActive.driver_id,
+                  },
+                }),
+            },
+          ]
+        );
+        return;
+      }
       const booking = await createNewBooking({
         userId: user?.uuid || user?.id || USER_ID,
         vehicleTypeId: (params.vehicleType as string) || 'hatchback',

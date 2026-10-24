@@ -20,6 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { theme } from '@/constants/theme';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
+import { fetchCurrentUser, fetchActiveBooking } from '@/lib/api';
 
 const VEHICLE_IMAGES = {
   sedan: require('@/assets/vehicles/sedan.jpg'),

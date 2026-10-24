@@ -2,6 +2,7 @@ import { Tabs, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fetchCurrentUser, fetchActiveBooking } from '@/lib/api';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -67,7 +68,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 3. Book Center Highlighted Tab */}
+      {/* 3. Book Center Highlighted Tab (Single Active Booking Enforced) */}
       <Tabs.Screen
         name="sos"
         options={{
@@ -85,8 +86,21 @@ export default function TabLayout() {
           },
         }}
         listeners={() => ({
-          tabPress: (e) => {
+          tabPress: async (e) => {
             e.preventDefault();
+            try {
+              const u = await fetchCurrentUser();
+              if (u?.id || u?.uuid) {
+                const active = await fetchActiveBooking(u.uuid || u.id);
+                if (active) {
+                  router.push({
+                    pathname: '/booking/tracking',
+                    params: { bookingId: active.uuid || active.id, driverId: active.driverId || active.driver_id },
+                  });
+                  return;
+                }
+              }
+            } catch (err) {}
             router.push('/booking/select-vehicle');
           },
         })}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import { BlurView } from 'expo-blur';
 import { theme } from '@/constants/theme';
 import { fetchCurrentUser, fetchUserBookings } from '@/lib/api';
 
-const mapToUIBooking = (b: any) => {
+const mapToUIBooking = (b: any, overrideStatus?: 'Active' | 'Completed' | 'Cancelled') => {
   const estPrice = Number(b.finalPrice || b.final_price || b.estimatedPrice || b.estimated_price || b.price || b.fare?.total || b.fare?.estimated || 0);
   const base = Number(b.baseFare || b.base_fare || Math.round(estPrice * 0.7) || 0);
   const distance = Number(b.distanceFare || b.distance_fare || Math.round(estPrice * 0.2) || 0);
@@ -22,6 +22,7 @@ const mapToUIBooking = (b: any) => {
   const rawStatus = (b.bookingStatus || b.status || '').toLowerCase();
   const isCompleted = rawStatus === 'completed';
   const isCancelled = rawStatus === 'cancelled';
+  const finalStatus = overrideStatus || (isCompleted ? 'Completed' : isCancelled ? 'Cancelled' : 'Active');
 
   // Format short clean ID
   const rawIdStr = String(b.bookingNumber || b.booking_number || b.id || b.uuid || '0000');
@@ -62,7 +63,7 @@ const mapToUIBooking = (b: any) => {
     id: shortId,
     rawId: b.uuid || b.id || b.booking_number,
     driverId: b.driver_id || b.driverId,
-    status: isCompleted ? 'Completed' : isCancelled ? 'Cancelled' : 'Active',
+    status: finalStatus,
     date: formattedDate,
     service: b.service_type || b.service || 'Flatbed Tow',
     vehicle: vehicleStr,
@@ -108,25 +109,52 @@ export default function BookingsScreen() {
   const [invoice, setInvoice] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const user = await fetchCurrentUser();
-        if (user?.id || user?.uuid) {
-          const uid = user.uuid || user.id;
-          const apiBookings = await fetchUserBookings(uid);
-          if (apiBookings) {
-            setBookings(apiBookings.map(mapToUIBooking));
-          }
+  const loadBookings = React.useCallback(async () => {
+    try {
+      const user = await fetchCurrentUser();
+      if (user?.id || user?.uuid) {
+        const uid = user.uuid || user.id;
+        const apiBookings = await fetchUserBookings(uid);
+        if (apiBookings) {
+          // Strict Rule: At most 1 single booking can be 'Active' on a device at any time.
+          // Once driver drops vehicle off ('completed'), the booking transitions to 'Completed'.
+          let foundActive = false;
+          const mapped = apiBookings.map((b) => {
+            const rawStatus = (b.bookingStatus || b.status || '').toLowerCase();
+            const isCompleted = rawStatus === 'completed';
+            const isCancelled = rawStatus === 'cancelled';
+            let computedStatus: 'Active' | 'Completed' | 'Cancelled' = 'Completed';
+
+            if (isCompleted) {
+              computedStatus = 'Completed';
+            } else if (isCancelled) {
+              computedStatus = 'Cancelled';
+            } else {
+              // Non-completed & non-cancelled: only the latest one is 'Active'
+              if (!foundActive) {
+                computedStatus = 'Active';
+                foundActive = true;
+              } else {
+                computedStatus = 'Cancelled';
+              }
+            }
+            return mapToUIBooking(b, computedStatus);
+          });
+          setBookings(mapped);
         }
-      } catch (e) {
-        console.warn('[Bookings]', e);
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchBookings();
+    } catch (e) {
+      console.warn('[Bookings]', e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadBookings();
+    }, [loadBookings])
+  );
 
   const filtered = bookings.filter(b => {
     if (activeTab === 'All') return true;

@@ -11,6 +11,7 @@ import {
   updateUser,
   getBookingsByUser,
   getBookingById,
+  getActiveBookingByUser,
   createBooking,
   updateBookingStatus,
   getDriverById,
@@ -741,6 +742,15 @@ export async function fetchBookingById(id: string): Promise<any | null> {
     return await getBookingById(id);
   } catch (e) {
     console.warn('[api] fetchBookingById failed', e);
+    return null;
+  }
+}
+
+export async function fetchActiveBooking(userId: string): Promise<any | null> {
+  try {
+    return await getActiveBookingByUser(userId);
+  } catch (e) {
+    console.warn('[api] fetchActiveBooking failed', e);
     return null;
   }
 }

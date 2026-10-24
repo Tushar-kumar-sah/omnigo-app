@@ -1,6 +1,17 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { Booking, BookingStatus } from '../types';
 
+export const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
+  'pending',
+  'searching',
+  'driver_assigned',
+  'driver_arriving',
+  'at_pickup',
+  'vehicle_loaded',
+  'towing',
+  'arriving_dropoff',
+];
+
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function parseGeometryPoint(geo: any): { latitude: number; longitude: number } {
@@ -189,12 +200,40 @@ export async function getBookingById(id: string): Promise<any | null> {
   }
 }
 
+export async function getActiveBookingByUser(userId: string): Promise<any | null> {
+  if (!isSupabaseConfigured || !supabase || !userId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*, users(name, phone), drivers(name, vehicle_plate)')
+      .eq('user_id', userId)
+      .in('status', ACTIVE_BOOKING_STATUSES)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapDbBookingToBooking(data);
+  } catch (err) {
+    console.warn('getActiveBookingByUser error:', err);
+    return null;
+  }
+}
+
 export async function createBooking(data: any): Promise<any | null> {
   if (!isSupabaseConfigured || !supabase) return null;
   try {
     const rawUserId = data.userId || data.user_id;
     const userId = rawUserId && rawUserId.includes('-') ? rawUserId : 'a0000000-0000-0000-0000-000000000001';
     
+    // Strict 1 active booking per user policy:
+    // If user already has an active ongoing booking, prevent duplicate creation and return existing active booking
+    const activeBooking = await getActiveBookingByUser(userId);
+    if (activeBooking) {
+      console.warn(`User ${userId} already has active booking in progress:`, activeBooking.id);
+      return activeBooking;
+    }
+
     // Ensure user row exists in Supabase so FK never fails
     if (userId) {
       const { data: existingUser } = await supabase.from('users').select('id').eq('id', userId).maybeSingle();

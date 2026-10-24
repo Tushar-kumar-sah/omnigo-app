@@ -18,6 +18,8 @@ import { WebView } from 'react-native-webview';
 const WebViewComponent = WebView as any;
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 import { reverseGeocodeGoogle } from '@/lib/googleMaps';
+import { fetchCurrentUser, fetchActiveBooking } from '@/lib/api';
+import { Alert } from 'react-native';
 
 const VEHICLE_IMAGES = {
   sedan: require('@/assets/vehicles/sedan.jpg'),

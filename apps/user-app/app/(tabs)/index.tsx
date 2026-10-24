@@ -9,14 +9,15 @@ import {
   Image,
   Animated,
   Platform,
+  Alert,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
-import { fetchCurrentUser, fetchUserBookings } from '@/lib/api';
+import { fetchCurrentUser, fetchUserBookings, fetchActiveBooking } from '@/lib/api';
 
 const AI_CAPTIONS = [
   "How can I help you?",
@@ -43,6 +44,7 @@ export default function HomeScreen() {
 
   const [user, setUser] = useState<any>(null);
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
+  const [activeBooking, setActiveBooking] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadUserData = useCallback(async () => {
@@ -51,8 +53,12 @@ export default function HomeScreen() {
       setUser(currentUser);
       if (currentUser?.id || currentUser?.uuid) {
         const uid = currentUser.uuid || currentUser.id;
-        const bookingsData = await fetchUserBookings(uid);
+        const [bookingsData, active] = await Promise.all([
+          fetchUserBookings(uid),
+          fetchActiveBooking(uid),
+        ]);
         setRecentBookings(bookingsData.slice(0, 3));
+        setActiveBooking(active);
       }
     } catch (e) {
       console.warn('[Home] data fetch error', e);
@@ -60,6 +66,33 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }, []);
+
+  const handleStartBooking = (targetRoute: string) => {
+    if (activeBooking) {
+      Alert.alert(
+        'Active Tow in Progress',
+        'You already have an active tow truck in progress. A new booking can only be placed once your current vehicle has been dropped off at the destination.',
+        [
+          {
+            text: 'Track Current Tow',
+            style: 'default',
+            onPress: () => {
+              router.push({
+                pathname: '/booking/tracking',
+                params: {
+                  bookingId: activeBooking.uuid || activeBooking.id,
+                  driverId: activeBooking.driverId || activeBooking.driver_id,
+                },
+              });
+            },
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+    router.push(targetRoute as any);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -187,6 +220,62 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* 2.5 Active Tow in Progress Banner (Strict 1 Active Booking Policy) */}
+        {activeBooking && (
+          <View style={styles.activeTowCardContainer}>
+            <LinearGradient
+              colors={['rgba(0, 255, 151, 0.18)', 'rgba(0, 207, 255, 0.08)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.activeTowGradient}
+            >
+              <View style={styles.activeTowHeader}>
+                <View style={styles.activeTowPill}>
+                  <View style={styles.pulseDot} />
+                  <Text style={styles.activeTowPillText}>ACTIVE TOW IN PROGRESS</Text>
+                </View>
+                <Text style={styles.activeTowBookingNumber}>
+                  {(activeBooking as any)?.bookingNumber || (activeBooking as any)?.displayId || 'JOB-ACTIVE'}
+                </Text>
+              </View>
+
+              <View style={styles.activeTowBody}>
+                <View style={styles.activeTowIconWrap}>
+                  <MaterialCommunityIcons name="tow-truck" size={26} color="#00FF97" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.activeTowStatusText}>
+                    Status: {activeBooking.status || 'En Route'}
+                  </Text>
+                  <Text style={styles.activeTowVehicleText} numberOfLines={1}>
+                    {activeBooking.vehicle || activeBooking.customerVehicle?.model || 'Vehicle Tow'}
+                  </Text>
+                  <Text style={styles.activeTowRouteText} numberOfLines={1}>
+                    {activeBooking.pickup || 'Pickup Location'} → {activeBooking.drop || 'Drop Location'}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.activeTowTrackBtn}
+                onPress={() =>
+                  router.push({
+                    pathname: '/booking/tracking',
+                    params: {
+                      bookingId: activeBooking.uuid || activeBooking.id,
+                      driverId: activeBooking.driverId || activeBooking.driver_id,
+                    },
+                  })
+                }
+                activeOpacity={0.8}
+              >
+                <Ionicons name="navigate" size={16} color="#050810" />
+                <Text style={styles.activeTowTrackBtnText}>Track Live Booking</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        )}
+
         {/* 3. Quick Actions + AI Callout Pill on Same Compact Row */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -207,7 +296,7 @@ export default function HomeScreen() {
         {/* Card 1: Book Tow */}
         <TouchableOpacity
           style={styles.actionCardTouch}
-          onPress={() => router.push('/booking/select-vehicle')}
+          onPress={() => handleStartBooking('/booking/select-vehicle')}
           activeOpacity={0.85}
         >
           <CardWrapper style={[styles.actionCard, styles.bookTowBorder]}>
@@ -230,7 +319,7 @@ export default function HomeScreen() {
         {/* Card 2: Schedule Tow */}
         <TouchableOpacity
           style={styles.actionCardTouch}
-          onPress={() => router.push('/booking/schedule-tow')}
+          onPress={() => handleStartBooking('/booking/schedule-tow')}
           activeOpacity={0.85}
         >
           <CardWrapper style={[styles.actionCard, styles.scheduleTowBorder]}>
@@ -657,5 +746,97 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.45)',
     marginTop: 2,
+  },
+  activeTowCardContainer: {
+    marginBottom: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#00FF97',
+  },
+  activeTowGradient: {
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(5, 24, 20, 0.95)',
+  },
+  activeTowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  activeTowPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 255, 151, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 151, 0.3)',
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#00FF97',
+    marginRight: 6,
+  },
+  activeTowPillText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 10,
+    color: '#00FF97',
+    letterSpacing: 0.5,
+  },
+  activeTowBookingNumber: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  activeTowBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  activeTowIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 255, 151, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 151, 0.3)',
+  },
+  activeTowStatusText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
+    color: '#00FF97',
+    marginBottom: 2,
+  },
+  activeTowVehicleText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  activeTowRouteText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.65)',
+    marginTop: 2,
+  },
+  activeTowTrackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00FF97',
+    paddingVertical: 11,
+    borderRadius: 12,
+    gap: 6,
+  },
+  activeTowTrackBtnText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 13,
+    color: '#050810',
   },
 });
