@@ -8,6 +8,8 @@
     "start": "pnpm dev:user",
     "dev:user": "pnpm --filter user-app lan",
     "dev:vendor": "pnpm --filter vendor-app lan",
+    "tunnel:user": "pnpm --filter user-app tunnel",
+    "tunnel:vendor": "pnpm --filter vendor-app tunnel",
     "dev:admin": "pnpm --filter admin-panel dev",
     "dev:api": "pnpm --filter api-server dev",
     "lint": "turbo lint",
