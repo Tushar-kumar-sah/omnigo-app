@@ -330,7 +330,7 @@ function getKnowledgeResponse(input: string): { text: string; actionBtn?: Action
   ) {
     return {
       text:
-        "📞 **OmniGo 24/7 Customer Support:**\n\n• **Toll-Free Helpline:** 1800-OMNIGO (1800-666-446)\n• **Direct Emergency Line:** +91 98765 43210\n• **Email Support:** support@omnigo.in\n• **In-App SOS:** Available anytime via the bottom SOS tab.",
+        "📞 **OmniGo 24/7 Customer Support:**\n\n• **Direct Phone Helpline:** +91 7569743173\n• **Email Support:** info@omnigo.si\n• **In-App SOS:** Available anytime via the bottom SOS tab.",
       actionBtn: { label: 'Book Tow Service Directly', route: '/booking/select-vehicle' },
       urgency: 'Low',
     };

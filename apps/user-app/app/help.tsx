@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, UIManager, LayoutAnimation } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, UIManager, LayoutAnimation, Linking, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../constants/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -29,6 +28,34 @@ export default function HelpScreen() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId(expandedId === id ? null : id);
   };
+
+  const handleCallSupport = () => {
+    Linking.openURL('tel:7569743173').catch(() => {
+      Alert.alert('Unable to Call', 'Please dial +91 7569743173 directly.');
+    });
+  };
+
+  const handleEmailSupport = () => {
+    Linking.openURL('mailto:info@omnigo.si').catch(() => {
+      Alert.alert('Unable to Open Mail', 'Please send an email to info@omnigo.si.');
+    });
+  };
+
+  const handleLiveChat = () => {
+    router.push('/ai-assistant');
+  };
+
+  const handleEmergencyCall = () => {
+    Linking.openURL('tel:112').catch(() => {
+      Alert.alert('Emergency Helpline', 'Please dial 112 directly from your phone.');
+    });
+  };
+
+  const filteredFaqs = FAQ_DATA.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return item.question.toLowerCase().includes(q) || item.answer.toLowerCase().includes(q);
+  });
 
   return (
     <View style={styles.container}>
@@ -59,23 +86,35 @@ export default function HelpScreen() {
 
         {/* Quick Contact Cards */}
         <View style={styles.quickContactContainer}>
-          <TouchableOpacity style={styles.contactCard} activeOpacity={0.7}>
+          <TouchableOpacity 
+            style={styles.contactCard} 
+            activeOpacity={0.7}
+            onPress={handleCallSupport}
+          >
             <View style={[styles.iconContainer, { backgroundColor: 'rgba(0, 255, 151, 0.15)' }]}>
               <Ionicons name="call" size={22} color="#00FF97" />
             </View>
             <Text style={styles.contactTitle} numberOfLines={1}>Call Support</Text>
-            <Text style={styles.contactSubtitle} numberOfLines={1}>24/7 Helpline</Text>
+            <Text style={styles.contactSubtitle} numberOfLines={1}>+91 7569743173</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.contactCard} activeOpacity={0.7}>
+          <TouchableOpacity 
+            style={styles.contactCard} 
+            activeOpacity={0.7}
+            onPress={handleEmailSupport}
+          >
             <View style={[styles.iconContainer, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]}>
               <Ionicons name="mail" size={22} color="#00CFFF" />
             </View>
             <Text style={styles.contactTitle} numberOfLines={1}>Email Us</Text>
-            <Text style={styles.contactSubtitle} numberOfLines={1}>support@omnigo.in</Text>
+            <Text style={styles.contactSubtitle} numberOfLines={1}>info@omnigo.si</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.contactCard} activeOpacity={0.7}>
+          <TouchableOpacity 
+            style={styles.contactCard} 
+            activeOpacity={0.7}
+            onPress={handleLiveChat}
+          >
             <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 214, 10, 0.15)' }]}>
               <Ionicons name="chatbubbles" size={22} color="#FFD60A" />
             </View>
@@ -88,7 +127,7 @@ export default function HelpScreen() {
         <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
         
         <View style={styles.faqContainer}>
-          {FAQ_DATA.map((item) => {
+          {filteredFaqs.map((item) => {
             const isExpanded = expandedId === item.id;
             return (
               <TouchableOpacity
@@ -115,10 +154,20 @@ export default function HelpScreen() {
               </TouchableOpacity>
             );
           })}
+          {filteredFaqs.length === 0 && (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="help-circle-outline" size={32} color="rgba(255, 255, 255, 0.3)" />
+              <Text style={styles.emptyText}>No matching answers found</Text>
+            </View>
+          )}
         </View>
 
         {/* Emergency Banner */}
-        <TouchableOpacity style={styles.emergencyCard}>
+        <TouchableOpacity 
+          style={styles.emergencyCard}
+          activeOpacity={0.8}
+          onPress={handleEmergencyCall}
+        >
           <View style={styles.emergencyIconContainer}>
             <Ionicons name="warning" size={28} color="#FF3B30" />
           </View>
@@ -267,6 +316,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.7)',
     lineHeight: 20,
+  },
+  emptyContainer: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginTop: 8,
   },
   emergencyCard: {
     flexDirection: 'row',
