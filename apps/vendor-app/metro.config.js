@@ -20,10 +20,12 @@ config.resolver.nodeModulesPaths = [
 config.resolver.unstable_enablePackageExports = false;
 
 // 4. Fix Windows absolute path / empty-module bug in metro-resolver
+const emptyModulePath = require.resolve('metro-runtime/src/modules/empty-module.js');
 const originalResolveRequest = config.resolver.resolveRequest;
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName && moduleName.includes('empty-module')) {
-    return { type: 'empty' };
+    return { type: 'sourceFile', filePath: emptyModulePath };
   }
   if (path.isAbsolute(moduleName) && fs.existsSync(moduleName)) {
     try {
