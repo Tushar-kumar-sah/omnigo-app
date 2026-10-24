@@ -30,8 +30,15 @@ export default function LiveRouteMap({
   dropoffAddress = 'Destination',
   speed = 42,
   height = 340,
-  interactive = true,
+  interactive = false,
 }: LiveRouteMapProps) {
+  const [isInteractive, setIsInteractive] = useState(Boolean(interactive));
+
+  useEffect(() => {
+    if (interactive !== undefined) {
+      setIsInteractive(interactive);
+    }
+  }, [interactive]);
   const pLat = pickupCoords?.latitude || 22.5726;
   const pLng = pickupCoords?.longitude || 88.3639;
   const dLat = driverCoords?.latitude || (pLat + 0.015);
@@ -325,6 +332,7 @@ export default function LiveRouteMap({
       </View>
 
       {/* Map Canvas */}
+      <View style={styles.webviewContainer} pointerEvents={isInteractive ? 'auto' : 'none'}>
       {Platform.OS === 'web' ? (
         React.createElement('iframe', {
           srcDoc: htmlContent,
@@ -336,14 +344,38 @@ export default function LiveRouteMap({
           originWhitelist={['*']}
           source={{ html: htmlContent }}
           style={styles.webview}
-          scrollEnabled={false}
+          scrollEnabled={isInteractive}
           javaScriptEnabled={true}
           domStorageEnabled={true}
         />
       )}
+      </View>
+
+      {/* Floating Map Interaction Indicator when unlocked */}
+      {isInteractive && (
+        <TouchableOpacity
+          style={styles.interactiveIndicator}
+          onPress={() => setIsInteractive(false)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="lock-open" size={12} color="#00FF97" />
+          <Text style={styles.interactiveIndicatorText}>Map Pan Active · Tap to Lock</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Floating Map Controls */}
-      <View style={styles.mapControls}>
+      <View style={styles.mapControls} pointerEvents="box-none">
+        <TouchableOpacity
+          style={[styles.controlBtn, isInteractive && styles.controlBtnActive]}
+          activeOpacity={0.8}
+          onPress={() => setIsInteractive(!isInteractive)}
+        >
+          <Ionicons
+            name={isInteractive ? 'lock-open' : 'hand-left-outline'}
+            size={18}
+            color={isInteractive ? '#00FF97' : '#38BDF8'}
+          />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.controlBtn}
           activeOpacity={0.8}
@@ -381,9 +413,38 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 207, 255, 0.25)',
     position: 'relative',
   },
+  webviewContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   webview: {
     flex: 1,
     backgroundColor: '#070c18',
+  },
+  controlBtnActive: {
+    backgroundColor: 'rgba(0, 255, 151, 0.22)',
+    borderColor: '#00FF97',
+  },
+  interactiveIndicator: {
+    position: 'absolute',
+    top: 14,
+    right: 50,
+    zIndex: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(7, 12, 24, 0.94)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 151, 0.5)',
+  },
+  interactiveIndicatorText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#00FF97',
   },
   topEtaPill: {
     position: 'absolute',

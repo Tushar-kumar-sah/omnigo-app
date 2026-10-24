@@ -335,60 +335,17 @@ export default function TrackingScreen() {
   const [chatMsg, setChatMsg] = useState('');
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
-  const [showPlateVerify, setShowPlateVerify] = useState(false);
-  const [plateInput, setPlateInput] = useState('');
   const [plateVerified, setPlateVerified] = useState(false);
   const [speedVal, setSpeedVal] = useState(42);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
 
-  // Animated values for GPS movement and pulses
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  // Animated values for active lifecycle step
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const radarAnim = useRef(new Animated.Value(0)).current;
-  const beaconAnim = useRef(new Animated.Value(0)).current;
 
 
 
-  // Continuous loop animation of the Tow Truck gliding along the GPS route line
+  // Pulse animation for active lifecycle step
   useEffect(() => {
-    const truckMovement = Animated.loop(
-      Animated.sequence([
-        Animated.timing(progressAnim, {
-          toValue: 1,
-          duration: 18000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-        Animated.delay(1200),
-        Animated.timing(progressAnim, {
-          toValue: 0,
-          duration: 1000,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: false,
-        }),
-      ])
-    );
-    truckMovement.start();
-
-    // Radar & Beacon pulses
-    const radarLoop = Animated.loop(
-      Animated.timing(radarAnim, {
-        toValue: 1,
-        duration: 2400,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      })
-    );
-    radarLoop.start();
-
-    const beaconLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(beaconAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
-        Animated.timing(beaconAnim, { toValue: 0.2, duration: 350, useNativeDriver: true }),
-      ])
-    );
-    beaconLoop.start();
-
     const stepPulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.2, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -398,19 +355,9 @@ export default function TrackingScreen() {
     stepPulse.start();
 
     return () => {
-      truckMovement.stop();
-      radarLoop.stop();
-      beaconLoop.stop();
       stepPulse.stop();
     };
   }, []);
-
-
-
-  // Show plate verification when driver arrives
-  useEffect(() => {
-    if (currentStep === 2 && !plateVerified) setShowPlateVerify(true);
-  }, [currentStep, plateVerified]);
 
   const handleSendChat = () => {
     if (!chatMsg.trim()) return;
@@ -419,13 +366,6 @@ export default function TrackingScreen() {
     setTimeout(() => {
       setChatHistory(h => [...h, { from: 'driver', text: 'Got it, noting location details! 👍' }]);
     }, 1000);
-  };
-
-  const handleVerifyPlate = () => {
-    if (plateInput.replace(/\s/g, '').toUpperCase() === driverPlate.replace(/\s/g, '').toUpperCase()) {
-      setPlateVerified(true);
-      setShowPlateVerify(false);
-    }
   };
 
   const handleLocationUpdate = async (data: { address: string; coordinates: { latitude: number; longitude: number } }) => {
@@ -448,33 +388,6 @@ export default function TrackingScreen() {
     }
   };
 
-  // Interpolated GPS Coordinates along the map route
-  // Starting at Pickup (18%, 82%) -> traveling through highway corridors -> ending at Drop-off (83%, 18%)
-  const truckLeft = progressAnim.interpolate({
-    inputRange: [0, 0.12, 0.25, 0.38, 0.48, 0.60, 0.72, 0.85, 1],
-    outputRange: ['18%', '24%', '33%', '38%', '46%', '60%', '70%', '79%', '83%'],
-  });
-
-  const truckTop = progressAnim.interpolate({
-    inputRange: [0, 0.12, 0.25, 0.38, 0.48, 0.60, 0.72, 0.85, 1],
-    outputRange: ['82%', '76%', '68%', '50%', '30%', '28%', '38%', '24%', '18%'],
-  });
-
-  const truckRotation = progressAnim.interpolate({
-    inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1],
-    outputRange: ['-45deg', '-35deg', '-80deg', '25deg', '-40deg', '-30deg'],
-  });
-
-  const radarScale = radarAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 2.8],
-  });
-
-  const radarOpacity = radarAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.8, 0],
-  });
-
   const stepDone = (i: number) => i < currentStep;
   const stepActive = (i: number) => i === currentStep;
 
@@ -483,7 +396,7 @@ export default function TrackingScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#040711', '#09101E', '#040711']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#040711', '#09101E', '#040711']} style={StyleSheet.absoluteFill} pointerEvents="none" />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
@@ -498,8 +411,13 @@ export default function TrackingScreen() {
       </View>
 
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom + 120, 130) }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled={true}
+        bounces={true}
+        scrollEnabled={true}
       >
         {/* ─── REAL-TIME INTERACTIVE LIVE ROUTE GPS MAP (WEB & MOBILE) ─── */}
         <View style={{ marginBottom: 14 }}>
@@ -514,7 +432,7 @@ export default function TrackingScreen() {
             dropoffAddress={dropoffAddr}
             speed={speedVal}
             height={isMapExpanded ? 420 : 310}
-            interactive={true}
+            interactive={isMapExpanded}
           />
           {/* Quick Expand Toggle Floating on map top-right */}
           <TouchableOpacity
@@ -794,7 +712,7 @@ export default function TrackingScreen() {
       </ScrollView>
 
       {/* ─── LIVE IN-APP CHAT MODAL ─── */}
-      <Modal visible={showChat} animationType="slide" transparent>
+      <Modal visible={showChat} animationType="slide" transparent onRequestClose={() => setShowChat(false)}>
         <View style={styles.modalOverlay}>
           <BlurView intensity={40} tint="dark" style={styles.chatSheet}>
             <View style={styles.chatHeader}>
@@ -835,7 +753,7 @@ export default function TrackingScreen() {
       </Modal>
 
       {/* ─── CANCELLATION MODAL ─── */}
-      <Modal visible={showCancel} animationType="fade" transparent>
+      <Modal visible={showCancel} animationType="fade" transparent onRequestClose={() => setShowCancel(false)}>
         <View style={styles.modalOverlayCenter}>
           <BlurView intensity={50} tint="dark" style={styles.cancelModal}>
             <Text style={styles.cancelTitle}>Cancel Booking?</Text>
@@ -874,92 +792,94 @@ export default function TrackingScreen() {
         </View>
       </Modal>
 
-      {/* ─── DRIVER ARRIVAL OTP POPUP MODAL ─── */}
-      <Modal visible={showArrivalOtpModal} animationType="fade" transparent>
-        <View style={styles.modalOverlayCenter}>
-          <BlurView intensity={60} tint="dark" style={styles.arrivalOtpModal}>
-            <LinearGradient
-              colors={['rgba(0,255,151,0.15)', 'rgba(4,7,17,0.95)']}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.arrivalIconBox}>
-              <Ionicons name="shield-checkmark" size={36} color="#00FF97" />
-            </View>
-            <Text style={styles.arrivalTitle}>Driver Has Arrived!</Text>
-            <Text style={styles.arrivalSubtitle}>
-              Share this 4-digit pickup code with {driverName} to verify and start vehicle loading:
-            </Text>
-            
-            <View style={styles.arrivalOtpRow}>
-              {pickupOtp.split(' ').map((digit, idx) => (
-                <View key={idx} style={styles.arrivalOtpBox}>
-                  <Text style={styles.arrivalOtpText}>{digit}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Text style={styles.arrivalNote}>
-              <Ionicons name="information-circle" size={13} color="#38BDF8" />
-              {' '}The driver will enter this code on their device before hooking up your vehicle.
-            </Text>
-
-            <TouchableOpacity
-              style={styles.arrivalDoneBtn}
-              onPress={() => setShowArrivalOtpModal(false)}
-              activeOpacity={0.85}
-            >
+      {/* ─── UNIFIED DRIVER ARRIVAL & OTP POPUP MODAL ─── */}
+      <Modal
+        visible={showArrivalOtpModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => {
+          setShowArrivalOtpModal(false);
+          setPlateVerified(true);
+        }}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlayCenter}
+          activeOpacity={1}
+          onPress={() => {
+            setShowArrivalOtpModal(false);
+            setPlateVerified(true);
+          }}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+            <BlurView intensity={60} tint="dark" style={styles.arrivalOtpModal}>
               <LinearGradient
-                colors={['#00FF97', '#00CFFF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.arrivalBtnGradient}
+                colors={['rgba(0,255,151,0.15)', 'rgba(4,7,17,0.95)']}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
+              {/* Close Button */}
+              <TouchableOpacity
+                style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' }}
+                onPress={() => {
+                  setShowArrivalOtpModal(false);
+                  setPlateVerified(true);
+                }}
               >
-                <Text style={styles.arrivalBtnText}>I'VE SHARED THIS CODE</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </BlurView>
-        </View>
-      </Modal>
+                <Ionicons name="close" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
 
-      {/* ─── PLATE VERIFICATION MODAL ─── */}
-      <Modal visible={showPlateVerify} animationType="fade" transparent>
-        <View style={styles.modalOverlayCenter}>
-          <BlurView intensity={50} tint="dark" style={styles.plateModal}>
-            <View style={styles.plateIconBox}>
-              <Ionicons name="shield-checkmark" size={32} color="#00FF97" />
-            </View>
-            <Text style={styles.plateTitle}>Driver Has Arrived</Text>
-            <Text style={styles.plateDesc}>
-              Before handing over your vehicle, verify the tow truck number plate ({driverPlate}).
-            </Text>
-            <TextInput
-              style={styles.plateInput}
-              placeholder="Enter plate number"
-              placeholderTextColor="rgba(255,255,255,0.3)"
-              value={plateInput}
-              onChangeText={setPlateInput}
-              autoCapitalize="characters"
-            />
-            <View style={styles.plateActions}>
+              <View style={styles.arrivalIconBox}>
+                <Ionicons name="shield-checkmark" size={36} color="#00FF97" />
+              </View>
+              <Text style={styles.arrivalTitle}>Driver Has Arrived!</Text>
+              <Text style={styles.arrivalSubtitle}>
+                Please verify the arriving tow truck and share this 4-digit code with {driverName} to verify and start vehicle loading:
+              </Text>
+
+              {/* Verified Driver & Vehicle Card */}
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, marginVertical: 10, borderWidth: 1, borderColor: 'rgba(0,255,151,0.25)', width: '100%', alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, fontFamily: 'Outfit_700Bold', color: '#00FF97', letterSpacing: 0.8 }}>ASSIGNED TOW TRUCK</Text>
+                <Text style={{ fontSize: 15, fontFamily: 'Outfit_700Bold', color: '#FFFFFF', marginTop: 3 }}>🚛 {driverVehicle} · {driverPlate}</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Partner: {driverName}</Text>
+              </View>
+              
+              <View style={styles.arrivalOtpRow}>
+                {pickupOtp.split(' ').map((digit, idx) => (
+                  <View key={idx} style={styles.arrivalOtpBox}>
+                    <Text style={styles.arrivalOtpText}>{digit}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <Text style={styles.arrivalNote}>
+                <Ionicons name="information-circle" size={13} color="#38BDF8" />
+                {' '}The driver will enter this code on their device before hooking up your vehicle.
+              </Text>
+
               <TouchableOpacity
-                style={styles.plateCancelBtn}
-                onPress={() => setShowPlateVerify(false)}
+                style={styles.arrivalDoneBtn}
+                onPress={() => {
+                  setShowArrivalOtpModal(false);
+                  setPlateVerified(true);
+                }}
+                activeOpacity={0.85}
               >
-                <Text style={styles.plateCancelText}>Skip</Text>
+                <LinearGradient
+                  colors={['#00FF97', '#00CFFF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.arrivalBtnGradient}
+                >
+                  <Text style={styles.arrivalBtnText}>I'VE VERIFIED & SHARED CODE</Text>
+                </LinearGradient>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.plateConfirmBtn}
-                onPress={handleVerifyPlate}
-              >
-                <Text style={styles.plateConfirmText}>Verify Plate</Text>
-              </TouchableOpacity>
-            </View>
-          </BlurView>
-        </View>
+            </BlurView>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
 
       {/* ─── POST-TRIP DRIVER RATING MODAL ─── */}
-      <Modal visible={showRatingModal} animationType="slide" transparent>
+      <Modal visible={showRatingModal} animationType="slide" transparent onRequestClose={() => setShowRatingModal(false)}>
         <View style={styles.modalOverlayCenter}>
           <BlurView intensity={70} tint="dark" style={styles.ratingModalContent}>
             {ratingSuccess ? (
@@ -1153,7 +1073,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  scrollView: {
+    flex: 1,
+    width: '100%',
+  },
   scroll: {
+    flexGrow: 1,
     padding: 16,
     gap: 14,
   },
