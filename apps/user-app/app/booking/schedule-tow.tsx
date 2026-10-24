@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '@/constants/theme';
+import * as Location from 'expo-location';
+import { WebView } from 'react-native-webview';
+import MapLocationPickerModal from '@/components/MapLocationPickerModal';
+import { reverseGeocodeGoogle } from '@/lib/googleMaps';
 
 const VEHICLE_IMAGES = {
   sedan: require('@/assets/vehicles/sedan.jpg'),
@@ -62,6 +65,194 @@ export default function ScheduleTowScreen() {
   const [dropoff, setDropoff] = useState('');
   const [pickupFocused, setPickupFocused] = useState(false);
   const [dropoffFocused, setDropoffFocused] = useState(false);
+
+  // Map & Coordinates State
+  const [pickupCoords, setPickupCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [dropoffCoords, setDropoffCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapPickerType, setMapPickerType] = useState<'pickup' | 'dropoff'>('pickup');
+  const [locatingGps, setLocatingGps] = useState(false);
+
+  // Auto-detect current GPS location on initial load if pickup is empty
+  useEffect(() => {
+    if (!pickup) {
+      detectCurrentLocation();
+    }
+  }, []);
+
+  const detectCurrentLocation = async () => {
+    try {
+      setLocatingGps(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        try {
+          const cached = await Location.getLastKnownPositionAsync();
+          if (cached?.coords) {
+            setPickupCoords({ latitude: cached.coords.latitude, longitude: cached.coords.longitude });
+          }
+        } catch {}
+
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        setPickupCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        try {
+          const res = await reverseGeocodeGoogle(loc.coords.latitude, loc.coords.longitude);
+          if (res?.address) {
+            setPickup(res.address);
+          }
+        } catch {}
+      }
+    } catch (e) {
+      console.warn('[ScheduleTow GPS]', e);
+    } finally {
+      setLocatingGps(false);
+    }
+  };
+
+  // Approximate distance calculation in km
+  const calculatedDistance = useMemo(() => {
+    if (pickupCoords && dropoffCoords && dropoffCoords.latitude !== 0) {
+      const R = 6371;
+      const dLat = ((dropoffCoords.latitude - pickupCoords.latitude) * Math.PI) / 180;
+      const dLon = ((dropoffCoords.longitude - pickupCoords.longitude) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((pickupCoords.latitude * Math.PI) / 180) *
+          Math.cos((dropoffCoords.latitude * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return Math.max(1, Math.round(R * c * 10) / 10);
+    }
+    return 10;
+  }, [pickupCoords, dropoffCoords]);
+
+  // Leaflet map preview HTML
+  const mapHtml = useMemo(() => {
+    const pLat = pickupCoords?.latitude || 22.5726;
+    const pLng = pickupCoords?.longitude || 88.3639;
+    const hasDrop = Boolean(dropoffCoords && dropoffCoords.latitude !== 0);
+    const dLat = dropoffCoords?.latitude || 0;
+    const dLng = dropoffCoords?.longitude || 0;
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body, #map {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #070c18;
+      overflow: hidden;
+    }
+    .leaflet-tile-pane {
+      filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%);
+    }
+    .custom-div-icon {
+      background: transparent;
+      border: none;
+    }
+    .pin-pickup {
+      width: 28px;
+      height: 28px;
+      border-radius: 14px;
+      background: #00FF97;
+      border: 3px solid #000;
+      box-shadow: 0 0 12px rgba(0,255,151,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-weight: 900;
+      font-size: 13px;
+    }
+    .pin-dropoff {
+      width: 28px;
+      height: 28px;
+      border-radius: 14px;
+      background: #FF3B30;
+      border: 3px solid #fff;
+      box-shadow: 0 0 12px rgba(255,59,48,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 900;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    try {
+      const pLat = ${pLat};
+      const pLng = ${pLng};
+      const hasDrop = ${hasDrop};
+      const dLat = ${dLat};
+      const dLng = ${dLng};
+
+      const map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false,
+        dragging: true,
+        touchZoom: true,
+        doubleClickZoom: true,
+        scrollWheelZoom: false,
+        tap: true
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        subdomains: ['a', 'b', 'c']
+      }).addTo(map);
+
+      // Pickup Marker
+      const pickupIcon = L.divIcon({
+        className: 'custom-div-icon',
+        html: '<div class="pin-pickup">P</div>',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+      L.marker([pLat, pLng], { icon: pickupIcon }).addTo(map);
+
+      if (hasDrop && dLat !== 0) {
+        // Dropoff Marker
+        const dropIcon = L.divIcon({
+          className: 'custom-div-icon',
+          html: '<div class="pin-dropoff">D</div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        });
+        L.marker([dLat, dLng], { icon: dropIcon }).addTo(map);
+
+        // Polyline connecting them
+        L.polyline([[pLat, pLng], [dLat, dLng]], {
+          color: '#00CFFF',
+          weight: 3.5,
+          opacity: 0.85,
+          dashArray: '6, 8'
+        }).addTo(map);
+
+        map.fitBounds([[pLat, pLng], [dLat, dLng]], { padding: [25, 25] });
+      } else {
+        map.setView([pLat, pLng], 14);
+      }
+    } catch(e) {
+      console.error(e);
+    }
+  </script>
+</body>
+</html>
+    `;
+  }, [pickupCoords, dropoffCoords]);
 
   const canContinue = pickup.trim().length > 0 && dropoff.trim().length > 0;
 
@@ -202,21 +393,60 @@ export default function ScheduleTowScreen() {
           })}
         </View>
 
-        {/* Location Inputs */}
-        <Text style={styles.sectionLabel}>Pickup & Drop-off</Text>
+        {/* SECTION: Pickup & Drop-off Route with Map Integration */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionLabel}>Pickup & Drop-off</Text>
+          <View style={styles.sectionHeaderActions}>
+            <TouchableOpacity
+              onPress={() => {
+                setMapPickerType('pickup');
+                setShowMapPicker(true);
+              }}
+              style={styles.headerActionBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="map" size={12} color="#00CFFF" />
+              <Text style={styles.headerActionText}>Choose on Map</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={detectCurrentLocation}
+              style={[styles.headerActionBtn, styles.headerActionBtnGps]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="navigate" size={12} color="#00FF97" />
+              <Text style={[styles.headerActionText, { color: '#00FF97' }]}>
+                {locatingGps ? 'Locating...' : 'GPS'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.locationContainer}>
-          {/* Pickup */}
+          {/* Pickup Input */}
           <View style={styles.locationRow}>
             <View style={[styles.locationDot, { backgroundColor: '#00FF97', shadowColor: '#00FF97' }]} />
-            <TextInput
-              style={[styles.locationInput, pickupFocused && styles.locationInputFocused]}
-              placeholder="Enter pickup location"
-              placeholderTextColor="rgba(255,255,255,0.35)"
-              value={pickup}
-              onChangeText={setPickup}
-              onFocus={() => setPickupFocused(true)}
-              onBlur={() => setPickupFocused(false)}
-            />
+            <View style={[styles.inputWrapper, pickupFocused && styles.locationInputFocused]}>
+              <TextInput
+                style={styles.locationInput}
+                placeholder="Enter pickup location"
+                placeholderTextColor="rgba(255,255,255,0.35)"
+                value={pickup}
+                onChangeText={setPickup}
+                onFocus={() => setPickupFocused(true)}
+                onBlur={() => setPickupFocused(false)}
+              />
+              <TouchableOpacity
+                onPress={() => {
+                  setMapPickerType('pickup');
+                  setShowMapPicker(true);
+                }}
+                style={styles.inlineMapBtn}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="map" size={13} color="#00CFFF" />
+                <Text style={styles.inlineMapBtnText}>Map</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Connector dots */}
@@ -226,18 +456,116 @@ export default function ScheduleTowScreen() {
             <View style={styles.dotSmall} />
           </View>
 
-          {/* Drop-off */}
+          {/* Drop-off Input */}
           <View style={styles.locationRow}>
             <View style={[styles.locationDot, { backgroundColor: '#FF3B30', shadowColor: '#FF3B30' }]} />
-            <TextInput
-              style={[styles.locationInput, dropoffFocused && styles.locationInputFocused]}
-              placeholder="Enter drop-off location"
-              placeholderTextColor="rgba(255,255,255,0.35)"
-              value={dropoff}
-              onChangeText={setDropoff}
-              onFocus={() => setDropoffFocused(true)}
-              onBlur={() => setDropoffFocused(false)}
+            <View style={[styles.inputWrapper, dropoffFocused && styles.locationInputFocused]}>
+              <TextInput
+                style={styles.locationInput}
+                placeholder="Enter drop-off location"
+                placeholderTextColor="rgba(255,255,255,0.35)"
+                value={dropoff}
+                onChangeText={setDropoff}
+                onFocus={() => setDropoffFocused(true)}
+                onBlur={() => setDropoffFocused(false)}
+              />
+              <TouchableOpacity
+                onPress={() => {
+                  setMapPickerType('dropoff');
+                  setShowMapPicker(true);
+                }}
+                style={[styles.inlineMapBtn, { borderColor: 'rgba(255,59,48,0.35)', backgroundColor: 'rgba(255,59,48,0.1)' }]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="map" size={13} color="#FF3B30" />
+                <Text style={[styles.inlineMapBtnText, { color: '#FF3B30' }]}>Map</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Quick Destination Chips */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickChipsRow}
+          >
+            {[
+              { label: '🏢 Nearest Workshop', value: 'Nearest Authorized Service Center' },
+              { label: '🏠 Home / Residence', value: 'Home Address' },
+              { label: '🚗 Dealership Center', value: 'Authorized Dealership Center' },
+            ].map((chip) => (
+              <TouchableOpacity
+                key={chip.label}
+                onPress={() => setDropoff(chip.value)}
+                style={styles.quickChip}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.quickChipText}>{chip.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Interactive Map Preview Card */}
+        <View style={styles.mapCard}>
+          <View style={styles.mapCardHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="navigate-circle" size={16} color="#00CFFF" />
+              <Text style={styles.mapCardTitle}>Interactive Route Map</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                setMapPickerType(pickup ? 'dropoff' : 'pickup');
+                setShowMapPicker(true);
+              }}
+              style={styles.mapCardExpandBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="scan-outline" size={13} color="#00CFFF" />
+              <Text style={styles.mapCardExpandText}>Full Screen Map</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.mapContainer}>
+            <WebView
+              originWhitelist={['*']}
+              source={{ html: mapHtml }}
+              style={styles.mapWebview}
+              scrollEnabled={false}
+              bounces={false}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
             />
+            {/* Overlay buttons to tap map & choose location */}
+            <View style={styles.mapOverlayControls}>
+              <TouchableOpacity
+                onPress={() => {
+                  setMapPickerType('pickup');
+                  setShowMapPicker(true);
+                }}
+                style={[styles.mapOverlayChip, { borderColor: 'rgba(0,255,151,0.5)', backgroundColor: 'rgba(10,24,36,0.92)' }]}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.mapOverlayDot, { backgroundColor: '#00FF97' }]} />
+                <Text style={[styles.mapOverlayChipText, { color: '#00FF97' }]}>
+                  {pickup ? 'Edit Pickup' : 'Pick on Map'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setMapPickerType('dropoff');
+                  setShowMapPicker(true);
+                }}
+                style={[styles.mapOverlayChip, { borderColor: 'rgba(255,59,48,0.5)', backgroundColor: 'rgba(32,12,18,0.92)' }]}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.mapOverlayDot, { backgroundColor: '#FF3B30' }]} />
+                <Text style={[styles.mapOverlayChipText, { color: '#FF3B30' }]}>
+                  {dropoff ? 'Edit Drop-off' : 'Set Drop-off'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -275,6 +603,22 @@ export default function ScheduleTowScreen() {
               <Text style={styles.summaryValue}>{pickup}</Text>
             </>
           )}
+
+          {dropoff.trim().length > 0 && (
+            <>
+              <View style={[styles.summaryRow, { marginTop: 14 }]}>
+                <Ionicons name="flag" size={18} color="#FF3B30" />
+                <Text style={styles.summaryLabel}>Drop-off</Text>
+              </View>
+              <Text style={styles.summaryValue}>{dropoff}</Text>
+
+              <View style={[styles.summaryRow, { marginTop: 14 }]}>
+                <Ionicons name="navigate-outline" size={18} color="#00CFFF" />
+                <Text style={styles.summaryLabel}>Est. Distance</Text>
+              </View>
+              <Text style={styles.summaryValue}>{calculatedDistance} km</Text>
+            </>
+          )}
         </View>
 
         {/* Confirm Button */}
@@ -289,10 +633,17 @@ export default function ScheduleTowScreen() {
                   vehicleName: `${selectedVehicle.toUpperCase()} Tow`,
                   pickup: pickup.trim(),
                   dropoff: dropoff.trim(),
-                  distance: '10',
+                  pickupLat: pickupCoords?.latitude?.toString() || '',
+                  pickupLng: pickupCoords?.longitude?.toString() || '',
+                  dropoffLat: dropoffCoords?.latitude?.toString() || '',
+                  dropoffLng: dropoffCoords?.longitude?.toString() || '',
+                  distance: calculatedDistance.toString(),
                   baseFare: '1200',
-                  distanceFee: '200',
+                  distanceFee: `${Math.round(calculatedDistance * 20)}`,
                   serviceIssue: 'Scheduled Pickup',
+                  scheduledDate: selectedDate,
+                  scheduledTime: selectedTime,
+                  scheduledDateTime: summaryText,
                 },
               });
             }
@@ -312,6 +663,33 @@ export default function ScheduleTowScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Interactive Map Location Picker Modal */}
+      <MapLocationPickerModal
+        visible={showMapPicker}
+        onClose={() => setShowMapPicker(false)}
+        type={mapPickerType}
+        title={mapPickerType === 'pickup' ? 'Select Pickup on Map' : 'Select Drop-off on Map'}
+        initialAddress={mapPickerType === 'pickup' ? pickup : dropoff}
+        initialCoordinates={
+          mapPickerType === 'pickup'
+            ? pickupCoords || undefined
+            : dropoffCoords || pickupCoords || undefined
+        }
+        onSelectLocation={({ address, coordinates }) => {
+          if (mapPickerType === 'pickup') {
+            setPickup(address);
+            if (coordinates && coordinates.latitude !== 0) {
+              setPickupCoords(coordinates);
+            }
+          } else {
+            setDropoff(address);
+            if (coordinates && coordinates.latitude !== 0) {
+              setDropoffCoords(coordinates);
+            }
+          }
+        }}
+      />
     </View>
   );
 }
@@ -368,10 +746,41 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     fontSize: 16,
     color: '#FFFFFF',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  sectionHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 207, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.3)',
+  },
+  headerActionBtnGps: {
+    backgroundColor: 'rgba(0, 255, 151, 0.12)',
+    borderColor: 'rgba(0, 255, 151, 0.3)',
+  },
+  headerActionText: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 11,
+    color: '#00CFFF',
   },
   dateRow: {
     marginBottom: 24,
+    marginTop: 12,
   },
   dateCard: {
     width: 72,
@@ -421,6 +830,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginTop: 12,
     marginBottom: 24,
   },
   timeChip: {
@@ -453,7 +863,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginTop: 6,
+    marginTop: 12,
     marginBottom: 20,
   },
   typeCard: {
@@ -524,7 +934,7 @@ const styles = StyleSheet.create({
     right: 6,
   },
   locationContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   locationRow: {
     flexDirection: 'row',
@@ -552,17 +962,24 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  locationInput: {
+  inputWrapper: {
     flex: 1,
-    height: 50,
+    height: 52,
     borderRadius: 14,
     backgroundColor: 'rgba(13, 20, 32, 0.55)',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  locationInput: {
+    flex: 1,
+    height: '100%',
     color: '#FFFFFF',
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
+    paddingRight: 8,
   },
   locationInputFocused: {
     borderColor: '#00CFFF',
@@ -570,6 +987,121 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
+  },
+  inlineMapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 207, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.35)',
+  },
+  inlineMapBtnText: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 11,
+    color: '#00CFFF',
+  },
+  quickChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    paddingLeft: 24,
+  },
+  quickChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  quickChipText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.75)',
+  },
+  mapCard: {
+    borderRadius: 18,
+    backgroundColor: 'rgba(13, 20, 32, 0.45)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 12,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  mapCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  mapCardTitle: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  mapCardExpandBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 207, 255, 0.1)',
+  },
+  mapCardExpandText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: '#00CFFF',
+  },
+  mapContainer: {
+    height: 180,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    position: 'relative',
+  },
+  mapWebview: {
+    flex: 1,
+    backgroundColor: '#070c18',
+  },
+  mapOverlayControls: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    right: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  mapOverlayChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mapOverlayDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  mapOverlayChipText: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 11,
   },
   summaryCard: {
     borderRadius: 20,
