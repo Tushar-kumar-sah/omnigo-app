@@ -52,6 +52,9 @@ const mapToUIRide = (b: any) => {
 const STATUS_COLOR: Record<string, string> = {
   Completed: '#00FF97',
   Cancelled: '#FF4D4D',
+  Active: '#FFD60A',
+  Pending: '#FF9F0A',
+  'In Progress': '#00CFFF',
 };
 
 export default function WalletScreen() {
@@ -100,56 +103,59 @@ export default function WalletScreen() {
       </View>
 
       <ScrollView contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom + 120, 140) }]} showsVerticalScrollIndicator={false}>
-        {rides.map((ride) => (
-          <TouchableOpacity key={ride.id} onPress={() => setSelectedRide(ride)} activeOpacity={0.85} style={styles.cardTouch}>
-            <View style={[styles.card, Platform.OS === 'android' && { backgroundColor: 'rgba(13,20,40,0.96)' }]}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.04)', 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              {/* Top Details */}
-              <View style={styles.cardTop}>
-                <View style={[styles.statusBadge, { backgroundColor: `${STATUS_COLOR[ride.status]}12`, borderColor: `${STATUS_COLOR[ride.status]}25` }]}>
-                  <Text style={[styles.statusText, { color: STATUS_COLOR[ride.status] }]}>{ride.status}</Text>
+        {rides.map((ride) => {
+          const statusColor = STATUS_COLOR[ride.status] || '#FFD60A';
+          return (
+            <TouchableOpacity key={ride.id} onPress={() => setSelectedRide(ride)} activeOpacity={0.85} style={styles.cardTouch}>
+              <View style={[styles.card, Platform.OS === 'android' && { backgroundColor: 'rgba(13,20,40,0.96)' }]}>
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.04)', 'transparent']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                {/* Top Details */}
+                <View style={styles.cardTop}>
+                  <View style={[styles.statusBadge, { backgroundColor: `${statusColor}18`, borderColor: `${statusColor}35` }]}>
+                    <Text style={[styles.statusText, { color: statusColor }]}>{ride.status}</Text>
+                  </View>
+                  <Text style={styles.rideId}>{ride.id}</Text>
                 </View>
-                <Text style={styles.rideId}>{ride.id}</Text>
-              </View>
 
-              <Text style={styles.dateText}>{ride.date}</Text>
+                <Text style={styles.dateText}>{ride.date}</Text>
 
-              {/* Service description */}
-              <View style={styles.serviceRow}>
-                <MaterialCommunityIcons name="tow-truck" size={18} color="#00CFFF" />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.serviceTitle}>{ride.service}</Text>
-                  <Text style={styles.vehicleText}>{ride.vehicle}</Text>
+                {/* Service description */}
+                <View style={styles.serviceRow}>
+                  <MaterialCommunityIcons name="tow-truck" size={18} color="#00CFFF" />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.serviceTitle}>{ride.service}</Text>
+                    <Text style={styles.vehicleText}>{ride.vehicle}</Text>
+                  </View>
+                  <Text style={styles.totalText}>₹{ride.fare.total}</Text>
                 </View>
-                <Text style={styles.totalText}>₹{ride.fare.total}</Text>
-              </View>
 
-              {/* Pickup & Drop routes */}
-              <View style={styles.routeContainer}>
-                <View style={styles.routeDots}>
-                  <View style={styles.greenDot} />
-                  <View style={styles.line} />
-                  <View style={styles.redDot} />
+                {/* Pickup & Drop routes */}
+                <View style={styles.routeContainer}>
+                  <View style={styles.routeDots}>
+                    <View style={styles.greenDot} />
+                    <View style={styles.line} />
+                    <View style={styles.redDot} />
+                  </View>
+                  <View style={styles.routeTextWrapper}>
+                    <Text style={styles.routeText} numberOfLines={1}>{ride.pickup}</Text>
+                    <Text style={[styles.routeText, { marginTop: 10 }]} numberOfLines={1}>{ride.drop}</Text>
+                  </View>
                 </View>
-                <View style={styles.routeTextWrapper}>
-                  <Text style={styles.routeText} numberOfLines={1}>{ride.pickup}</Text>
-                  <Text style={[styles.routeText, { marginTop: 10 }]} numberOfLines={1}>{ride.drop}</Text>
-                </View>
-              </View>
 
-              {/* Receipt Row */}
-              <View style={styles.receiptAction}>
-                <Text style={styles.viewInvoiceLink}>View Receipt Details</Text>
-                <Ionicons name="chevron-forward" size={16} color="#00CFFF" />
+                {/* Receipt Row */}
+                <View style={styles.receiptAction}>
+                  <Text style={styles.viewInvoiceLink}>View Receipt Details</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#00CFFF" />
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {/* Invoice Details Modal */}
@@ -270,7 +276,7 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100, borderWidth: 1 },
-  statusText: { fontFamily: 'Outfit_700Bold', fontSize: 11, letterSpacing: 0.5 },
+  statusText: { fontFamily: 'Outfit_700Bold', fontSize: 11, letterSpacing: 0.5, color: '#FFD60A' },
   rideId: { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255, 255, 255, 0.4)' },
   dateText: { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255, 255, 255, 0.4)', marginBottom: 12 },
   serviceRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },

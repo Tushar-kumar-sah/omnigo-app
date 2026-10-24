@@ -144,9 +144,14 @@ export default function BookingsScreen() {
           <View key={booking.id} style={[styles.card, Platform.OS === 'android' && styles.cardAndroid]}>
             {/* Top Row */}
             <View style={styles.cardTop}>
-              <View style={[styles.statusBadge, { backgroundColor: `${STATUS_COLOR[booking.status]}18`, borderColor: `${STATUS_COLOR[booking.status]}35` }]}>
-                <Text style={[styles.statusText, { color: STATUS_COLOR[booking.status] }]}>{booking.status}</Text>
-              </View>
+              {(() => {
+                const statusColor = STATUS_COLOR[booking.status] || '#FFD60A';
+                return (
+                  <View style={[styles.statusBadge, { backgroundColor: `${statusColor}18`, borderColor: `${statusColor}35` }]}>
+                    <Text style={[styles.statusText, { color: statusColor }]}>{booking.status}</Text>
+                  </View>
+                );
+              })()}
               <Text style={styles.bookingId}>{booking.id}</Text>
             </View>
 
@@ -315,7 +320,7 @@ const styles = StyleSheet.create({
   cardAndroid:  { backgroundColor: 'rgba(13,20,40,0.95)' },
   cardTop:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   statusBadge:  { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100, borderWidth: 1 },
-  statusText:   { fontFamily: 'Outfit_700Bold', fontSize: 11, letterSpacing: 0.5 },
+  statusText:   { fontFamily: 'Outfit_700Bold', fontSize: 11, letterSpacing: 0.5, color: '#FFD60A' },
   bookingId:    { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.4)' },
   dateText:     { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 12 },
   serviceRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
