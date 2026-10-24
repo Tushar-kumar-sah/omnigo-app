@@ -98,7 +98,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   }
 
   if (moduleName && moduleName.includes('empty-module')) {
-    return { type: 'empty' };
+    return { type: 'sourceFile', filePath: path.resolve(__dirname, 'lib/shims/empty-module.js') };
   }
   if (path.isAbsolute(moduleName) && fs.existsSync(moduleName)) {
     try {
