@@ -2,6 +2,32 @@ const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 const fs = require('fs');
 
+// Fix Windows NTFS / OneDrive / pnpm reparse point EINVAL bug in Metro file-map
+if (process.platform === 'win32') {
+  const origReadlink = fs.promises.readlink;
+  fs.promises.readlink = async function (targetPath, ...args) {
+    try {
+      return await origReadlink.call(this, targetPath, ...args);
+    } catch (err) {
+      if (err && err.code === 'EINVAL') {
+        return targetPath;
+      }
+      throw err;
+    }
+  };
+  const origReadlinkSync = fs.readlinkSync;
+  fs.readlinkSync = function (targetPath, ...args) {
+    try {
+      return origReadlinkSync.call(this, targetPath, ...args);
+    } catch (err) {
+      if (err && err.code === 'EINVAL') {
+        return targetPath;
+      }
+      throw err;
+    }
+  };
+}
+
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '../..');
 

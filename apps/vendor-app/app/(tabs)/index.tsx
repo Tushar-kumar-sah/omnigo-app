@@ -41,6 +41,7 @@ export default function HomeScreen() {
 
   const [driver, setDriver] = useState<Driver | null>(null);
   const [todayJobs, setTodayJobs] = useState<Booking[]>([]);
+  const [activeJob, setActiveJob] = useState<Booking | null>(null);
   const [incomingJob, setIncomingJob] = useState<any>(null);
   const DRIVER_ID = getAuthenticatedDriverId();
   const buzzerRef = useRef<BuzzerSoundHandle>(null);
@@ -59,6 +60,11 @@ export default function HomeScreen() {
         const completed = jobs.filter(j => j.status === 'completed');
         setTodayJobs(completed);
         
+        const currentActive = jobs.find(j => 
+          ['driver_assigned', 'driver_arriving', 'at_pickup', 'towing', 'in_progress'].includes(j.status)
+        );
+        setActiveJob(currentActive || null);
+
         if (d) {
           setIsOnline(d.isOnline);
         }
@@ -145,7 +151,7 @@ export default function HomeScreen() {
 
   // Subscribe to real incoming jobs with buzz alarm & mutual exclusion
   useEffect(() => {
-    if (isOnline) {
+    if (isOnline && !activeJob) {
       const sub = subscribeToIncomingJobs(DRIVER_ID, {
         isJobIgnored: (jobId: string) => declinedJobsRef.current.has(jobId),
         onNewJob: (rawJob: any) => {
@@ -197,7 +203,7 @@ export default function HomeScreen() {
       setShowJobPopup(false);
       setIncomingJob(null);
     }
-  }, [isOnline, DRIVER_ID]);
+  }, [isOnline, activeJob, DRIVER_ID]);
 
   // Animations
   const slideAnim = useRef(new Animated.Value(300)).current;
@@ -272,6 +278,7 @@ export default function HomeScreen() {
 
       setShowJobPopup(false);
       setJobAccepted(true);
+      setActiveJob(res.booking || null);
       router.push({ pathname: '/job/navigation', params: { id: incomingJob.id } });
     } catch (err: any) {
       setIsAccepting(false);
@@ -350,6 +357,35 @@ export default function HomeScreen() {
             <View style={styles.notifDot} />
           </TouchableOpacity>
         </View>
+
+        {/* Active Job in Progress Banner */}
+        {activeJob && (
+          <BlurView intensity={25} tint="dark" style={styles.activeJobCard}>
+            <View style={styles.activeJobHeader}>
+              <View style={styles.activeJobBadge}>
+                <View style={styles.activeJobPulseDot} />
+                <Text style={styles.activeJobBadgeText}>JOB IN PROGRESS</Text>
+              </View>
+              <Text style={styles.activeJobNumber}>{(activeJob as any)?.bookingNumber || `Order #${activeJob.id.slice(0, 8)}`}</Text>
+            </View>
+            <View style={styles.activeJobBody}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.activeJobRouteLabel}>PICKUP LOCATION</Text>
+                <Text style={styles.activeJobAddress} numberOfLines={1}>
+                  {activeJob.pickup?.address || 'Pickup in progress'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.resumeNavBtn}
+                activeOpacity={0.8}
+                onPress={() => router.push({ pathname: '/job/navigation', params: { id: activeJob.id } })}
+              >
+                <Ionicons name="navigate" size={15} color="#050810" />
+                <Text style={styles.resumeNavBtnText}>Resume</Text>
+              </TouchableOpacity>
+            </View>
+          </BlurView>
+        )}
 
         {/* Go Online / Offline Card */}
         <BlurView intensity={25} tint="dark" style={styles.onlineCard}>
@@ -617,6 +653,78 @@ const styles = StyleSheet.create({
   greetingSub: { fontFamily: 'Inter_400Regular', fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
   notifBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },
   notifDot: { position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF4D4D' },
+  activeJobCard: {
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.35)',
+    backgroundColor: 'rgba(0, 207, 255, 0.08)',
+    marginBottom: 18,
+    overflow: 'hidden',
+  },
+  activeJobHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  activeJobBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 100,
+    backgroundColor: 'rgba(0, 207, 255, 0.2)',
+    gap: 6,
+  },
+  activeJobPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#00CFFF',
+  },
+  activeJobBadgeText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 10,
+    color: '#00CFFF',
+    letterSpacing: 0.5,
+  },
+  activeJobNumber: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
+    color: '#fff',
+  },
+  activeJobBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  activeJobRouteLabel: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 0.5,
+  },
+  activeJobAddress: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#fff',
+    marginTop: 2,
+  },
+  resumeNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#00CFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
+    gap: 6,
+  },
+  resumeNavBtnText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 13,
+    color: '#050810',
+  },
   onlineCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(13,20,32,0.5)', marginBottom: 18, overflow: 'hidden' },
   onlineLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   statusDot: { width: 14, height: 14, borderRadius: 7, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 8 },

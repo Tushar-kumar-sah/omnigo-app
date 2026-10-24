@@ -83,6 +83,9 @@ export function subscribeToIncomingJobs(
   let channel: any = null;
   let interval: any = null;
 
+  // Maximum age for an active searching request to be broadcast to drivers (2 minutes)
+  const MAX_JOB_BROADCAST_AGE_MS = 2 * 60 * 1000;
+
   try {
     channel = supabase
       .channel(`incoming-jobs-${driverId}-${Date.now()}`)
@@ -97,8 +100,13 @@ export function subscribeToIncomingJobs(
           const row = payload?.new;
           if (!row || !row.id) return;
 
-          // 1. New or updated order in searching/pending state
-          if ((row.status === 'searching' || row.status === 'pending') && (!row.driver_id || row.driver_id === driverId)) {
+          // 1. Only broadcast strictly unassigned jobs in searching/pending state created within the last 2 minutes
+          const isSearching = row.status === 'searching' || row.status === 'pending';
+          const isUnassigned = !row.driver_id;
+          const createdAt = new Date(row.created_at || Date.now()).getTime();
+          const isRecent = Date.now() - createdAt <= MAX_JOB_BROADCAST_AGE_MS;
+
+          if (isSearching && isUnassigned && isRecent) {
             if (isJobIgnored && isJobIgnored(row.id)) return;
             activeShowingJobId = row.id;
             onNewJob(row);
@@ -117,11 +125,19 @@ export function subscribeToIncomingJobs(
             return;
           }
 
-          // 3. Order was cancelled
+          // 3. Order was cancelled or completed or claimed
           if (row.id === activeShowingJobId && row.status === 'cancelled') {
             const cancelledId = activeShowingJobId;
             activeShowingJobId = '';
             onJobCancelled?.(cancelledId);
+            return;
+          }
+
+          if (
+            row.id === activeShowingJobId &&
+            (row.driver_id === driverId || (row.status !== 'searching' && row.status !== 'pending'))
+          ) {
+            activeShowingJobId = '';
             return;
           }
         }
@@ -131,10 +147,10 @@ export function subscribeToIncomingJobs(
     console.warn('Realtime subscription error:', err);
   }
 
-  // Active polling fallback: check every 1.2 seconds
+  // Active polling fallback: check every 1.5 seconds
   const checkJobs = async () => {
     try {
-      // If currently showing a job, verify if it was taken by someone else
+      // If currently showing a job, verify if it was taken by someone else or cancelled
       if (activeShowingJobId) {
         const { data: currentJob } = await supabase
           .from('bookings')
@@ -155,20 +171,35 @@ export function subscribeToIncomingJobs(
             onJobCancelled?.(cancelledId);
             return;
           }
+          if (
+            currentJob.driver_id === driverId ||
+            (currentJob.status !== 'searching' && currentJob.status !== 'pending')
+          ) {
+            activeShowingJobId = '';
+            return;
+          }
         }
       }
 
-      // If no job currently active, check for the latest unassigned searching job
+      // If no job currently active, check for the latest strictly UNASSIGNED searching job created within the last 2 minutes
       if (!activeShowingJobId) {
+        const twoMinutesAgo = new Date(Date.now() - MAX_JOB_BROADCAST_AGE_MS).toISOString();
         const { data: latestJobs } = await supabase
           .from('bookings')
           .select('*')
           .in('status', ['searching', 'pending'])
+          .is('driver_id', null)
+          .gte('created_at', twoMinutesAgo)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(5);
 
         if (latestJobs && latestJobs.length > 0) {
-          const row = latestJobs.find((j) => (!isJobIgnored || !isJobIgnored(j.id)) && (!j.driver_id || j.driver_id === driverId));
+          const row = latestJobs.find((j) => {
+            if (isJobIgnored && isJobIgnored(j.id)) return false;
+            if (j.driver_id) return false;
+            const age = Date.now() - new Date(j.created_at).getTime();
+            return age <= MAX_JOB_BROADCAST_AGE_MS;
+          });
           if (row) {
             activeShowingJobId = row.id;
             onNewJob(row);
@@ -178,9 +209,9 @@ export function subscribeToIncomingJobs(
     } catch (e) {}
   };
 
-  // Immediate check & repeat every 1.2s
+  // Immediate check & repeat every 1.5s
   checkJobs();
-  interval = setInterval(checkJobs, 1200);
+  interval = setInterval(checkJobs, 1500);
 
   return {
     unsubscribe: () => {
