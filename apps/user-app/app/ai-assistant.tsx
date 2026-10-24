@@ -383,7 +383,7 @@ export default function AIAssistantScreen() {
   const [messages, setMessages] = useState<ChatMsg[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<any>(null);
   const typingDots = useRef(new Animated.Value(0)).current;
 
   // Typing dots animation

@@ -7,23 +7,56 @@ const monorepoRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
-// 1. Watch the entire monorepo for changes
-config.watchFolders = [monorepoRoot];
+// 1. Ensure all monorepo packages and node_modules are in watchFolders
+config.watchFolders = Array.from(
+  new Set([
+    ...(config.watchFolders || []),
+    monorepoRoot,
+    path.resolve(monorepoRoot, 'node_modules'),
+    path.resolve(projectRoot, 'node_modules'),
+  ])
+);
 
 // 2. Let Metro know where to resolve packages from
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, 'node_modules'),
-  path.resolve(monorepoRoot, 'node_modules'),
-];
+config.resolver.nodeModulesPaths = Array.from(
+  new Set([
+    ...(config.resolver.nodeModulesPaths || []),
+    path.resolve(projectRoot, 'node_modules'),
+    path.resolve(monorepoRoot, 'node_modules'),
+  ])
+);
 
-// 3. Disable the package.json "exports" field resolution (causes issues with some packages)
-config.resolver.unstable_enablePackageExports = false;
-
-// 4. Fix Windows absolute path / empty-module bug in metro-resolver
+// 3. Fix Windows absolute path / empty-module bug in metro-resolver
 const emptyModulePath = require.resolve('metro-runtime/src/modules/empty-module.js');
 const originalResolveRequest = config.resolver.resolveRequest;
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (context.fileSystemLookup && !context.__pnpmFsPatched) {
+    context.__pnpmFsPatched = true;
+    const origLookup = context.fileSystemLookup.bind(context);
+    context.fileSystemLookup = (filePath) => {
+      const res = origLookup(filePath);
+      if (res && res.exists) return res;
+      if (fs.existsSync(filePath)) {
+        try {
+          const stat = fs.statSync(filePath);
+          return {
+            exists: true,
+            realPath: fs.realpathSync(filePath),
+            type: stat.isFile() ? 'f' : stat.isDirectory() ? 'd' : 'other',
+          };
+        } catch (_) {}
+      }
+      return res;
+    };
+    if (context.doesFileExist) {
+      const origDoesFileExist = context.doesFileExist.bind(context);
+      context.doesFileExist = (filePath) => {
+        return origDoesFileExist(filePath) || fs.existsSync(filePath);
+      };
+    }
+  }
+
   if (moduleName && moduleName.includes('empty-module')) {
     return { type: 'sourceFile', filePath: emptyModulePath };
   }
@@ -39,5 +72,40 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   }
   return context.resolveRequest(context, moduleName, platform);
 };
+
+// 4. Patch DependencyGraph.prototype.getOrComputeSha1 for pnpm symlinks on Windows
+try {
+  const metroPath = require.resolve('metro');
+  const depGraphPath = path.resolve(path.dirname(metroPath), 'node-haste/DependencyGraph.js');
+  const DependencyGraph = require(depGraphPath).default;
+  if (DependencyGraph && DependencyGraph.prototype) {
+    const origGetSha1 = DependencyGraph.prototype.getOrComputeSha1;
+    DependencyGraph.prototype.getOrComputeSha1 = async function (mixedPath) {
+      try {
+        const result = await origGetSha1.call(this, mixedPath);
+        if (result && result.sha1) return result;
+      } catch (err) {
+        if (fs.existsSync(mixedPath)) {
+          try {
+            const content = fs.readFileSync(mixedPath);
+            const crypto = require('node:crypto');
+            const sha1 = crypto.createHash('sha1').update(content).digest('hex');
+            return { sha1 };
+          } catch (_) {}
+        }
+        throw err;
+      }
+      if (fs.existsSync(mixedPath)) {
+        try {
+          const content = fs.readFileSync(mixedPath);
+          const crypto = require('node:crypto');
+          const sha1 = crypto.createHash('sha1').update(content).digest('hex');
+          return { sha1 };
+        } catch (_) {}
+      }
+      return origGetSha1.call(this, mixedPath);
+    };
+  }
+} catch (_) {}
 
 module.exports = config;
