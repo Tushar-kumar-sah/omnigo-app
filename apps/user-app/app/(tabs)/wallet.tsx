@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -17,23 +16,61 @@ const mapToUIRide = (b: any) => {
   const discount = Number(b.promoDiscount || b.promo_discount || 0);
   const total = Number(b.finalPrice || b.final_price || estPrice || 0);
 
+  const rawStatus = (b.bookingStatus || b.status || '').toLowerCase();
+  const isCompleted = rawStatus === 'completed';
+  const isCancelled = rawStatus === 'cancelled';
+
+  // Format short clean ID
+  const rawIdStr = String(b.bookingNumber || b.booking_number || b.id || b.uuid || '0000');
+  const shortId = rawIdStr.startsWith('JOB-')
+    ? rawIdStr
+    : (rawIdStr.length > 8 ? `JOB-${rawIdStr.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}` : rawIdStr.toUpperCase());
+
+  // Clean vehicle
+  let vehicleStr = b.vehicle || b.customerVehicle?.model || 'User Vehicle';
+  vehicleStr = vehicleStr.replace(/^[—\-\s]+/, '').trim();
+  if (vehicleStr.startsWith('Vehicle (')) {
+    vehicleStr = 'Car ' + vehicleStr;
+  }
+
+  // Extract clean driver name and truck plate
+  let driverName = b.driver || (b.driver_id ? 'Driver Assigned' : 'Unassigned');
+  let extractedPlate = b.vehiclePlate || b.driverPlate || '—';
+  const plateMatch = driverName.match(/\(([^)]+)\)/);
+  if (plateMatch) {
+    if (extractedPlate === '—' || !extractedPlate) {
+      extractedPlate = plateMatch[1];
+    }
+    driverName = driverName.replace(/\s*\([^)]+\)/, '').trim();
+  }
+
+  const dateObj = new Date(b.created_at || b.createdAt || Date.now());
+  const formattedDate = dateObj.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }) + ', ' + dateObj.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
   return {
-    id: b.id || (b.uuid ? `JOB-${b.uuid.substring(0, 4).toUpperCase()}` : 'JOB-0000'),
-    status: b.status === 'completed' || b.status === 'Completed' ? 'Completed'
-          : b.status === 'cancelled' || b.status === 'Cancelled' ? 'Cancelled'
-          : 'Active',
-    date: new Date(b.created_at || b.createdAt || Date.now()).toLocaleString('en-IN'),
+    id: shortId,
+    rawId: b.uuid || b.id || b.booking_number,
+    status: isCompleted ? 'Completed' : isCancelled ? 'Cancelled' : 'Active',
+    date: formattedDate,
     service: b.service_type || b.service || 'Flatbed Tow',
-    vehicle: b.vehicle || 'User Vehicle',
+    vehicle: vehicleStr,
     pickup: b.pickup ||
       (typeof b.pickup_location === 'object' && b.pickup_location ? b.pickup_location?.address : null) ||
       'Unknown Location',
     drop: b.drop || b.dropoff?.address ||
       (typeof b.dropoff_location === 'object' && b.dropoff_location ? b.dropoff_location?.address : null) ||
       'Unknown Location',
-    driver: b.driver || (b.driver_id ? 'Driver Assigned' : 'Unassigned'),
+    driver: driverName,
     driverRating: (b.driverRating || b.driver_rating) ? Number(b.driverRating || b.driver_rating).toFixed(1) : (b.driver?.rating ? Number(b.driver.rating).toFixed(1) : null),
-    driverPlate: b.vehiclePlate || '—',
+    driverPlate: extractedPlate,
     distance: b.distanceKm ? b.distanceKm + ' km' : (b.distance ? b.distance + ' km' : '—'),
     duration: b.durationMin ? b.durationMin + ' min' : (b.estimatedETA ? b.estimatedETA + ' min' : '—'),
     fare: {
@@ -159,17 +196,17 @@ export default function WalletScreen() {
       </ScrollView>
 
       {/* Invoice Details Modal */}
-      <Modal visible={selectedRide !== null} animationType="slide" transparent>
+      <Modal visible={selectedRide !== null} animationType="slide" transparent statusBarTranslucent>
         {selectedRide && (
           <View style={modal.overlay}>
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.7)' }]} />
             <View style={modal.container}>
+              {/* Header */}
               <View style={modal.header}>
-                <View>
-                  <Text style={modal.title}>Receipt Details</Text>
-                  <Text style={modal.sub}>Booking ID: {selectedRide.id}</Text>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={modal.title}>Payment Receipt</Text>
+                  <Text style={modal.sub} numberOfLines={1}>{selectedRide.id} · {selectedRide.date}</Text>
                 </View>
-                <TouchableOpacity style={modal.closeBtn} onPress={() => setSelectedRide(null)}>
+                <TouchableOpacity style={modal.closeBtn} onPress={() => setSelectedRide(null)} activeOpacity={0.7}>
                   <Ionicons name="close" size={20} color="#fff" />
                 </TouchableOpacity>
               </View>
@@ -178,39 +215,53 @@ export default function WalletScreen() {
                 {/* Brand Title */}
                 <View style={modal.brand}>
                   <Text style={modal.brandName}>OmniGo</Text>
-                  <Text style={modal.brandSub}>{selectedRide.service} · {selectedRide.date}</Text>
+                  <Text style={modal.brandSub}>Official Trip Receipt</Text>
                 </View>
 
-                {/* Driver Meta info */}
-                <View style={modal.section}>
-                  <Text style={modal.sectionTitle}>SERVICE DETAILS</Text>
+                {/* Service Details Card */}
+                <View style={modal.cardSection}>
+                  <Text style={modal.sectionTitle}>Service Details</Text>
                   <View style={modal.row}>
-                    <Text style={modal.label}>Driver Name</Text>
-                    <Text style={modal.value}>{selectedRide.driver} {selectedRide.driverRating ? `(${selectedRide.driverRating} ★)` : '(Unrated)'}</Text>
+                    <Text style={modal.label}>Service</Text>
+                    <Text style={modal.value}>{selectedRide.service}</Text>
                   </View>
                   <View style={modal.row}>
                     <Text style={modal.label}>Vehicle</Text>
                     <Text style={modal.value}>{selectedRide.vehicle}</Text>
                   </View>
                   <View style={modal.row}>
-                    <Text style={modal.label}>Route Distance</Text>
+                    <Text style={modal.label}>Driver</Text>
+                    <Text style={modal.value}>
+                      {selectedRide.driver} {selectedRide.driverRating ? `· ⭐ ${selectedRide.driverRating}` : '· ⭐ Unrated'}
+                    </Text>
+                  </View>
+                  {selectedRide.driverPlate && selectedRide.driverPlate !== '—' && (
+                    <View style={modal.row}>
+                      <Text style={modal.label}>Truck Plate</Text>
+                      <Text style={modal.value}>{selectedRide.driverPlate}</Text>
+                    </View>
+                  )}
+                  <View style={modal.row}>
+                    <Text style={modal.label}>Distance</Text>
                     <Text style={modal.value}>{selectedRide.distance}</Text>
                   </View>
-                  <View style={modal.row}>
-                    <Text style={modal.label}>Duration</Text>
-                    <Text style={modal.value}>{selectedRide.duration}</Text>
-                  </View>
+                  {selectedRide.duration && selectedRide.duration !== '—' && (
+                    <View style={modal.row}>
+                      <Text style={modal.label}>Duration</Text>
+                      <Text style={modal.value}>{selectedRide.duration}</Text>
+                    </View>
+                  )}
                 </View>
 
-                {/* Pricing summary */}
-                <View style={modal.section}>
-                  <Text style={modal.sectionTitle}>FARE BREAKDOWN</Text>
+                {/* Fare Breakdown Card */}
+                <View style={modal.cardSection}>
+                  <Text style={modal.sectionTitle}>Fare Breakdown</Text>
                   <View style={modal.row}>
                     <Text style={modal.label}>Base Fare</Text>
                     <Text style={modal.value}>₹{selectedRide.fare.base}</Text>
                   </View>
                   <View style={modal.row}>
-                    <Text style={modal.label}>Distance Charges</Text>
+                    <Text style={modal.label}>Distance Fee</Text>
                     <Text style={modal.value}>₹{selectedRide.fare.distance}</Text>
                   </View>
                   <View style={modal.row}>
@@ -218,23 +269,23 @@ export default function WalletScreen() {
                     <Text style={modal.value}>₹{selectedRide.fare.platform}</Text>
                   </View>
                   <View style={modal.row}>
-                    <Text style={modal.label}>GST Taxes (18%)</Text>
+                    <Text style={modal.label}>GST (18%)</Text>
                     <Text style={modal.value}>₹{selectedRide.fare.gst}</Text>
                   </View>
-                  {selectedRide.fare.discount > 0 && (
+                  {(selectedRide.fare.discount ?? 0) > 0 && (
                     <View style={modal.row}>
                       <Text style={[modal.label, { color: '#00FF97' }]}>Promo Discount</Text>
-                      <Text style={[modal.value, { color: '#00FF97' }]}>-₹{selectedRide.fare.discount}</Text>
+                      <Text style={[modal.value, { color: '#00FF97' }]}>−₹{selectedRide.fare.discount}</Text>
                     </View>
                   )}
-                  <View style={modal.divider} />
-                  <View style={modal.row}>
-                    <Text style={modal.totalLabel}>Total Fare Paid</Text>
+
+                  {/* Total Paid Row */}
+                  <View style={modal.totalCard}>
+                    <View>
+                      <Text style={modal.totalLabel}>Total Paid</Text>
+                      <Text style={modal.totalSub}>Via {selectedRide.payment || 'UPI'}</Text>
+                    </View>
                     <Text style={modal.totalValue}>₹{selectedRide.fare.total}</Text>
-                  </View>
-                  <View style={modal.row}>
-                    <Text style={modal.label}>Payment Mode</Text>
-                    <Text style={[modal.value, { fontFamily: 'Outfit_700Bold' }]}>{selectedRide.payment}</Text>
                   </View>
                 </View>
 
@@ -249,7 +300,7 @@ export default function WalletScreen() {
                 {/* Safe & secure badge */}
                 <View style={modal.noBadge}>
                   <Ionicons name="shield-checkmark" size={13} color="#00FF97" />
-                  <Text style={modal.noBadgeText}>No hidden charges · Paid securely through OmniGo</Text>
+                  <Text style={modal.noBadgeText}>No hidden charges · All amounts are GST-inclusive</Text>
                 </View>
               </ScrollView>
             </View>
@@ -295,25 +346,166 @@ const styles = StyleSheet.create({
 });
 
 const modal = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  container: { maxHeight: '88%', borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden', padding: 24, backgroundColor: 'rgba(10,16,28,0.98)', borderWidth: 1, borderColor: 'rgba(0,207,255,0.15)', borderBottomWidth: 0 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  title: { fontFamily: 'Outfit_700Bold', fontSize: 20, color: '#fff' },
-  sub: { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 3 },
-  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  brand: { alignItems: 'center', marginBottom: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)' },
-  brandName: { fontFamily: 'Outfit_700Bold', fontSize: 28, color: '#00CFFF' },
-  brandSub: { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
-  section: { marginBottom: 14 },
-  sectionTitle: { fontFamily: 'Outfit_700Bold', fontSize: 13, color: 'rgba(255,255,255,0.45)', letterSpacing: 0.8, marginBottom: 10 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  label: { fontFamily: 'Inter_400Regular', fontSize: 13, color: 'rgba(255,255,255,0.55)' },
-  value: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#fff', textAlign: 'right', flex: 1, marginLeft: 10 },
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginVertical: 10 },
-  totalLabel: { fontFamily: 'Outfit_700Bold', fontSize: 16, color: '#fff' },
-  totalValue: { fontFamily: 'Outfit_700Bold', fontSize: 20, color: '#00FF97' },
-  refundBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: 'rgba(0,255,151,0.06)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,255,151,0.15)', marginBottom: 14 },
-  refundBoxText: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#00FF97', flex: 1, lineHeight: 18 },
-  noBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,255,151,0.04)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,255,151,0.12)', marginBottom: 10 },
-  noBadgeText: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#00FF97' },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+  },
+  container: {
+    maxHeight: '90%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+    padding: 20,
+    backgroundColor: 'rgba(10,16,28,0.98)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,207,255,0.18)',
+    borderBottomWidth: 0,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  title: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 20,
+    color: '#fff',
+  },
+  sub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brand: {
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  brandName: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 26,
+    color: '#00CFFF',
+  },
+  brandSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 2,
+  },
+  cardSection: {
+    backgroundColor: 'rgba(14,24,48,0.45)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    padding: 14,
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 12,
+    color: '#00CFFF',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 5,
+  },
+  label: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.55)',
+    width: 105,
+    flexShrink: 0,
+  },
+  value: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#fff',
+    textAlign: 'right',
+    flex: 1,
+    lineHeight: 18,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    marginVertical: 10,
+  },
+  totalCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  totalLabel: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 16,
+    color: '#fff',
+  },
+  totalSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
+  },
+  totalValue: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 22,
+    color: '#00FF97',
+  },
+  refundBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(0,255,151,0.06)',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,151,0.15)',
+    marginBottom: 14,
+  },
+  refundBoxText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#00FF97',
+    flex: 1,
+    lineHeight: 18,
+  },
+  noBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,255,151,0.04)',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,151,0.12)',
+    marginBottom: 10,
+  },
+  noBadgeText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#00FF97',
+  },
 });

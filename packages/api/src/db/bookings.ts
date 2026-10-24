@@ -47,8 +47,11 @@ export function mapDbBookingToBooking(dbBooking: any): any {
     ? JSON.parse(dbBooking.customer_vehicle)
     : (dbBooking.customer_vehicle || {});
 
-  const vehicleName = vehicleObj.make 
-    ? `${vehicleObj.make} ${vehicleObj.model || ''} (${vehicleObj.plate || ''})`.trim()
+  const vehicleMake = (vehicleObj.make && vehicleObj.make !== '—') ? vehicleObj.make : '';
+  const vehicleModel = vehicleObj.model || '';
+  const vehiclePlate = vehicleObj.plate ? ` (${vehicleObj.plate})` : '';
+  const vehicleName = (vehicleMake || vehicleModel)
+    ? `${vehicleMake ? vehicleMake + ' ' : ''}${vehicleModel}${vehiclePlate}`.trim()
     : (vehicleObj.brand ? `${vehicleObj.brand} ${vehicleObj.model || ''}`.trim() : '—');
 
   const customerName = dbBooking.users?.name || dbBooking.customer_name || '—';

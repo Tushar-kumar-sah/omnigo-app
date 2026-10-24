@@ -23,23 +23,58 @@ const mapToUIBooking = (b: any) => {
   const isCompleted = rawStatus === 'completed';
   const isCancelled = rawStatus === 'cancelled';
 
+  // Format short clean ID
+  const rawIdStr = String(b.bookingNumber || b.booking_number || b.id || b.uuid || '0000');
+  const shortId = rawIdStr.startsWith('JOB-')
+    ? rawIdStr
+    : (rawIdStr.length > 8 ? `JOB-${rawIdStr.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}` : rawIdStr.toUpperCase());
+
+  // Clean vehicle
+  let vehicleStr = b.vehicle || b.customerVehicle?.model || 'User Vehicle';
+  vehicleStr = vehicleStr.replace(/^[—\-\s]+/, '').trim();
+  if (vehicleStr.startsWith('Vehicle (')) {
+    vehicleStr = 'Car ' + vehicleStr;
+  }
+
+  // Extract clean driver name and truck plate
+  let driverName = b.driver || (b.driver_id ? 'Driver Assigned' : 'Unassigned');
+  let extractedPlate = b.vehiclePlate || b.driverPlate || '—';
+  const plateMatch = driverName.match(/\(([^)]+)\)/);
+  if (plateMatch) {
+    if (extractedPlate === '—' || !extractedPlate) {
+      extractedPlate = plateMatch[1];
+    }
+    driverName = driverName.replace(/\s*\([^)]+\)/, '').trim();
+  }
+
+  const dateObj = new Date(b.created_at || b.createdAt || Date.now());
+  const formattedDate = dateObj.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }) + ', ' + dateObj.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
   return {
-    id: b.id || (b.uuid ? `JOB-${b.uuid.substring(0, 4).toUpperCase()}` : 'JOB-0000'),
+    id: shortId,
     rawId: b.uuid || b.id || b.booking_number,
     driverId: b.driver_id || b.driverId,
     status: isCompleted ? 'Completed' : isCancelled ? 'Cancelled' : 'Active',
-    date: new Date(b.created_at || b.createdAt || Date.now()).toLocaleString('en-IN'),
+    date: formattedDate,
     service: b.service_type || b.service || 'Flatbed Tow',
-    vehicle: b.vehicle || b.customerVehicle?.model || 'User Vehicle',
+    vehicle: vehicleStr,
     pickup: b.pickup ||
       (typeof b.pickup_location === 'object' && b.pickup_location ? b.pickup_location?.address : null) ||
       'Unknown Location',
     drop: b.drop || b.dropoff?.address ||
       (typeof b.dropoff_location === 'object' && b.dropoff_location ? b.dropoff_location?.address : null) ||
       'Unknown Location',
-    driver: b.driver || (b.driver_id ? 'Driver Assigned' : 'Unassigned'),
+    driver: driverName,
     driverRating: (b.driverRating || b.driver_rating) ? Number(b.driverRating || b.driver_rating).toFixed(1) : (b.driver?.rating ? Number(b.driver.rating).toFixed(1) : null),
-    driverPlate: b.vehiclePlate || '—',
+    driverPlate: extractedPlate,
     distance: b.distanceKm ? b.distanceKm + ' km' : (b.distance ? b.distance + ' km' : '—'),
     duration: b.durationMin ? b.durationMin + ' min' : (b.estimatedETA ? b.estimatedETA + ' min' : '—'),
     fare: {
@@ -60,8 +95,8 @@ const TABS: Tab[] = ['All', 'Active', 'Completed', 'Cancelled'];
 
 const STATUS_COLOR: Record<string, string> = {
   Completed: '#00FF97',
-  Cancelled:  '#FF4D4D',
-  Active:     '#FFD60A',
+  Cancelled: '#FF4D4D',
+  Active: '#FFD60A',
 };
 
 // ─── Component ───────────────────────────────────────────────
@@ -70,7 +105,7 @@ export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<Tab>('All');
   const [bookings, setBookings] = useState<any[]>([]);
-  const [invoice, setInvoice]     = useState<any | null>(null);
+  const [invoice, setInvoice] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
@@ -119,24 +154,27 @@ export default function BookingsScreen() {
           {TABS.map(tab => (
             <TouchableOpacity
               key={tab}
-              style={[styles.tab, activeTab === tab && styles.tabActive]}
               onPress={() => setActiveTab(tab)}
-              activeOpacity={0.8}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
+      {/* Bookings List */}
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom + 120, 140) }]}
         showsVerticalScrollIndicator={false}
       >
-        {filtered.length === 0 && (
+        {filtered.length === 0 && !loading && (
           <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={48} color="rgba(255,255,255,0.15)" />
-            <Text style={styles.emptyText}>No {activeTab.toLowerCase()} bookings</Text>
+            <Ionicons name="document-text-outline" size={48} color="rgba(255,255,255,0.2)" />
+            <Text style={styles.emptyText}>No {activeTab.toLowerCase()} bookings found</Text>
           </View>
         )}
 
@@ -169,14 +207,14 @@ export default function BookingsScreen() {
 
             <View style={styles.divider} />
 
-            {/* Route */}
+            {/* Route Points */}
             <View style={styles.routeBlock}>
               <View style={styles.routeDots}>
                 <View style={styles.greenDot} />
                 <View style={styles.dashedLine} />
                 <View style={styles.redDot} />
               </View>
-              <View style={{ flex: 1, gap: 8 }}>
+              <View style={{ flex: 1, gap: 10 }}>
                 <Text style={styles.routeText} numberOfLines={1}>{booking.pickup}</Text>
                 <Text style={styles.routeText} numberOfLines={1}>{booking.drop}</Text>
               </View>
@@ -184,17 +222,29 @@ export default function BookingsScreen() {
 
             <View style={styles.divider} />
 
-            {/* Meta */}
+            {/* Driver & Meta info */}
             <View style={styles.metaRow}>
-              <View style={styles.metaChip}><Ionicons name="navigate-outline" size={12} color={theme.colors.primary} /><Text style={styles.metaText}>{booking.distance}</Text></View>
-              <View style={styles.metaChip}><Ionicons name="time-outline" size={12} color={theme.colors.primary} /><Text style={styles.metaText}>{booking.duration}</Text></View>
-              <View style={styles.metaChip}><MaterialCommunityIcons name="contactless-payment" size={13} color={theme.colors.primary} /><Text style={styles.metaText}>{booking.payment}</Text></View>
+              <View style={styles.metaChip}>
+                <Ionicons name="person-outline" size={12} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.metaText}>{booking.driver}</Text>
+                {booking.driverRating && (
+                  <Text style={[styles.metaText, { color: '#FFD60A' }]}>★ {booking.driverRating}</Text>
+                )}
+              </View>
+              <View style={styles.metaChip}>
+                <Ionicons name="navigate-outline" size={12} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.metaText}>{booking.distance}</Text>
+              </View>
+              <View style={styles.metaChip}>
+                <Ionicons name="card-outline" size={12} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.metaText}>{booking.payment}</Text>
+              </View>
             </View>
 
-            {/* Refund Status */}
+            {/* Refund banner if cancelled */}
             {booking.refundStatus && (
               <View style={styles.refundBadge}>
-                <Ionicons name="refresh-circle-outline" size={14} color="#00FF97" />
+                <Ionicons name="refresh-circle" size={16} color="#00FF97" />
                 <Text style={styles.refundText}>{booking.refundStatus}</Text>
               </View>
             )}
@@ -204,19 +254,27 @@ export default function BookingsScreen() {
               {booking.status === 'Active' && (
                 <TouchableOpacity
                   style={styles.trackLiveBtn}
-                  onPress={() => router.push({ pathname: '/booking/tracking', params: { bookingId: booking.rawId || booking.id, driverId: booking.driverId } })}
+                  onPress={() => router.push({ pathname: '/booking/tracking', params: { bookingId: booking.rawId } })}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="navigate" size={15} color="#000" />
                   <Text style={styles.trackLiveBtnText}>Track Live</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={styles.invoiceBtn} onPress={() => setInvoice(booking)} activeOpacity={0.8}>
-                <Ionicons name="document-text-outline" size={15} color={theme.colors.primary} />
-                <Text style={styles.invoiceBtnText}>View Invoice</Text>
+              <TouchableOpacity
+                style={styles.invoiceBtn}
+                onPress={() => setInvoice(booking)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="receipt-outline" size={15} color={theme.colors.primary} />
+                <Text style={styles.invoiceBtnText}>View Receipt</Text>
               </TouchableOpacity>
               {booking.status === 'Completed' && (
-                <TouchableOpacity style={styles.rebookBtn} activeOpacity={0.8}>
+                <TouchableOpacity
+                  style={styles.rebookBtn}
+                  onPress={() => router.push('/booking/select-vehicle')}
+                  activeOpacity={0.8}
+                >
                   <Ionicons name="refresh-outline" size={15} color="#000" />
                   <Text style={styles.rebookBtnText}>Rebook</Text>
                 </TouchableOpacity>
@@ -226,17 +284,17 @@ export default function BookingsScreen() {
         ))}
       </ScrollView>
 
-      {/* ─── Invoice Modal ─── */}
+      {/* ─── Polished Invoice / Receipt Modal ─── */}
       <Modal visible={!!invoice} animationType="slide" transparent statusBarTranslucent>
         <View style={modal.overlay}>
           <View style={modal.container}>
             {/* Header */}
             <View style={modal.header}>
-              <View>
+              <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={modal.title}>Payment Receipt</Text>
-                <Text style={modal.sub}>{invoice?.id} · {invoice?.date}</Text>
+                <Text style={modal.sub} numberOfLines={1}>{invoice?.id} · {invoice?.date}</Text>
               </View>
-              <TouchableOpacity onPress={() => setInvoice(null)} style={modal.closeBtn}>
+              <TouchableOpacity onPress={() => setInvoice(null)} style={modal.closeBtn} activeOpacity={0.7}>
                 <Ionicons name="close" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -248,35 +306,75 @@ export default function BookingsScreen() {
                 <Text style={modal.brandSub}>Official Trip Receipt</Text>
               </View>
 
-              {/* Service */}
-              <View style={modal.section}>
+              {/* Service Details Card */}
+              <View style={modal.cardSection}>
                 <Text style={modal.sectionTitle}>Service Details</Text>
-                <View style={modal.row}><Text style={modal.label}>Service</Text><Text style={modal.value}>{invoice?.service}</Text></View>
-                <View style={modal.row}><Text style={modal.label}>Vehicle</Text><Text style={modal.value}>{invoice?.vehicle}</Text></View>
-                <View style={modal.row}><Text style={modal.label}>Driver</Text><Text style={modal.value}>{invoice?.driver} · {invoice?.driverRating ? `⭐ ${invoice.driverRating}` : '⭐ Unrated'}</Text></View>
-                <View style={modal.row}><Text style={modal.label}>Truck Plate</Text><Text style={modal.value}>{invoice?.driverPlate}</Text></View>
-                <View style={modal.row}><Text style={modal.label}>Distance</Text><Text style={modal.value}>{invoice?.distance}</Text></View>
-                <View style={modal.row}><Text style={modal.label}>Duration</Text><Text style={modal.value}>{invoice?.duration}</Text></View>
+                <View style={modal.row}>
+                  <Text style={modal.label}>Service</Text>
+                  <Text style={modal.value}>{invoice?.service}</Text>
+                </View>
+                <View style={modal.row}>
+                  <Text style={modal.label}>Vehicle</Text>
+                  <Text style={modal.value}>{invoice?.vehicle}</Text>
+                </View>
+                <View style={modal.row}>
+                  <Text style={modal.label}>Driver</Text>
+                  <Text style={modal.value}>
+                    {invoice?.driver} {invoice?.driverRating ? `· ⭐ ${invoice.driverRating}` : '· ⭐ Unrated'}
+                  </Text>
+                </View>
+                {invoice?.driverPlate && invoice.driverPlate !== '—' && (
+                  <View style={modal.row}>
+                    <Text style={modal.label}>Truck Plate</Text>
+                    <Text style={modal.value}>{invoice?.driverPlate}</Text>
+                  </View>
+                )}
+                <View style={modal.row}>
+                  <Text style={modal.label}>Distance</Text>
+                  <Text style={modal.value}>{invoice?.distance}</Text>
+                </View>
+                {invoice?.duration && invoice.duration !== '—' && (
+                  <View style={modal.row}>
+                    <Text style={modal.label}>Duration</Text>
+                    <Text style={modal.value}>{invoice?.duration}</Text>
+                  </View>
+                )}
               </View>
 
-              <View style={modal.divider} />
-
-              {/* Fare Breakdown */}
-              <View style={modal.section}>
+              {/* Fare Breakdown Card */}
+              <View style={modal.cardSection}>
                 <Text style={modal.sectionTitle}>Fare Breakdown</Text>
-                <View style={modal.row}><Text style={modal.label}>Base Fare</Text><Text style={modal.value}>₹{invoice?.fare.base}</Text></View>
-                <View style={modal.row}><Text style={modal.label}>Distance Fee</Text><Text style={modal.value}>₹{invoice?.fare.distance}</Text></View>
-                <View style={modal.row}><Text style={modal.label}>Platform Fee</Text><Text style={modal.value}>₹{invoice?.fare.platform}</Text></View>
-                <View style={modal.row}><Text style={modal.label}>GST (18%)</Text><Text style={modal.value}>₹{invoice?.fare.gst}</Text></View>
-                {(invoice?.fare.discount ?? 0) > 0 && (
-                  <View style={modal.row}><Text style={[modal.label, { color: '#00FF97' }]}>Promo Discount</Text><Text style={[modal.value, { color: '#00FF97' }]}>−₹{invoice?.fare.discount}</Text></View>
-                )}
-                <View style={modal.divider} />
                 <View style={modal.row}>
-                  <Text style={modal.totalLabel}>Total Paid</Text>
+                  <Text style={modal.label}>Base Fare</Text>
+                  <Text style={modal.value}>₹{invoice?.fare.base}</Text>
+                </View>
+                <View style={modal.row}>
+                  <Text style={modal.label}>Distance Fee</Text>
+                  <Text style={modal.value}>₹{invoice?.fare.distance}</Text>
+                </View>
+                <View style={modal.row}>
+                  <Text style={modal.label}>Platform Fee</Text>
+                  <Text style={modal.value}>₹{invoice?.fare.platform}</Text>
+                </View>
+                <View style={modal.row}>
+                  <Text style={modal.label}>GST (18%)</Text>
+                  <Text style={modal.value}>₹{invoice?.fare.gst}</Text>
+                </View>
+                {(invoice?.fare.discount ?? 0) > 0 && (
+                  <View style={modal.row}>
+                    <Text style={[modal.label, { color: '#00FF97' }]}>Promo Discount</Text>
+                    <Text style={[modal.value, { color: '#00FF97' }]}>−₹{invoice?.fare.discount}</Text>
+                  </View>
+                )}
+
+                {/* Total Paid Row */}
+                <View style={modal.totalCard}>
+                  <View>
+                    <Text style={modal.totalLabel}>Total Paid</Text>
+                    <Text style={modal.totalSub}>Via {invoice?.payment || 'UPI'}</Text>
+                  </View>
                   <Text style={modal.totalValue}>₹{invoice?.fare.total}</Text>
                 </View>
-                <View style={modal.row}><Text style={modal.label}>Payment Method</Text><Text style={modal.value}>{invoice?.payment}</Text></View>
               </View>
 
               {/* Refund if any */}
@@ -349,25 +447,166 @@ const styles = StyleSheet.create({
 });
 
 const modal = StyleSheet.create({
-  overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  container:    { maxHeight: '88%', borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden', padding: 24, backgroundColor: 'rgba(10,16,28,0.98)', borderWidth: 1, borderColor: 'rgba(0,207,255,0.15)', borderBottomWidth: 0 },
-  header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  title:        { fontFamily: 'Outfit_700Bold', fontSize: 20, color: '#fff' },
-  sub:          { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 3 },
-  closeBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  brand:        { alignItems: 'center', marginBottom: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)' },
-  brandName:    { fontFamily: 'Outfit_700Bold', fontSize: 28, color: theme.colors.primary },
-  brandSub:     { fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
-  section:      { marginBottom: 14 },
-  sectionTitle: { fontFamily: 'Outfit_700Bold', fontSize: 13, color: 'rgba(255,255,255,0.45)', letterSpacing: 0.8, marginBottom: 10 },
-  row:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  label:        { fontFamily: 'Inter_400Regular', fontSize: 13, color: 'rgba(255,255,255,0.55)' },
-  value:        { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#fff', textAlign: 'right', flex: 1, marginLeft: 10 },
-  divider:      { height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginVertical: 10 },
-  totalLabel:   { fontFamily: 'Outfit_700Bold', fontSize: 16, color: '#fff' },
-  totalValue:   { fontFamily: 'Outfit_700Bold', fontSize: 20, color: '#00FF97' },
-  refundBox:    { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: 'rgba(0,255,151,0.06)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,255,151,0.15)', marginBottom: 14 },
-  refundBoxText:{ fontFamily: 'Inter_400Regular', fontSize: 12, color: '#00FF97', flex: 1, lineHeight: 18 },
-  noBadge:      { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,255,151,0.04)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,255,151,0.12)', marginBottom: 10 },
-  noBadgeText:  { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#00FF97' },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+  },
+  container: {
+    maxHeight: '90%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+    padding: 20,
+    backgroundColor: 'rgba(10,16,28,0.98)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,207,255,0.18)',
+    borderBottomWidth: 0,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  title: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 20,
+    color: '#fff',
+  },
+  sub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brand: {
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  brandName: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 26,
+    color: theme.colors.primary,
+  },
+  brandSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 2,
+  },
+  cardSection: {
+    backgroundColor: 'rgba(14,24,48,0.45)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    padding: 14,
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 12,
+    color: theme.colors.primary,
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 5,
+  },
+  label: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.55)',
+    width: 105,
+    flexShrink: 0,
+  },
+  value: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#fff',
+    textAlign: 'right',
+    flex: 1,
+    lineHeight: 18,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    marginVertical: 10,
+  },
+  totalCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  totalLabel: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 16,
+    color: '#fff',
+  },
+  totalSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
+  },
+  totalValue: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 22,
+    color: '#00FF97',
+  },
+  refundBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(0,255,151,0.06)',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,151,0.15)',
+    marginBottom: 14,
+  },
+  refundBoxText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#00FF97',
+    flex: 1,
+    lineHeight: 18,
+  },
+  noBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,255,151,0.04)',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,151,0.12)',
+    marginBottom: 10,
+  },
+  noBadgeText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#00FF97',
+  },
 });
