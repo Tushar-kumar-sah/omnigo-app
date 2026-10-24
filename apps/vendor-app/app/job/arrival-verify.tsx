@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 export default function ArrivalVerifyScreen() {
   const router = useRouter();
   const [otp, setOtp] = useState(['', '', '', '']);
-  const inputs = useRef<Array<any>>([]);
+  const inputs = useRef<Array<TextInput | null>>([]);
   const params = useLocalSearchParams();
   const jobId = params.id as string;
   const [booking, setBooking] = useState<Booking | null>(null);

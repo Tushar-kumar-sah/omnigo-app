@@ -34,7 +34,7 @@ export default function OTPScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [timer, setTimer] = useState(30);
-  const inputRef = useRef<any>(null);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (params.code) {

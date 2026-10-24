@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Platform, TouchableOpacity, Text, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
-const WebViewComponent = WebView as any;
 import { fetchDrivingRoute, RouteResult } from '@/lib/googleMaps';
 
 export interface DriverNavigationMapProps {
@@ -305,7 +304,7 @@ export default function DriverNavigationMap({
           style: { width: '100%', height: '100%', border: 'none' },
         })
       ) : (
-        <WebViewComponent
+        <WebView
           ref={webViewRef}
           originWhitelist={['*']}
           source={{ html: htmlContent }}

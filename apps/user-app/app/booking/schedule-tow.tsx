@@ -15,7 +15,6 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
-const WebViewComponent = WebView as any;
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 import { reverseGeocodeGoogle } from '@/lib/googleMaps';
 
@@ -528,7 +527,7 @@ export default function ScheduleTowScreen() {
           </View>
 
           <View style={styles.mapContainer}>
-            <WebViewComponent
+            <WebView
               originWhitelist={['*']}
               source={{ html: mapHtml }}
               style={styles.mapWebview}

@@ -11,7 +11,6 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-const WebViewComponent = WebView as any;
 import { Ionicons } from '@expo/vector-icons';
 import { signInWithGoogleUser } from '@/lib/api';
 
@@ -186,7 +185,7 @@ export default function GoogleAuthModal({ visible, onClose, onSuccess }: GoogleA
           </View>
         ) : (
           <View style={styles.webviewContainer}>
-            <WebViewComponent
+            <WebView
               source={{ uri: GOOGLE_AUTH_URL }}
               userAgent={SAFARI_USER_AGENT}
               originWhitelist={['*']}
@@ -194,7 +193,7 @@ export default function GoogleAuthModal({ visible, onClose, onSuccess }: GoogleA
               thirdPartyCookiesEnabled={true}
               javaScriptEnabled={true}
               domStorageEnabled={true}
-              onLoadStart={(e: any) => {
+              onLoadStart={(e) => {
                 const url = e.nativeEvent.url;
                 if (url.startsWith(REDIRECT_URI)) {
                   handleUrlIntercept(url);
@@ -203,15 +202,15 @@ export default function GoogleAuthModal({ visible, onClose, onSuccess }: GoogleA
                 }
               }}
               onLoadEnd={() => setPageLoading(false)}
-              onNavigationStateChange={(navState: any) => {
+              onNavigationStateChange={(navState) => {
                 if (navState.url && navState.url.startsWith(REDIRECT_URI)) {
                   handleUrlIntercept(navState.url);
                 }
               }}
-              onShouldStartLoadWithRequest={(req: any) => {
+              onShouldStartLoadWithRequest={(req) => {
                 return handleUrlIntercept(req.url);
               }}
-              onError={(syntheticEvent: any) => {
+              onError={(syntheticEvent) => {
                 const { nativeEvent } = syntheticEvent;
                 const targetUrl = nativeEvent.url || (nativeEvent as any).failingUrl || '';
                 if (targetUrl.startsWith(REDIRECT_URI)) {

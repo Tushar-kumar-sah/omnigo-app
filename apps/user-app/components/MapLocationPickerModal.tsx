@@ -17,7 +17,6 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-const WebViewComponent = WebView as any;
 import {
   fetchPlacePredictions,
   fetchPlaceDetails,
@@ -363,7 +362,7 @@ export default function MapLocationPickerModal({
               style: { width: '100%', height: '100%', border: 'none' },
             })
           ) : (
-            <WebViewComponent
+            <WebView
               ref={webViewRef}
               originWhitelist={['*']}
               source={{ html: mapHtml }}
@@ -371,7 +370,7 @@ export default function MapLocationPickerModal({
               scrollEnabled={false}
               javaScriptEnabled={true}
               domStorageEnabled={true}
-              onMessage={(event: any) => {
+              onMessage={(event) => {
                 try {
                   const data = JSON.parse(event.nativeEvent.data);
                   if (data.type === 'moveend' && data.lat && data.lng) {

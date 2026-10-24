@@ -45,7 +45,7 @@ export default function TabLayout() {
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'map' : 'map-outline'} size={22} color={color as any} />
+              <Ionicons name={focused ? 'map' : 'map-outline'} size={22} color={color} />
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
@@ -57,7 +57,7 @@ export default function TabLayout() {
           title: 'Earnings',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'trending-up' : 'trending-up-outline'} size={22} color={color as any} />
+              <Ionicons name={focused ? 'trending-up' : 'trending-up-outline'} size={22} color={color} />
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
@@ -69,7 +69,7 @@ export default function TabLayout() {
           title: 'Wallet',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={22} color={color as any} />
+              <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={22} color={color} />
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
@@ -81,7 +81,7 @@ export default function TabLayout() {
           title: 'History',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'time' : 'time-outline'} size={22} color={color as any} />
+              <Ionicons name={focused ? 'time' : 'time-outline'} size={22} color={color} />
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
@@ -93,7 +93,7 @@ export default function TabLayout() {
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color as any} />
+              <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
               {focused && <View style={styles.activeDot} />}
             </View>
           ),

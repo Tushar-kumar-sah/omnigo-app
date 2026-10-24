@@ -1,7 +1,6 @@
 import React, { useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { View, StyleSheet, Vibration, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
-const WebViewComponent = WebView as any;
 
 export interface BuzzerSoundHandle {
   startBuzz: () => void;
@@ -139,7 +138,7 @@ export const BuzzerSound = forwardRef<BuzzerSoundHandle, {}>((_props, ref) => {
 
   return (
     <View style={styles.hiddenContainer} pointerEvents="none">
-      <WebViewComponent
+      <WebView
         ref={webViewRef}
         originWhitelist={['*']}
         source={{ html: BUZZER_HTML }}
