@@ -11,7 +11,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "echo 'lint ok'",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:user": "expo start --lan -c --port 8082"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",
