@@ -83,8 +83,22 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     }
   }
 
+  // Safe shim for ExpoAsset native module in Expo Go
+  if (
+    moduleName === './ExpoAsset' ||
+    moduleName === '../ExpoAsset' ||
+    moduleName === 'expo-asset/build/ExpoAsset' ||
+    moduleName.endsWith('/ExpoAsset') ||
+    moduleName.endsWith('/ExpoAsset.js')
+  ) {
+    const shimPath = path.resolve(__dirname, 'lib/shims/ExpoAsset.js');
+    if (fs.existsSync(shimPath)) {
+      return { type: 'sourceFile', filePath: shimPath };
+    }
+  }
+
   if (moduleName && moduleName.includes('empty-module')) {
-    return { type: 'sourceFile', filePath: emptyModulePath };
+    return { type: 'empty' };
   }
   if (path.isAbsolute(moduleName) && fs.existsSync(moduleName)) {
     try {
