@@ -33,7 +33,6 @@ export default function ProfileScreen() {
   );
 
   const MENU_ITEMS = [
-    { title: 'Membership', icon: 'card-outline', route: '/membership' },
     { title: 'Settings', icon: 'settings-outline', route: '/settings' },
     { title: 'Notifications', icon: 'notifications-outline', route: '/notifications' },
     { title: 'Help & Support', icon: 'help-circle-outline', route: '/help' },

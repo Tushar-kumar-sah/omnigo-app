@@ -103,7 +103,7 @@ export async function signInWithGoogleUser(customProfile?: {
         phone: googlePhone,
         avatar: googleAvatar,
         isVerified: true,
-        membershipTier: 'pro' as any,
+        membershipTier: 'none' as any,
         walletBalance: 1500,
       });
 
@@ -142,7 +142,7 @@ export async function signInWithGoogleUser(customProfile?: {
             phone: googlePhone || '+919876543210',
             avatar: googleAvatar,
             isVerified: true,
-            membershipTier: 'Pro',
+            membershipTier: 'none',
             walletBalance: 1500,
           };
         }
@@ -278,7 +278,7 @@ export async function verifyPhoneOtp(params: {
         email: `${digits}@omnigo.in`,
         avatar: avatarUrl,
         isVerified: true,
-        membershipTier: 'pro' as any,
+        membershipTier: 'none' as any,
         walletBalance: 1000,
       });
       activeSessionUser = created
@@ -433,7 +433,7 @@ export async function loginWithCredentials(
       phone: mode === 'phone' ? formattedPhone : undefined,
       avatar: avatarUrl,
       isVerified: true,
-      membershipTier: 'pro' as any,
+      membershipTier: 'none' as any,
       walletBalance: 1000,
     });
 
@@ -554,7 +554,7 @@ export async function registerWithCredentials(params: {
         phone: params.mode === 'phone' ? formattedPhone : undefined,
         avatar: avatarUrl,
         isVerified: true,
-        membershipTier: 'pro' as any,
+        membershipTier: 'none' as any,
         walletBalance: 1000,
       });
       activeSessionUser = created

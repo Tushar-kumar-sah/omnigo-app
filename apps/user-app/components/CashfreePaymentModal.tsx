@@ -50,8 +50,7 @@ export default function CashfreePaymentModal({
       url.includes('cashfree-return') ||
       url.includes('payment-success') ||
       url.includes('status=PAID') ||
-      url.includes('txStatus=SUCCESS') ||
-      url.includes('membership-success')
+      url.includes('txStatus=SUCCESS')
     ) {
       setVerifying(true);
       try {
