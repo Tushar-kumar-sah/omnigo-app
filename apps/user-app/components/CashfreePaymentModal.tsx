@@ -160,7 +160,7 @@ export default function CashfreePaymentModal({
                 <View style={styles.loadingBox}>
                   <ActivityIndicator size="large" color="#00CFFF" />
                   <Text style={styles.loadingText}>Opening Cashfree Gateway...</Text>
-                  <Text style={styles.loadingSub}>Loading UPI, GPay, PhonePe & Cards</Text>
+                  <Text style={styles.loadingSub}>Loading UPI, GPay & PhonePe</Text>
                 </View>
               )}
               onLoadStart={() => setLoading(true)}

@@ -18,7 +18,6 @@ const USER_ID = 'a0000000-0000-0000-0000-000000000001';
 
 const PAYMENT_METHODS = [
   { id: 'upi',  icon: 'qrcode-scan',       label: 'UPI (Instant)',  sub: 'Cashfree UPI · GPay · PhonePe',  color: '#4CAF50' },
-  { id: 'card', icon: 'credit-card-outline', label: 'Cards & NetBanking', sub: 'Cashfree PG · Visa/Mastercard', color: '#2196F3' },
   { id: 'cash', icon: 'cash',               label: 'Cash on Delivery', sub: 'Pay partner after drop-off', color: '#FFD60A' },
 ] as const;
 
@@ -428,7 +427,7 @@ export default function ConfirmBookingScreen() {
           <View style={styles.escrowNotice}>
             <Ionicons name="lock-closed" size={13} color="#00CFFF" />
             <Text style={styles.escrowNoticeText}>
-              Payments are held securely in OmniGo Escrow. Driver never receives your card/UPI details and cannot request direct payments.
+              Payments are held securely in OmniGo Escrow. Driver never receives your UPI details and cannot request direct payments.
             </Text>
           </View>
 

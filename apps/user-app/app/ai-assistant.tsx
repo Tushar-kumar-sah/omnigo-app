@@ -163,7 +163,7 @@ function getKnowledgeResponse(input: string): { text: string; actionBtn?: Action
   ) {
     return {
       text:
-        "💳 **Accepted Payment Methods:**\n\n• **UPI:** Instant payment via Google Pay, PhonePe, Paytm, or BHIM.\n• **Cards:** Visa, MasterCard, RuPay, and American Express via 256-bit secure gateway.\n• **Cash on Delivery:** Pay directly to the driver partner upon drop-off.\n• **OmniGo In-App Wallet:** 1-tap instant payment and instant cancellation refunds.",
+        "💳 **Accepted Payment Methods:**\n\n• **UPI:** Instant payment via Google Pay, PhonePe, Paytm, or BHIM.\n• **Cash on Delivery:** Pay directly to the driver partner upon drop-off.\n• **OmniGo In-App Wallet:** 1-tap instant payment and instant cancellation refunds.",
       actionBtn: { label: 'Book Tow Service Directly', route: '/booking/select-vehicle' },
       urgency: 'Low',
     };

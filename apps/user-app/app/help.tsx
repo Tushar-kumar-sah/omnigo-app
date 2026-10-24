@@ -13,7 +13,7 @@ const FAQ_DATA = [
   { id: '1', question: 'How do I book a tow?', answer: '1. Enter your pickup and drop-off locations.\n2. Select your vehicle type.\n3. Choose the service required.\n4. Confirm your booking.\nA nearby driver will be assigned immediately.' },
   { id: '2', question: 'What are the pricing rates?', answer: 'Our standard base fare is ₹500, which covers the first 5km. After that, it is ₹15 per km. Additional charges may apply for specialized recovery equipment.' },
   { id: '3', question: 'How do I cancel a booking?', answer: 'You can cancel your booking for free within 2 minutes of confirmation. After 2 minutes, a standard cancellation fee of ₹150 will be charged.' },
-  { id: '4', question: 'What payment methods are accepted?', answer: 'We accept all major UPI apps (GPay, PhonePe, Paytm), Credit/Debit Cards, Cash on delivery, and the integrated OmniGo Wallet.' },
+  { id: '4', question: 'What payment methods are accepted?', answer: 'We accept all major UPI apps (GPay, PhonePe, Paytm, BHIM), Cash on delivery, and the integrated OmniGo Wallet.' },
   { id: '5', question: 'How does Emergency SOS work?', answer: 'Pressing the SOS button alerts our 24/7 monitoring center and automatically dispatches the nearest priority tow truck to your exact GPS coordinates.' },
   { id: '6', question: 'How to track my tow truck?', answer: 'Once a driver accepts your request, you can see their real-time location, route, and estimated time of arrival (ETA) on the live map in the app.' },
 ];
