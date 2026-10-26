@@ -12,7 +12,7 @@ import { logoutDriver } from '../lib/auth';
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { mode, isDark, colors, setMode } = useTheme();
+  const { isDark, colors } = useTheme();
 
   const handleLogout = () => {
     logoutDriver();
@@ -66,108 +66,6 @@ export default function SettingsScreen() {
         <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
         <View style={{ width: 40 }} />
       </View>
-
-      {/* Appearance Section */}
-      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Appearance & Theme</Text>
-      <CardWrapper style={[styles.card, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
-        <View style={styles.themeInfoRow}>
-          <View style={[styles.themeIconBox, { backgroundColor: isDark ? 'rgba(0, 207, 255, 0.12)' : 'rgba(0, 149, 217, 0.12)' }]}>
-            <Ionicons
-              name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'contrast'}
-              size={20}
-              color={colors.primary}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.themeTitle, { color: colors.text }]}>Display Theme</Text>
-            <Text style={[styles.themeSubtitle, { color: colors.textSecondary }]}>
-              {mode === 'light'
-                ? '☀️ Day mode active (Sunlight optimized)'
-                : mode === 'dark'
-                ? '🌙 Night mode active (OLED high-contrast)'
-                : '⚙️ System default active'}
-            </Text>
-          </View>
-        </View>
-
-        {/* 3-Pill Segmented Switcher */}
-        <View style={[styles.themeSwitcherContainer, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.35)' : 'rgba(0, 0, 0, 0.05)', borderColor: colors.divider }]}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[
-              styles.themePill,
-              mode === 'light' && [styles.themePillActive, { backgroundColor: colors.primary }],
-            ]}
-            onPress={() => setMode('light')}
-          >
-            <Ionicons
-              name="sunny"
-              size={15}
-              color={mode === 'light' ? '#FFFFFF' : colors.textSecondary}
-              style={{ marginRight: 6 }}
-            />
-            <Text
-              style={[
-                styles.themePillText,
-                { color: mode === 'light' ? '#FFFFFF' : colors.textSecondary },
-                mode === 'light' && styles.themePillTextActive,
-              ]}
-            >
-              Day
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[
-              styles.themePill,
-              mode === 'dark' && [styles.themePillActive, { backgroundColor: colors.primary }],
-            ]}
-            onPress={() => setMode('dark')}
-          >
-            <Ionicons
-              name="moon"
-              size={15}
-              color={mode === 'dark' ? '#000000' : colors.textSecondary}
-              style={{ marginRight: 6 }}
-            />
-            <Text
-              style={[
-                styles.themePillText,
-                { color: mode === 'dark' ? '#000000' : colors.textSecondary },
-                mode === 'dark' && styles.themePillTextActive,
-              ]}
-            >
-              Night
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[
-              styles.themePill,
-              mode === 'system' && [styles.themePillActive, { backgroundColor: colors.primary }],
-            ]}
-            onPress={() => setMode('system')}
-          >
-            <Ionicons
-              name="phone-portrait-outline"
-              size={15}
-              color={mode === 'system' ? (isDark ? '#000000' : '#FFFFFF') : colors.textSecondary}
-              style={{ marginRight: 6 }}
-            />
-            <Text
-              style={[
-                styles.themePillText,
-                { color: mode === 'system' ? (isDark ? '#000000' : '#FFFFFF') : colors.textSecondary },
-                mode === 'system' && styles.themePillTextActive,
-              ]}
-            >
-              System
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </CardWrapper>
 
       {/* General Settings Section */}
       <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Preferences</Text>

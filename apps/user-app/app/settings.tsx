@@ -10,7 +10,7 @@ import { signOutUser } from '../lib/api';
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { mode, isDark, colors, setMode } = useTheme();
+  const { isDark, colors } = useTheme();
 
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -79,108 +79,6 @@ export default function SettingsScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 24, 40) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Appearance & Theme Section */}
-        {renderSectionHeader('Appearance & Theme')}
-        <View style={[styles.cardContainer, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
-          <View style={styles.themeInfoRow}>
-            <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(0, 207, 255, 0.15)' : 'rgba(0, 149, 217, 0.15)' }]}>
-              <Ionicons
-                name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'contrast'}
-                size={20}
-                color={colors.primary}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>Display Theme</Text>
-              <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
-                {mode === 'light'
-                  ? '☀️ Day mode active (Sunlight optimized)'
-                  : mode === 'dark'
-                  ? '🌙 Night mode active (OLED high-contrast)'
-                  : '⚙️ System default active'}
-              </Text>
-            </View>
-          </View>
-
-          {/* 3-Pill Segmented Switcher */}
-          <View style={[styles.themePillRow, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.35)' : 'rgba(0, 0, 0, 0.05)', borderColor: colors.divider }]}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[
-                styles.themePillBtn,
-                mode === 'light' && [styles.themePillBtnActive, { backgroundColor: colors.primary }],
-              ]}
-              onPress={() => setMode('light')}
-            >
-              <Ionicons
-                name="sunny"
-                size={14}
-                color={mode === 'light' ? '#FFFFFF' : colors.textSecondary}
-                style={{ marginRight: 6 }}
-              />
-              <Text
-                style={[
-                  styles.themePillBtnText,
-                  { color: mode === 'light' ? '#FFFFFF' : colors.textSecondary },
-                  mode === 'light' && styles.themePillBtnTextActive,
-                ]}
-              >
-                Day
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[
-                styles.themePillBtn,
-                mode === 'dark' && [styles.themePillBtnActive, { backgroundColor: colors.primary }],
-              ]}
-              onPress={() => setMode('dark')}
-            >
-              <Ionicons
-                name="moon"
-                size={14}
-                color={mode === 'dark' ? '#000000' : colors.textSecondary}
-                style={{ marginRight: 6 }}
-              />
-              <Text
-                style={[
-                  styles.themePillBtnText,
-                  { color: mode === 'dark' ? '#000000' : colors.textSecondary },
-                  mode === 'dark' && styles.themePillBtnTextActive,
-                ]}
-              >
-                Night
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[
-                styles.themePillBtn,
-                mode === 'system' && [styles.themePillBtnActive, { backgroundColor: colors.primary }],
-              ]}
-              onPress={() => setMode('system')}
-            >
-              <Ionicons
-                name="phone-portrait-outline"
-                size={14}
-                color={mode === 'system' ? (isDark ? '#000000' : '#FFFFFF') : colors.textSecondary}
-                style={{ marginRight: 6 }}
-              />
-              <Text
-                style={[
-                  styles.themePillBtnText,
-                  { color: mode === 'system' ? (isDark ? '#000000' : '#FFFFFF') : colors.textSecondary },
-                  mode === 'system' && styles.themePillBtnTextActive,
-                ]}
-              >
-                System
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* Account Section */}
         {renderSectionHeader('Account')}
         <View style={[styles.cardContainer, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>

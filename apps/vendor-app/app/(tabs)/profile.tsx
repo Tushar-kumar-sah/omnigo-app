@@ -28,7 +28,7 @@ const formatPhone = (phoneStr: any) => {
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { mode, isDark, colors, setMode } = useTheme();
+  const { isDark, colors } = useTheme();
 
   const [driver, setDriver] = useState<Driver | null>(null);
   const [documents, setDocuments] = useState<any[]>([]);
@@ -334,118 +334,19 @@ export default function ProfileScreen() {
         </View>
       </CardWrapper>
 
-      {/* Settings & Appearance */}
+      {/* Settings & Preferences */}
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Settings & Appearance</Text>
-        <TouchableOpacity
-          style={styles.openSettingsBtn}
-          onPress={() => router.push('/settings')}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="settings-outline" size={14} color={colors.primary} />
-          <Text style={[styles.openSettingsText, { color: colors.primary }]}>More Settings</Text>
-        </TouchableOpacity>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Settings & Preferences</Text>
       </View>
 
       <CardWrapper style={[styles.infoCard, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
-        <View style={styles.themeHeaderRow}>
-          <View style={[styles.themeIconBox, { backgroundColor: isDark ? 'rgba(0, 207, 255, 0.12)' : 'rgba(0, 149, 217, 0.12)' }]}>
-            <Ionicons
-              name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'contrast'}
-              size={18}
-              color={colors.primary}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.themeTitleText, { color: colors.text }]}>Display Theme</Text>
-            <Text style={[styles.themeSubtitleText, { color: colors.textSecondary }]}>
-              {mode === 'light' ? '☀️ Day mode (High contrast sunlight visibility)' : mode === 'dark' ? '🌙 Night mode (Low glare dark theme)' : '⚙️ System default (Follows device appearance)'}
-            </Text>
-          </View>
-        </View>
-
-        {/* 3-Pill Theme Mode Selector */}
-        <View style={[styles.themeSelectorContainer, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.35)' : 'rgba(0, 0, 0, 0.05)', borderColor: colors.divider }]}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[
-              styles.themeOptionPill,
-              mode === 'light' && [styles.themeOptionPillActive, { backgroundColor: colors.primary }]
-            ]}
-            onPress={() => setMode('light')}
-          >
-            <Ionicons
-              name="sunny"
-              size={14}
-              color={mode === 'light' ? '#FFFFFF' : colors.textSecondary}
-              style={{ marginRight: 6 }}
-            />
-            <Text style={[
-              styles.themeOptionLabel,
-              { color: mode === 'light' ? '#FFFFFF' : colors.textSecondary },
-              mode === 'light' && styles.themeOptionLabelActive
-            ]}>
-              Day
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[
-              styles.themeOptionPill,
-              mode === 'dark' && [styles.themeOptionPillActive, { backgroundColor: colors.primary }]
-            ]}
-            onPress={() => setMode('dark')}
-          >
-            <Ionicons
-              name="moon"
-              size={14}
-              color={mode === 'dark' ? '#000000' : colors.textSecondary}
-              style={{ marginRight: 6 }}
-            />
-            <Text style={[
-              styles.themeOptionLabel,
-              { color: mode === 'dark' ? '#000000' : colors.textSecondary },
-              mode === 'dark' && styles.themeOptionLabelActive
-            ]}>
-              Night
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[
-              styles.themeOptionPill,
-              mode === 'system' && [styles.themeOptionPillActive, { backgroundColor: colors.primary }]
-            ]}
-            onPress={() => setMode('system')}
-          >
-            <Ionicons
-              name="phone-portrait-outline"
-              size={14}
-              color={mode === 'system' ? (isDark ? '#000000' : '#FFFFFF') : colors.textSecondary}
-              style={{ marginRight: 6 }}
-            />
-            <Text style={[
-              styles.themeOptionLabel,
-              { color: mode === 'system' ? (isDark ? '#000000' : '#FFFFFF') : colors.textSecondary },
-              mode === 'system' && styles.themeOptionLabelActive
-            ]}>
-              System
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: colors.divider, marginVertical: 12 }]} />
-
-        {/* More Settings Link */}
         <TouchableOpacity
           style={styles.settingsLinkRow}
           activeOpacity={0.7}
           onPress={() => router.push('/settings')}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Ionicons name="options-outline" size={18} color={colors.primary} />
+            <Ionicons name="settings-outline" size={18} color={colors.primary} />
             <Text style={[styles.settingsLinkText, { color: colors.text }]}>Preferences, Sound & Language</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
