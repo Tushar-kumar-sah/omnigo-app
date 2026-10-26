@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { mapDbBookingToBooking } from './db/bookings';
 import { mapDbDriverToDriver, getDriverById } from './db/drivers';
+import type { ChatMessage } from './types';
 
 export function subscribeToBooking(bookingId: string, callback: (payload: any) => void) {
   if (!isSupabaseConfigured || !supabase) return { unsubscribe: () => {} };
@@ -389,4 +390,161 @@ export function subscribeToAllDrivers(callback: (payload: any) => void) {
   } catch (err) {
     return { unsubscribe: () => {} };
   }
+}
+
+
+/**
+ * Real-time Chat functions between Customer and Driver for an active booking
+ */
+export async function getBookingChatMessages(bookingId: string): Promise<ChatMessage[]> {
+  if (!isSupabaseConfigured || !supabase || !bookingId) return [];
+  try {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingId);
+    let query = supabase.from('bookings').select('customer_vehicle');
+    if (isUuid) {
+      query = query.eq('id', bookingId);
+    } else {
+      query = query.eq('booking_number', bookingId);
+    }
+    const { data, error } = await query.maybeSingle();
+    if (error || !data) return [];
+    const cv = typeof data.customer_vehicle === 'string'
+      ? JSON.parse(data.customer_vehicle)
+      : (data.customer_vehicle || {});
+    return Array.isArray(cv._chat) ? cv._chat : [];
+  } catch (err) {
+    console.warn('getBookingChatMessages error:', err);
+    return [];
+  }
+}
+
+export async function sendBookingChatMessage(
+  bookingId: string,
+  message: { sender: 'driver' | 'customer'; senderName: string; text: string }
+): Promise<ChatMessage | null> {
+  if (!isSupabaseConfigured || !supabase || !bookingId || !message.text?.trim()) return null;
+  try {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingId);
+    let query = supabase.from('bookings').select('id, customer_vehicle');
+    if (isUuid) {
+      query = query.eq('id', bookingId);
+    } else {
+      query = query.eq('booking_number', bookingId);
+    }
+    const { data: booking, error: bErr } = await query.maybeSingle();
+    if (bErr || !booking) return null;
+
+    const cv = typeof booking.customer_vehicle === 'string'
+      ? JSON.parse(booking.customer_vehicle)
+      : (booking.customer_vehicle || {});
+
+    const now = Date.now();
+    const timeFormatted = new Date(now).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    const newMsg: ChatMessage = {
+      id: `msg-${now}-${Math.random().toString(36).substring(2, 7)}`,
+      bookingId: booking.id,
+      sender: message.sender,
+      senderName: message.senderName || (message.sender === 'driver' ? 'Driver Partner' : 'Customer'),
+      text: message.text.trim(),
+      timestamp: now,
+      timeFormatted,
+    };
+
+    const existingChat = Array.isArray(cv._chat) ? cv._chat : [];
+    const updatedChat = [...existingChat, newMsg];
+
+    // 1. Persist to Supabase
+    await supabase
+      .from('bookings')
+      .update({
+        customer_vehicle: {
+          ...cv,
+          _chat: updatedChat,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', booking.id);
+
+    // 2. Broadcast via Supabase Realtime channel for 0ms instant delivery
+    try {
+      const channel = supabase.channel(`booking-chat-${booking.id}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'new_message',
+        payload: newMsg,
+      });
+    } catch (_) {}
+
+    return newMsg;
+  } catch (err) {
+    console.warn('sendBookingChatMessage error:', err);
+    return null;
+  }
+}
+
+export function subscribeToBookingChat(bookingId: string, onMessage: (msg: ChatMessage) => void) {
+  if (!isSupabaseConfigured || !supabase || !bookingId) return { unsubscribe: () => {} };
+
+  let channel: any = null;
+  let pollInterval: any = null;
+  const seenMsgIds = new Set<string>();
+
+  try {
+    const channelName = `booking-chat-${bookingId}`;
+    channel = supabase
+      .channel(channelName)
+      .on('broadcast', { event: 'new_message' }, ({ payload }: any) => {
+        if (payload && payload.id && !seenMsgIds.has(payload.id)) {
+          seenMsgIds.add(payload.id);
+          onMessage(payload);
+        }
+      })
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bookings',
+        },
+        (payload: any) => {
+          const row = payload?.new;
+          if (row && (row.id === bookingId || row.booking_number === bookingId)) {
+            const cv = typeof row.customer_vehicle === 'string'
+              ? JSON.parse(row.customer_vehicle)
+              : (row.customer_vehicle || {});
+            const chat = Array.isArray(cv._chat) ? cv._chat : [];
+            chat.forEach((m: ChatMessage) => {
+              if (m && m.id && !seenMsgIds.has(m.id)) {
+                seenMsgIds.add(m.id);
+                onMessage(m);
+              }
+            });
+          }
+        }
+      )
+      .subscribe();
+  } catch (err) {
+    console.warn('subscribeToBookingChat error:', err);
+  }
+
+  // Backup active poll every 2.5s to ensure zero message loss even on flakey networks
+  pollInterval = setInterval(async () => {
+    try {
+      const msgs = await getBookingChatMessages(bookingId);
+      msgs.forEach((m) => {
+        if (m && m.id && !seenMsgIds.has(m.id)) {
+          seenMsgIds.add(m.id);
+          onMessage(m);
+        }
+      });
+    } catch (_) {}
+  }, 2500);
+
+  return {
+    unsubscribe: () => {
+      if (channel) supabase.removeChannel(channel);
+      if (pollInterval) clearInterval(pollInterval);
+    },
+  };
 }

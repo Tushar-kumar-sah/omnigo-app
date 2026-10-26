@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Modal, TextInput, Animated, Easing, ImageBackground, Dimensions,
-  Platform, Alert,
+  Platform, Alert, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -12,7 +12,7 @@ import { BlurView } from 'expo-blur';
 import { theme } from '@/constants/theme';
 import * as Location from 'expo-location';
 import { fetchBookingById, fetchDriverById, submitDriverRating, fetchCurrentUser, fetchUserBookings, cancelUserBooking } from '@/lib/api';
-import { subscribeToDriverLocation, updateBookingDestination, subscribeToBooking } from '@omnigo/api';
+import { subscribeToDriverLocation, updateBookingDestination, subscribeToBooking, getBookingChatMessages, sendBookingChatMessage, subscribeToBookingChat, ChatMessage } from '@omnigo/api';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 import LiveRouteMap from '@/components/LiveRouteMap';
 
@@ -38,6 +38,14 @@ const CANCEL_REASONS = [
   'Other',
 ];
 
+const CUSTOMER_QUICK_CHATS = [
+  "I'm waiting near the vehicle.",
+  'Car hazard blinkers are ON.',
+  'Vehicle keys are inside.',
+  'Near the main building gate.',
+  'Car neutral gear is engaged.',
+];
+
 function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
   const R = 6371;
@@ -56,7 +64,7 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 export default function TrackingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bookingId, driverId } = useLocalSearchParams<{ bookingId?: string; driverId?: string }>();
+  const { bookingId, driverId, openChat } = useLocalSearchParams<{ bookingId?: string; driverId?: string; openChat?: string }>();
 
   const [pickupOtp, setPickupOtp] = useState('— — — —');
   const [completionOtp, setCompletionOtp] = useState('— — — —');
@@ -347,16 +355,62 @@ export default function TrackingScreen() {
   const [showChat, setShowChat] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [chatMsg, setChatMsg] = useState('');
-  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const chatScrollRef = useRef<any>(null);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [plateVerified, setPlateVerified] = useState(false);
   const [speedVal, setSpeedVal] = useState(42);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
 
+  // Auto-open chat if navigated with ?openChat=true
+  useEffect(() => {
+    if (openChat === 'true') {
+      setShowChat(true);
+    }
+  }, [openChat]);
+
+  // Handle direct call to driver
+  const handleCallDriver = () => {
+    const phoneToCall = driver?.phone || booking?.driverPhone || '+918100264108';
+    if (!phoneToCall || phoneToCall === '—') {
+      Alert.alert('Phone Unavailable', 'No driver contact phone number found for this booking.');
+      return;
+    }
+    const clean = String(phoneToCall).replace(/[^\d+]/g, '');
+    const url = `tel:${clean}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Call Driver', `Driver Phone: ${phoneToCall}\n\nPlease dial directly on your phone.`);
+    });
+  };
+
+  // Subscribe to real-time chat with driver for this booking
+  useEffect(() => {
+    const targetBookingId = booking?.id || booking?.uuid || bookingId;
+    if (!targetBookingId) return;
+
+    getBookingChatMessages(targetBookingId).then((msgs) => {
+      if (msgs && msgs.length > 0) {
+        setChatHistory(msgs);
+      }
+    }).catch(() => {});
+
+    const sub = subscribeToBookingChat(targetBookingId, (newMsg) => {
+      setChatHistory((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+      setTimeout(() => {
+        chatScrollRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    return () => {
+      sub.unsubscribe();
+    };
+  }, [booking?.id, booking?.uuid, bookingId]);
+
   // Animated values for active lifecycle step
   const pulseAnim = useRef(new Animated.Value(1)).current;
-
-
 
   // Pulse animation for active lifecycle step
   useEffect(() => {
@@ -373,13 +427,30 @@ export default function TrackingScreen() {
     };
   }, []);
 
-  const handleSendChat = () => {
-    if (!chatMsg.trim()) return;
-    setChatHistory(h => [...h, { from: 'me', text: chatMsg.trim() }]);
+  const handleSendChat = async (textToSend?: string) => {
+    const targetBookingId = booking?.id || booking?.uuid || bookingId;
+    const text = (textToSend || chatMsg || '').trim();
+    if (!text || !targetBookingId) return;
     setChatMsg('');
-    setTimeout(() => {
-      setChatHistory(h => [...h, { from: 'driver', text: 'Got it, noting location details! 👍' }]);
-    }, 1000);
+
+    try {
+      const sent = await sendBookingChatMessage(targetBookingId, {
+        sender: 'customer',
+        senderName: 'Customer',
+        text,
+      });
+      if (sent) {
+        setChatHistory((prev) => {
+          if (prev.some((m) => m.id === sent.id)) return prev;
+          return [...prev, sent];
+        });
+        setTimeout(() => {
+          chatScrollRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    } catch (err) {
+      console.warn('send chat error:', err);
+    }
   };
 
   const handleConfirmCancel = async () => {
@@ -643,8 +714,8 @@ export default function TrackingScreen() {
               <Text style={styles.driverPlate}>🚛 {driverVehicle} · {driverPlate}</Text>
             </View>
             <View style={styles.driverActions}>
-              <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
-                <Ionicons name="call-outline" size={18} color="#38BDF8" />
+              <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={handleCallDriver}>
+                <Ionicons name="call" size={18} color="#00FF97" />
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionBtn, { marginTop: 8 }]} onPress={() => setShowChat(true)} activeOpacity={0.7}>
                 <Ionicons name="chatbubble-outline" size={18} color="#38BDF8" />
@@ -752,25 +823,72 @@ export default function TrackingScreen() {
       {/* ─── LIVE IN-APP CHAT MODAL ─── */}
       <Modal visible={showChat} animationType="slide" transparent onRequestClose={() => setShowChat(false)}>
         <View style={styles.modalOverlay}>
-          <BlurView intensity={40} tint="dark" style={styles.chatSheet}>
+          <BlurView intensity={50} tint="dark" style={styles.chatSheet}>
             <View style={styles.chatHeader}>
               <View>
-                <Text style={styles.chatTitle}>Chat with Driver</Text>
+                <Text style={styles.chatTitle}>Chat with {driverName !== '—' ? driverName : 'Driver Partner'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#00FF97' }} />
+                  <Text style={{ fontSize: 10, color: '#00FF97', fontWeight: '700', letterSpacing: 0.5 }}>LIVE CHANNEL CONNECTED</Text>
+                </View>
                 <Text style={styles.chatSub}>{driverVehicle} · {driverPlate}</Text>
               </View>
-              <TouchableOpacity onPress={() => setShowChat(false)} style={styles.closeCircle}>
-                <Ionicons name="close" size={18} color="#fff" />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity
+                  onPress={handleCallDriver}
+                  style={[styles.closeCircle, { backgroundColor: 'rgba(0,255,151,0.2)' }]}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="call" size={16} color="#00FF97" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowChat(false)} style={styles.closeCircle} activeOpacity={0.7}>
+                  <Ionicons name="close" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
             </View>
 
-            <ScrollView style={styles.chatScroll} showsVerticalScrollIndicator={false}>
-              {chatHistory.map((m, i) => (
-                <View key={i} style={[styles.bubble, m.from === 'me' ? styles.bubbleMe : styles.bubbleDriver]}>
-                  <Text style={[styles.bubbleText, m.from === 'me' ? styles.bubbleTextMe : styles.bubbleTextDriver]}>
-                    {m.text}
+            {/* Quick chips for customer */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 38, marginVertical: 8 }}>
+              {CUSTOMER_QUICK_CHATS.map((chip, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 8, height: 32, justifyContent: 'center' }}
+                  onPress={() => handleSendChat(chip)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ color: '#E2E8F0', fontSize: 11, fontWeight: '500' }}>{chip}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <ScrollView ref={chatScrollRef} style={styles.chatScroll} showsVerticalScrollIndicator={false}>
+              {chatHistory.length === 0 ? (
+                <View style={{ padding: 24, alignItems: 'center' }}>
+                  <Ionicons name="chatbubbles-outline" size={36} color="rgba(255,255,255,0.2)" />
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 8, textAlign: 'center' }}>
+                    No messages yet.{'\n'}Need to update the driver about your location or keys?
                   </Text>
                 </View>
-              ))}
+              ) : (
+                chatHistory.map((m, i) => {
+                  const isMe = m.sender === 'customer' || (m as any).from === 'me';
+                  return (
+                    <View key={m.id || i} style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleDriver]}>
+                      {!isMe && (
+                        <Text style={{ fontSize: 10, color: '#00CFFF', fontWeight: '700', marginBottom: 2 }}>
+                          {m.senderName || driverName || 'Driver Partner'}
+                        </Text>
+                      )}
+                      <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextDriver]}>
+                        {m.text}
+                      </Text>
+                      <Text style={{ fontSize: 9, color: isMe ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.4)', marginTop: 4, alignSelf: isMe ? 'flex-end' : 'flex-start' }}>
+                        {m.timeFormatted || (m.timestamp ? new Date(m.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Just now')} · {isMe ? 'Sent' : 'Received'}
+                      </Text>
+                    </View>
+                  );
+                })
+              )}
             </ScrollView>
 
             <View style={[styles.chatInputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
@@ -780,9 +898,9 @@ export default function TrackingScreen() {
                 placeholderTextColor="rgba(255,255,255,0.4)"
                 value={chatMsg}
                 onChangeText={setChatMsg}
-                onSubmitEditing={handleSendChat}
+                onSubmitEditing={() => handleSendChat()}
               />
-              <TouchableOpacity style={styles.sendBtn} onPress={handleSendChat} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.sendBtn} onPress={() => handleSendChat()} activeOpacity={0.8}>
                 <Ionicons name="send" size={16} color="#000" />
               </TouchableOpacity>
             </View>

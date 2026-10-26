@@ -93,16 +93,22 @@ export interface Booking {
   user?: any;
   customerName?: string;
   userName?: string;
+  customer?: string;
+  phone?: string;
+  customerPhone?: string;
+  driverPhone?: string;
   driverId?: string;
+  driver?: any;
+  vehicle?: string;
   vehicleTypeId: string;
   customerVehicle: CustomerVehicle;
-  pickup: Location;
-  dropoff: Location;
+  pickup: Location | any;
+  dropoff: Location | any;
   status: BookingStatus;
   estimatedPrice: number;
   finalPrice?: number;
   estimatedETA: number; // minutes
-  distance: number; // km
+  distance: number | string; // km
   createdAt: string;
   updatedAt?: string;
   completedAt?: string;
@@ -116,6 +122,16 @@ export interface Booking {
   paymentId?: string;
   ledgerId?: string;
   settlementId?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  bookingId?: string;
+  sender: 'driver' | 'customer' | 'user' | 'bot';
+  senderName?: string;
+  text: string;
+  timestamp: number | string;
+  timeFormatted?: string;
 }
 
 export type BookingStatus =
@@ -136,7 +152,9 @@ export interface CustomerVehicle {
   number: string;
   brand: string;
   model: string;
+  plate?: string;
   images?: string[];
+  [key: string]: any;
 }
 
 export interface WalletTransaction {
@@ -170,12 +188,6 @@ export interface MembershipTier {
   discountPercent: number;
 }
 
-export interface ChatMessage {
-  id: string;
-  sender: 'user' | 'bot';
-  text: string;
-  timestamp: string;
-}
 
 export interface AdminStats {
   totalUsers: number;

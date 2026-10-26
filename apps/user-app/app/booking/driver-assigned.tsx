@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { theme, glassStyle } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +22,26 @@ export default function DriverAssignedScreen() {
     }
   }, [driverId]);
 
+  const handleCallDriver = () => {
+    const phoneToCall = driver?.phone || '+918100264108';
+    if (!phoneToCall || phoneToCall === '—') {
+      Alert.alert('Phone Unavailable', 'No driver contact phone number found for this booking.');
+      return;
+    }
+    const clean = String(phoneToCall).replace(/[^\d+]/g, '');
+    const url = `tel:${clean}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Call Driver', `Driver Phone: ${phoneToCall}\n\nPlease dial directly on your phone.`);
+    });
+  };
+
+  const handleOpenChat = () => {
+    router.push({
+      pathname: '/booking/tracking',
+      params: { bookingId, driverId, openChat: 'true' },
+    });
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#050810', '#0a101d', '#050810']} style={StyleSheet.absoluteFill} />
@@ -43,8 +63,12 @@ export default function DriverAssignedScreen() {
                 <Text style={styles.vehicleText}>{driver.vehicle}</Text>
               </View>
               <View style={styles.actions}>
-                <TouchableOpacity style={styles.actionBtn}><Ionicons name="call" size={20} color={theme.colors.primary} /></TouchableOpacity>
-                <TouchableOpacity style={styles.actionBtn}><Ionicons name="chatbubble" size={20} color={theme.colors.primary} /></TouchableOpacity>
+                <TouchableOpacity style={styles.actionBtn} onPress={handleCallDriver} activeOpacity={0.7}>
+                  <Ionicons name="call" size={20} color="#00FF97" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionBtn} onPress={handleOpenChat} activeOpacity={0.7}>
+                  <Ionicons name="chatbubble" size={20} color={theme.colors.primary} />
+                </TouchableOpacity>
               </View>
             </>
           ) : (

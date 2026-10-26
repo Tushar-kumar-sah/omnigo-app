@@ -66,8 +66,11 @@ export function mapDbBookingToBooking(dbBooking: any): any {
     ? `${vehicleMake ? vehicleMake + ' ' : ''}${vehicleModel}${vehiclePlate}`.trim()
     : (vehicleObj.brand ? `${vehicleObj.brand} ${vehicleObj.model || ''}`.trim() : '—');
 
-  const customerName = dbBooking.users?.name || dbBooking.customer_name || '—';
-  const customerPhone = dbBooking.users?.phone || dbBooking.customer_phone || '—';
+  const customerName = dbBooking.users?.name || dbBooking.customer_name || 'Tushar kr Sah';
+  const customerPhone = dbBooking.users?.phone || dbBooking.customer_phone || '+919365339198';
+  const driverRawName = dbBooking.drivers?.name || dbBooking.driver_name || 'Tushar';
+  const driverPlate = dbBooking.drivers?.vehicle_plate || dbBooking.driver_plate || 'MH 12 AB 1234';
+  const driverPhone = dbBooking.drivers?.phone || dbBooking.driver_phone || '+918100264108';
   const driverName = dbBooking.drivers?.name 
     ? `${dbBooking.drivers.name} (${dbBooking.drivers.vehicle_plate || ''})` 
     : (dbBooking.driver_name 
@@ -101,8 +104,15 @@ export function mapDbBookingToBooking(dbBooking: any): any {
     userId: dbBooking.user_id,
     driverId: dbBooking.driver_id,
     customer: customerName,
+    customerName: customerName,
+    userName: customerName,
     phone: customerPhone,
+    customerPhone: customerPhone,
+    userPhone: customerPhone,
     driver: driverName,
+    driverName: driverRawName,
+    driverPhone: driverPhone,
+    driverPlate: driverPlate,
     vehicle: vehicleName,
     vehicleTypeId: dbBooking.vehicle_type_id || 'flatbed',
     customerVehicle: vehicleObj,
@@ -146,7 +156,7 @@ export async function getBookings(filters?: { status?: string; userId?: string; 
   try {
     let query = supabase
       .from('bookings')
-      .select('*, users(name, phone), drivers(name, vehicle_plate)')
+      .select('*, users(name, phone), drivers(name, vehicle_plate, phone, rating, vehicle_type)')
       .order('created_at', { ascending: false });
 
     if (filters?.status) {
@@ -206,7 +216,7 @@ export async function getActiveBookingByUser(userId: string): Promise<any | null
   try {
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, users(name, phone), drivers(name, vehicle_plate)')
+      .select('*, users(name, phone), drivers(name, vehicle_plate, phone, rating, vehicle_type)')
       .eq('user_id', userId)
       .in('status', ACTIVE_BOOKING_STATUSES)
       .order('created_at', { ascending: false })
@@ -226,7 +236,7 @@ export async function getActiveBookingByDriver(driverId: string): Promise<any | 
   try {
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, users(name, phone), drivers(name, vehicle_plate)')
+      .select('*, users(name, phone), drivers(name, vehicle_plate, phone, rating, vehicle_type)')
       .eq('driver_id', driverId)
       .in('status', ACTIVE_BOOKING_STATUSES)
       .order('created_at', { ascending: false })

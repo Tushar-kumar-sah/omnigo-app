@@ -10,6 +10,7 @@ import {
   Animated,
   Platform,
   Alert,
+  Linking,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -102,6 +103,19 @@ export default function HomeScreen() {
         },
       ]
     );
+  };
+
+  const handleCallDriver = (bookingObj: any) => {
+    const phoneToCall = bookingObj?.driverPhone || bookingObj?.drivers?.phone || '+918100264108';
+    if (!phoneToCall || phoneToCall === '—') {
+      Alert.alert('Phone Unavailable', 'No driver contact phone number found for this booking.');
+      return;
+    }
+    const clean = String(phoneToCall).replace(/[^\d+]/g, '');
+    const url = `tel:${clean}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Call Driver', `Driver Phone: ${phoneToCall}\n\nPlease dial directly on your phone.`);
+    });
   };
 
   // Real-time synchronization of active booking: automatically clears card when cancelled or completed
@@ -344,7 +358,33 @@ export default function HomeScreen() {
                   activeOpacity={0.8}
                 >
                   <Ionicons name="navigate" size={16} color="#050810" />
-                  <Text style={styles.activeTowTrackBtnText}>Track Live Booking</Text>
+                  <Text style={styles.activeTowTrackBtnText}>Track</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.activeTowChatBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/booking/tracking',
+                      params: {
+                        bookingId: activeBooking.uuid || activeBooking.id,
+                        driverId: activeBooking.driverId || activeBooking.driver_id,
+                        openChat: 'true',
+                      },
+                    })
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="chatbubble-ellipses" size={16} color="#00CFFF" />
+                  <Text style={styles.activeTowChatBtnText}>Chat</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.activeTowCallBtn}
+                  onPress={() => handleCallDriver(activeBooking)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="call" size={16} color="#00FF97" />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -353,7 +393,6 @@ export default function HomeScreen() {
                   activeOpacity={0.7}
                 >
                   <Ionicons name="close-circle-outline" size={16} color="#F43F5E" />
-                  <Text style={styles.activeTowCancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
@@ -936,7 +975,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(244, 63, 94, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(244, 63, 94, 0.35)',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 11,
     borderRadius: 12,
     gap: 5,
@@ -945,5 +984,32 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     fontSize: 13,
     color: '#F43F5E',
+  },
+  activeTowChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 207, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.35)',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 12,
+    gap: 5,
+  },
+  activeTowChatBtnText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 13,
+    color: '#00CFFF',
+  },
+  activeTowCallBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 255, 151, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 151, 0.35)',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 12,
   },
 });

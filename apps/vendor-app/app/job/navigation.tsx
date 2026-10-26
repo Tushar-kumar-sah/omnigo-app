@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ScrollView, Platform, Linking } from 'react-native';
 import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 
@@ -7,7 +7,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
-import { updateBookingStatus, updateDriverLocation, getBookingById, Booking, createSOSIncident } from '@omnigo/api';
+import { updateBookingStatus, updateDriverLocation, getBookingById, Booking, createSOSIncident, getBookingChatMessages, sendBookingChatMessage, subscribeToBookingChat, ChatMessage } from '@omnigo/api';
 import { getAuthenticatedDriverId } from '@/lib/auth';
 import DriverNavigationMap from '@/components/DriverNavigationMap';
 
@@ -153,10 +153,34 @@ export default function NavigationScreen() {
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [sosModalVisible, setSosModalVisible] = useState(false);
   const [chatModalVisible, setChatModalVisible] = useState(false);
-  const [chatMessages, setChatMessages] = useState<string[]>([
-    'Hello, this is Rajesh Kumar from OmniGo Towing. I am on my way.',
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
+  const chatScrollRef = useRef<any>(null);
+
+  // Subscribe to real-time chat with customer
+  useEffect(() => {
+    if (!jobId) return;
+
+    getBookingChatMessages(jobId).then((msgs) => {
+      if (msgs && msgs.length > 0) {
+        setChatMessages(msgs);
+      }
+    }).catch(() => {});
+
+    const sub = subscribeToBookingChat(jobId, (newMsg) => {
+      setChatMessages((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+      setTimeout(() => {
+        chatScrollRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    return () => {
+      sub.unsubscribe();
+    };
+  }, [jobId]);
 
   // Waiting timer state (when at pickup)
   const [waitSeconds, setWaitSeconds] = useState(0);
@@ -273,11 +297,16 @@ export default function NavigationScreen() {
   };
 
   const handleMaskedCall = () => {
-    Alert.alert(
-      'Masked Call Connected',
-      `Connecting to customer via OmniGo Privacy Proxy...\n\nYour actual phone number remains hidden.`,
-      [{ text: 'End Call' }]
-    );
+    const phoneToCall = (booking as any)?.customerPhone || (booking as any)?.phone || (booking as any)?.users?.phone || '+919365339198';
+    if (!phoneToCall || phoneToCall === '—') {
+      Alert.alert('Phone Unavailable', 'No customer phone number found for this booking.');
+      return;
+    }
+    const clean = String(phoneToCall).replace(/[^\d+]/g, '');
+    const url = `tel:${clean}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Customer Contact', `Customer Phone: ${phoneToCall}\n\nPlease dial directly on your phone.`);
+    });
   };
 
   const handleSOS = async () => {
@@ -296,11 +325,28 @@ export default function NavigationScreen() {
     }
   };
 
-  const handleSendChat = (textToSend?: string) => {
-    const msg = textToSend || chatInput;
-    if (!msg.trim()) return;
-    setChatMessages(prev => [...prev, msg]);
+  const handleSendChat = async (textToSend?: string) => {
+    const msg = (textToSend || chatInput || '').trim();
+    if (!msg || !jobId) return;
     setChatInput('');
+    try {
+      const sent = await sendBookingChatMessage(jobId, {
+        sender: 'driver',
+        senderName: 'Driver Partner',
+        text: msg,
+      });
+      if (sent) {
+        setChatMessages((prev) => {
+          if (prev.some((m) => m.id === sent.id)) return prev;
+          return [...prev, sent];
+        });
+        setTimeout(() => {
+          chatScrollRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    } catch (err) {
+      console.warn('send chat error:', err);
+    }
   };
 
   const handleCustomerNoShow = () => {
@@ -387,14 +433,26 @@ export default function NavigationScreen() {
         <CardWrapper style={styles.card}>
           <View style={styles.customerHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.customerName}>Customer</Text>
-              <Text style={styles.customerPhone}>Masked: Connected</Text>
+              <Text style={styles.customerName}>
+                {(booking as any)?.customer || (booking as any)?.customerName || 'Customer'}
+              </Text>
+              <Text style={styles.customerPhone}>
+                {(booking as any)?.phone || (booking as any)?.customerPhone || 'Masked: Connected'}
+              </Text>
             </View>
             <View style={styles.contactActions}>
-              <TouchableOpacity style={[styles.circleBtn, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]} onPress={() => setChatModalVisible(true)}>
+              <TouchableOpacity
+                style={[styles.circleBtn, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]}
+                onPress={() => setChatModalVisible(true)}
+                activeOpacity={0.7}
+              >
                 <Ionicons name="chatbubble-ellipses" size={20} color={THEME.colors.primary} />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.circleBtn, { backgroundColor: 'rgba(0, 255, 151, 0.15)' }]} onPress={handleMaskedCall}>
+              <TouchableOpacity
+                style={[styles.circleBtn, { backgroundColor: 'rgba(0, 255, 151, 0.15)' }]}
+                onPress={handleMaskedCall}
+                activeOpacity={0.7}
+              >
                 <Ionicons name="call" size={20} color={THEME.colors.success} />
               </TouchableOpacity>
             </View>
@@ -409,7 +467,7 @@ export default function NavigationScreen() {
             </View>
             <View style={[styles.chip, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
               <Text style={[styles.chipText, { fontFamily: THEME.fonts.inter.bold }]}>
-                {booking?.customerVehicle?.number || '—'}
+                {booking?.customerVehicle?.plate || booking?.customerVehicle?.number || (booking as any)?.vehiclePlate || 'MH 12 AB 1234'}
               </Text>
             </View>
           </View>
@@ -419,7 +477,7 @@ export default function NavigationScreen() {
             <View style={styles.etaRow}>
               <Ionicons name="time-outline" size={18} color={THEME.colors.primary} />
               <Text style={styles.etaText}>
-                {booking?.estimatedETA ? `Arriving in ${booking.estimatedETA} mins` : '—'} {booking?.distance ? `(${booking.distance} km)` : ''}
+                {booking?.estimatedETA ? `Arriving in ${booking.estimatedETA} mins` : 'En Route to Pickup'} {booking?.distance ? `(${String(booking.distance).replace(/\s*km/gi, '').trim()} km)` : ''}
               </Text>
             </View>
           ) : (
@@ -522,28 +580,69 @@ export default function NavigationScreen() {
       </Modal>
 
       {/* ─── MODAL 2: IN-APP CHAT ─────────────────────────── */}
-      <Modal visible={chatModalVisible} transparent animationType="slide">
+      <Modal visible={chatModalVisible} transparent animationType="slide" onRequestClose={() => setChatModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={[styles.modalContent, { maxHeight: '85%' }]}>
             <View style={styles.chatHeader}>
               <View>
-                <Text style={styles.modalTitle}>In-App Customer Chat</Text>
-                <Text style={styles.modalSub}>Customer · Masked Channel</Text>
+                <Text style={styles.modalTitle}>
+                  Chat with {(booking as any)?.customer || (booking as any)?.customerName || 'Customer'}
+                </Text>
+                <View style={styles.liveChannelBadge}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>LIVE CHAT CONNECTED</Text>
+                </View>
               </View>
-              <TouchableOpacity onPress={() => setChatModalVisible(false)}>
-                <Ionicons name="close-circle" size={26} color={THEME.colors.textSecondary} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity
+                  style={[styles.circleBtn, { width: 36, height: 36, backgroundColor: 'rgba(0, 255, 151, 0.2)' }]}
+                  onPress={handleMaskedCall}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="call" size={18} color={THEME.colors.success} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setChatModalVisible(false)} activeOpacity={0.7}>
+                  <Ionicons name="close-circle" size={28} color={THEME.colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Message Thread */}
-            <ScrollView style={styles.chatThread} showsVerticalScrollIndicator={false}>
-              {chatMessages.map((msg, idx) => (
-                <View key={idx} style={styles.driverBubble}>
-                  <Text style={styles.driverBubbleText}>{msg}</Text>
-                  <Text style={styles.bubbleTime}>Just now · Sent</Text>
+            <ScrollView
+              ref={chatScrollRef}
+              style={styles.chatThread}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingVertical: 8 }}
+            >
+              {chatMessages.length === 0 ? (
+                <View style={{ padding: 24, alignItems: 'center' }}>
+                  <Ionicons name="chatbubbles-outline" size={36} color="rgba(255,255,255,0.2)" />
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: THEME.fonts.inter.regular, fontSize: 13, marginTop: 8, textAlign: 'center' }}>
+                    No messages yet.{'\n'}Send a quick message to coordinate pickup with the customer!
+                  </Text>
                 </View>
-              ))}
+              ) : (
+                chatMessages.map((msg, idx) => {
+                  const isDriver = msg.sender === 'driver';
+                  return (
+                    <View
+                      key={msg.id || idx}
+                      style={isDriver ? styles.driverBubble : styles.customerBubble}
+                    >
+                      {!isDriver && (
+                        <Text style={styles.senderBadge}>{msg.senderName || 'Customer'}</Text>
+                      )}
+                      <Text style={isDriver ? styles.driverBubbleText : styles.customerBubbleText}>
+                        {msg.text}
+                      </Text>
+                      <Text style={styles.bubbleTime}>
+                        {msg.timeFormatted || (msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Just now')} · {isDriver ? 'Sent' : 'Received'}
+                      </Text>
+                    </View>
+                  );
+                })
+              )}
             </ScrollView>
 
             {/* Quick Template Chips */}
@@ -560,12 +659,13 @@ export default function NavigationScreen() {
             <View style={styles.chatInputRow}>
               <TextInput
                 style={styles.chatInput}
-                placeholder="Type a custom message..."
+                placeholder="Type a message to customer..."
                 placeholderTextColor={THEME.colors.textMuted}
                 value={chatInput}
                 onChangeText={setChatInput}
+                onSubmitEditing={() => handleSendChat()}
               />
-              <TouchableOpacity style={styles.sendBtn} onPress={() => handleSendChat()}>
+              <TouchableOpacity style={styles.sendBtn} onPress={() => handleSendChat()} activeOpacity={0.8}>
                 <Ionicons name="send" size={18} color="#000" />
               </TouchableOpacity>
             </View>
@@ -901,15 +1001,35 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  liveChannelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: THEME.colors.success,
+  },
+  liveText: {
+    fontFamily: THEME.fonts.inter.bold,
+    fontSize: 10,
+    color: THEME.colors.success,
+    letterSpacing: 0.5,
+  },
   chatThread: {
-    maxHeight: 180,
+    maxHeight: 220,
     marginBottom: 12,
   },
   driverBubble: {
-    backgroundColor: 'rgba(0, 207, 255, 0.15)',
+    backgroundColor: 'rgba(0, 207, 255, 0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 207, 255, 0.3)',
-    borderRadius: 12,
+    borderColor: 'rgba(0, 207, 255, 0.35)',
+    borderRadius: 14,
+    borderBottomRightRadius: 2,
     padding: 10,
     alignSelf: 'flex-end',
     marginBottom: 8,
@@ -919,6 +1039,28 @@ const styles = StyleSheet.create({
     fontFamily: THEME.fonts.inter.medium,
     fontSize: 13,
     color: '#fff',
+  },
+  customerBubble: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 14,
+    borderBottomLeftRadius: 2,
+    padding: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+    maxWidth: '85%',
+  },
+  customerBubbleText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 13,
+    color: '#fff',
+  },
+  senderBadge: {
+    fontFamily: THEME.fonts.inter.bold,
+    fontSize: 10,
+    color: THEME.colors.primary,
+    marginBottom: 3,
   },
   bubbleTime: {
     fontFamily: THEME.fonts.inter.regular,
