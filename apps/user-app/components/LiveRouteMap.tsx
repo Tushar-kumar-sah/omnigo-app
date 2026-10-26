@@ -324,7 +324,7 @@ export default function LiveRouteMap({
         ) : (
           <Ionicons name="navigate" size={14} color="#00CFFF" style={{ marginRight: 6 }} />
         )}
-        <Text style={styles.etaPillText}>
+        <Text style={styles.etaPillText} numberOfLines={1}>
           {routeData
             ? `${routeData.durationMinutes} mins away · ${routeData.distanceKm} km`
             : `Driver En Route · ${speed} km/h`}
@@ -428,18 +428,23 @@ const styles = StyleSheet.create({
   },
   interactiveIndicator: {
     position: 'absolute',
-    top: 14,
-    right: 50,
+    bottom: 12,
+    left: 12,
     zIndex: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     backgroundColor: 'rgba(7, 12, 24, 0.94)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: 'rgba(0, 255, 151, 0.5)',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
   },
   interactiveIndicatorText: {
     fontSize: 11,
@@ -448,22 +453,23 @@ const styles = StyleSheet.create({
   },
   topEtaPill: {
     position: 'absolute',
-    top: 14,
-    left: 14,
+    top: 10,
+    left: 10,
+    maxWidth: '82%',
     zIndex: 15,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(7, 12, 24, 0.92)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(0, 207, 255, 0.4)',
     elevation: 6,
   },
   etaDot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
     backgroundColor: '#00FF97',
     marginRight: 6,
@@ -472,6 +478,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     fontSize: 12,
     color: '#FFFFFF',
+    flexShrink: 1,
   },
   mapControls: {
     position: 'absolute',

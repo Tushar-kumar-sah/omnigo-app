@@ -94,6 +94,7 @@ export default function TrackingScreen() {
   const [updatedDriverStats, setUpdatedDriverStats] = useState<{ averageRating?: number; reviewCount?: number } | null>(null);
   const ratingModalShownRef = useRef(false);
   const isCancelledRef = useRef(false);
+  const completedAlertShownRef = useRef(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
   const handleSubmitRating = async () => {
@@ -156,6 +157,22 @@ export default function TrackingScreen() {
 
     if (status === 'completed') {
       setCurrentStep(6);
+      if (!completedAlertShownRef.current) {
+        completedAlertShownRef.current = true;
+        Alert.alert(
+          'Vehicle Safely Delivered! 🎉',
+          'Your towing trip has been completed successfully. Returning to Home.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(tabs)'),
+            },
+          ]
+        );
+        setTimeout(() => {
+          router.replace('/(tabs)');
+        }, 2200);
+      }
     } else if (status === 'arriving_dropoff' || status === 'arriving') {
       setCurrentStep(5);
     } else if (status === 'towing') {
@@ -1064,6 +1081,7 @@ export default function TrackingScreen() {
                   onPress={() => {
                     setShowRatingModal(false);
                     setRatingSuccess(false);
+                    router.replace('/(tabs)');
                   }}
                   activeOpacity={0.8}
                 >
