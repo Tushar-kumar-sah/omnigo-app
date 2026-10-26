@@ -67,8 +67,12 @@ export interface Location {
 export interface Booking {
   id: string;
   uuid?: string;
+  bookingNumber?: string;
   bookingStatus?: string;
   userId: string;
+  user?: any;
+  customerName?: string;
+  userName?: string;
   driverId?: string;
   vehicleTypeId: string;
   customerVehicle: CustomerVehicle;
@@ -80,6 +84,7 @@ export interface Booking {
   estimatedETA: number; // minutes
   distance: number; // km
   createdAt: string;
+  updatedAt?: string;
   completedAt?: string;
   driverRating?: number;
   pickupOtp?: string;

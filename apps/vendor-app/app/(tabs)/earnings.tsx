@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
@@ -32,52 +33,119 @@ export default function EarningsScreen() {
 
   const DRIVER_ID = getAuthenticatedDriverId();
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const d = await getDriverById(DRIVER_ID);
-        setDriver(d);
-        const j = await getBookingsByDriver(DRIVER_ID);
-        setJobs(j);
-        const e = await getDriverEarnings(DRIVER_ID);
-        setEarnings(e);
-        const p = await getPayouts(DRIVER_ID);
-        setPayouts(p);
-        const l = await getDriverLedger(DRIVER_ID);
-        setLedger(l);
-      } catch (err) {
-        console.error(err);
-      }
+  const loadData = useCallback(async () => {
+    try {
+      const [d, j, e, p, l] = await Promise.all([
+        getDriverById(DRIVER_ID),
+        getBookingsByDriver(DRIVER_ID),
+        getDriverEarnings(DRIVER_ID),
+        getPayouts(DRIVER_ID),
+        getDriverLedger(DRIVER_ID),
+      ]);
+      setDriver(d);
+      setJobs(j || []);
+      setEarnings(e);
+      setPayouts(p || []);
+      setLedger(l || []);
+    } catch (err) {
+      console.error(err);
     }
-    loadData();
   }, [DRIVER_ID]);
 
-  const earningsAmount = earnings
-    ? period === 'today' ? earnings.today
-    : period === 'week' ? earnings.thisWeek
-    : earnings.thisMonth
-    : 0;
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
+  const completedJobs = useMemo(() => {
+    return (jobs || []).filter(j => (j.status || j.bookingStatus || '').toLowerCase() === 'completed');
+  }, [jobs]);
+
+  const periodData = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    const periodFilter = (tripDate: number) => {
+      if (period === 'today') return tripDate >= startOfToday || (now.getTime() - tripDate) < 24 * 3600 * 1000;
+      if (period === 'week') return tripDate >= startOfWeek;
+      return tripDate >= startOfMonth;
+    };
+
+    const periodJobs = completedJobs.filter(j => {
+      const t = new Date(j.completedAt || j.updatedAt || j.createdAt).getTime();
+      return periodFilter(t);
+    });
+
+    let grossFare = 0;
+    let commissionFee = 0;
+    let tips = 0;
+    let distanceKm = 0;
+
+    periodJobs.forEach(j => {
+      const entry = (ledger || []).find((l: any) => l.booking_id === j.id);
+      const gross = Number(entry?.gross_customer_fare || j.finalPrice || j.estimatedPrice || 0);
+      const comm = entry?.commission_amount ? Number(entry.commission_amount) : Math.round(gross * 0.10);
+      const tip = Number(entry?.customer_tip || 0);
+
+      grossFare += gross;
+      commissionFee += comm;
+      tips += tip;
+
+      const dNum = parseFloat(String(j.distance || '0').replace(/[^0-9.]/g, ''));
+      if (!isNaN(dNum)) distanceKm += dNum;
+    });
+
+    const netEarning = grossFare - commissionFee + tips;
+
+    let finalAmount = netEarning;
+    if (earnings) {
+      const backendVal = period === 'today' ? earnings.today : period === 'week' ? earnings.thisWeek : earnings.thisMonth;
+      if (backendVal > 0) finalAmount = backendVal;
+    }
+
+    return {
+      amount: finalAmount,
+      grossFare,
+      commissionFee,
+      tips,
+      trips: periodJobs.length,
+      distance: `${Math.round(distanceKm * 10) / 10} km`,
+    };
+  }, [completedJobs, ledger, earnings, period]);
+
   const currentData = {
-    amount: `₹${earningsAmount}`,
-    trips: jobs.length,
-    online: '0h',
-    distance: '0 km'
+    amount: `₹${periodData.amount}`,
+    trips: periodData.trips,
+    online: (driver as any)?.online_hours || '0h',
+    distance: periodData.distance,
   };
 
   const driverData = (driver || {}) as any;
-  const jobsData = jobs.map(j => {
-    const entry = ledger.find((l: any) => l.booking_id === j.id) || {};
+  const jobsData = completedJobs.map(j => {
+    const entry = (ledger || []).find((l: any) => l.booking_id === j.id) || {};
+    const gross = Number((entry as any).gross_customer_fare || j.finalPrice || j.estimatedPrice || 0);
+    const commission = (entry as any).commission_amount != null ? Number((entry as any).commission_amount) : Math.round(gross * 0.10);
+    const tip = (entry as any).customer_tip != null ? Number((entry as any).customer_tip) : 0;
+    const net = (entry as any).driver_net_earning != null ? Number((entry as any).driver_net_earning) : (gross - commission + tip);
+
     return {
       id: j.id,
-      vehicleMake: j.customerVehicle?.brand || 'Unknown',
+      vehicleMake: j.customerVehicle?.brand || 'Vehicle',
       vehicleModel: j.customerVehicle?.model || '',
-      vehicleType: j.vehicleTypeId || 'Car',
-      date: new Date(j.createdAt).toLocaleDateString(),
-      distance: j.distance ? j.distance + ' km' : '—',
-      driverEarnings: `₹${j.finalPrice || j.estimatedPrice || 0}`,
-      price: `₹${j.estimatedPrice || 0}`,
-      platformFee: '₹' + Math.round((entry as any).commission_amount || 0),
-      tip: '₹' + Math.round((entry as any).customer_tip || 0)
+      vehicleType: j.vehicleTypeId || 'Flatbed Tow',
+      date: j.createdAt ? new Date(j.createdAt).toLocaleDateString('en-IN') : 'Recent',
+      distance: j.distance ? (String(j.distance).includes('km') ? String(j.distance) : `${j.distance} km`) : '—',
+      driverEarnings: `₹${net}`,
+      price: `₹${gross}`,
+      platformFee: `₹${commission}`,
+      tip: `₹${tip}`,
     };
   });
 
@@ -97,7 +165,7 @@ export default function EarningsScreen() {
   ] as const;
 
   const handleInstantPayout = () => {
-    const availableBalance = driverData.wallet?.balance || earningsAmount || 0;
+    const availableBalance = driverData.wallet?.balance || earnings?.total || periodData.amount || 0;
     Alert.alert(
       'Instant Payout',
       `Transfer ₹${availableBalance} to ${driverData.bank_name || driverData.bankName || 'Bank'} (${driverData.bank_account_number || driverData.bankAccountNumber || ''})?`,
@@ -107,7 +175,7 @@ export default function EarningsScreen() {
             try {
               await createSettlement({
                 driverId: DRIVER_ID,
-                driverName: 'Rajesh Kumar',
+                driverName: driverData.name || 'Rajesh Kumar',
                 bookingIds: [],
                 grossAmount: availableBalance,
                 totalCommissionDeducted: 0,
@@ -252,15 +320,15 @@ export default function EarningsScreen() {
           <CardWrapper style={styles.breakdownCard}>
             <View style={styles.feeRow}>
               <Text style={styles.feeLabel}>Gross Customer Payments</Text>
-              <Text style={styles.feeValue}>₹0</Text>
+              <Text style={styles.feeValue}>₹{periodData.grossFare}</Text>
             </View>
             <View style={styles.feeRow}>
               <Text style={styles.feeLabel}>OmniGo Platform Commission (10%)</Text>
-              <Text style={[styles.feeValue, { color: THEME.colors.danger }]}>-₹0</Text>
+              <Text style={[styles.feeValue, { color: THEME.colors.danger }]}>-₹{periodData.commissionFee}</Text>
             </View>
             <View style={styles.feeRow}>
               <Text style={styles.feeLabel}>Customer Tips Received (100% to Driver)</Text>
-              <Text style={[styles.feeValue, { color: THEME.colors.success }]}>+₹0</Text>
+              <Text style={[styles.feeValue, { color: THEME.colors.success }]}>+₹{periodData.tips}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.feeRow}>
@@ -306,7 +374,7 @@ export default function EarningsScreen() {
               style={StyleSheet.absoluteFill}
             />
             <Text style={styles.walletLabel}>Available Wallet Balance</Text>
-            <Text style={styles.walletBalanceBig}>₹{driverData.wallet?.balance || earningsAmount || 0}</Text>
+            <Text style={styles.walletBalanceBig}>₹{driverData.wallet?.balance || earnings?.total || periodData.amount || 0}</Text>
             
             <View style={styles.pendingRow}>
               <Ionicons name="hourglass-outline" size={15} color={THEME.colors.warning} />

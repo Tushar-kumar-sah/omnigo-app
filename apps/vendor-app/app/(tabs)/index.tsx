@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getAuthenticatedDriverId } from '@/lib/auth';
 import {
   getDriverById,
@@ -71,6 +71,26 @@ export default function HomeScreen() {
       console.error(err);
     }
   }, [DRIVER_ID]);
+
+  const todayEarningsAmount = useMemo(() => {
+    // 1. If backend earnings has today's earnings > 0, prefer it
+    if (driver?.earnings?.today && Number(driver.earnings.today) > 0) {
+      return Number(driver.earnings.today);
+    }
+    // 2. Compute from completed jobs for today
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const sum = todayJobs.reduce((acc, j) => {
+      const tripTime = new Date(j.completedAt || j.updatedAt || j.createdAt).getTime();
+      if (tripTime >= startOfToday || (now.getTime() - tripTime) < 24 * 3600 * 1000) {
+        const gross = Number(j.finalPrice || j.estimatedPrice || 0);
+        return acc + Math.round(gross * 0.90);
+      }
+      return acc;
+    }, 0);
+    if (sum > 0) return sum;
+    return Number(driver?.earnings?.today || (driver as any)?.wallet?.balance || 0);
+  }, [driver, todayJobs]);
 
   useFocusEffect(
     useCallback(() => {
@@ -432,7 +452,7 @@ export default function HomeScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Ionicons name="wallet-outline" size={22} color="#00FF97" />
-              <Text style={styles.statValue}>₹{(driver as any)?.wallet?.balance || driver?.earnings?.today || 0}</Text>
+              <Text style={styles.statValue}>₹{todayEarningsAmount}</Text>
               <Text style={styles.statLabel}>Earnings</Text>
             </View>
             <View style={styles.statDivider} />

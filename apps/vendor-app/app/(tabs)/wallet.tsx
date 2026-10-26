@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -15,7 +16,8 @@ import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { getDriverById, getDriverLedger, createSettlement, Driver } from '@omnigo/api';
+import { getDriverById, getDriverLedger, getDriverWalletTransactions, createSettlement, Driver } from '@omnigo/api';
+import { getAuthenticatedDriverId } from '@/lib/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TransactionFilter = 'all' | 'credits' | 'withdrawals';
@@ -56,37 +58,77 @@ export default function WalletScreen() {
   const [apiTransactions, setApiTransactions] = useState<any[]>([]);
   // Use mock for audit since we just want to show UI for now
   
-  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
+  const DRIVER_ID = getAuthenticatedDriverId();
   
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const d = await getDriverById(DRIVER_ID);
-        setDriver(d);
-        const txs = await getDriverLedger(DRIVER_ID);
-        setApiTransactions(txs);
-      } catch (err) {
-        console.error(err);
-      }
+  const loadData = useCallback(async () => {
+    try {
+      const [d, txs] = await Promise.all([
+        getDriverById(DRIVER_ID),
+        getDriverWalletTransactions(DRIVER_ID),
+      ]);
+      setDriver(d);
+      setApiTransactions(txs || []);
+    } catch (err) {
+      console.error(err);
     }
-    loadData();
   }, [DRIVER_ID]);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
   const driverAny = driver as any;
-  const availableBalance = driverAny?.wallet?.balance ?? driverAny?.earnings?.total ?? 0;
+  const availableBalance = useMemo(() => {
+    if (driverAny?.wallet?.balance != null && Number(driverAny.wallet.balance) > 0) {
+      return Number(driverAny.wallet.balance);
+    }
+    if (driverAny?.earnings?.total != null && Number(driverAny.earnings.total) > 0) {
+      return Number(driverAny.earnings.total);
+    }
+    const credits = (apiTransactions || [])
+      .filter((t: any) => t.type === 'credit' || !t.type || t.isCredit)
+      .reduce((sum: number, t: any) => sum + Number(t.amount || t.driver_net_earning || 0), 0);
+    const debits = (apiTransactions || [])
+      .filter((t: any) => t.type === 'debit' || t.type === 'payout')
+      .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
+    return Math.max(0, credits - debits);
+  }, [driverAny, apiTransactions]);
+
   const pendingBalance = driverAny?.wallet?.pendingBalance ?? 0;
   
-  const displayTransactions = apiTransactions.map(tx => ({
-    id: tx.id,
-    title: tx.type === 'commission' ? 'Platform Fee' : (tx.type === 'payout' ? 'Payout' : 'Trip Payment'),
-    subtitle: tx.booking_id ? `Booking ${tx.booking_id.slice(0,8)}` : tx.type,
-    amount: tx.type === 'commission' || tx.type === 'payout' ? `-₹${Math.round(tx.amount || tx.commission_amount || 0)}` : `+₹${Math.round(tx.amount || tx.fare_amount || 0)}`,
-    isCredit: tx.type !== 'commission' && tx.type !== 'payout',
-    date: new Date(tx.created_at || tx.createdAt).toLocaleDateString(),
-    type: tx.type as any,
-    status: 'Completed' as any,
-    refNo: tx.reference || ''
-  }));
+  const displayTransactions = (apiTransactions || []).map((tx: any) => {
+    const isCredit = tx.isCredit !== undefined ? tx.isCredit : (tx.type !== 'commission' && tx.type !== 'payout' && tx.type !== 'debit');
+    const netAmount = Math.round(Number(tx.amount || tx.driver_net_earning || tx.gross_customer_fare || 0));
+    
+    let title = 'Trip Earnings';
+    if (tx.type === 'commission') title = 'Platform Fee';
+    else if (tx.type === 'payout' || tx.type === 'debit') title = 'Bank Payout (IMPS)';
+    else if (tx.type === 'bonus') title = 'Performance Bonus';
+    else if (tx.type === 'tip') title = 'Customer Direct Tip';
+
+    let subtitle = tx.description || 'OmniGo Settlement';
+    if (tx.booking_id) {
+      subtitle = `Booking #${tx.booking_id.slice(0, 8).toUpperCase()}`;
+    }
+
+    return {
+      id: tx.id || String(Math.random()),
+      title,
+      subtitle,
+      amount: isCredit ? `+₹${netAmount}` : `-₹${netAmount}`,
+      isCredit,
+      date: tx.created_at || tx.createdAt ? new Date(tx.created_at || tx.createdAt).toLocaleDateString('en-IN') : 'Recent',
+      type: (tx.type || 'trip') as any,
+      status: (tx.status || 'Completed') as any,
+      refNo: tx.reference || tx.payment_id || tx.ledger_number || ''
+    };
+  });
 
   const filteredTransactions = displayTransactions.filter(tx => {
     if (filter === 'credits') return tx.isCredit;

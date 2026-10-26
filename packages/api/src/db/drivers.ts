@@ -156,6 +156,17 @@ export async function getDriverById(id: string): Promise<any | null> {
     mapped.rating = hasRatings ? avgRating : 0;
     mapped.hasRatings = hasRatings;
     mapped.reviewCount = reviewCount;
+
+    // Attach real driver earnings and wallet balance
+    try {
+      const earnings = await getDriverEarnings(id);
+      mapped.earnings = earnings;
+      mapped.wallet = {
+        balance: earnings.total,
+        pendingBalance: 0,
+      };
+    } catch (_) {}
+
     return mapped;
   } catch (err) {
     return null;
@@ -335,25 +346,174 @@ export async function toggleDriverOnline(id: string, isOnline: boolean): Promise
   }
 }
 
-export async function getDriverEarnings(driverId: string): Promise<DriverEarnings> {
-  const empty = { today: 0, thisWeek: 0, thisMonth: 0, total: 0 };
-  if (!isSupabaseConfigured || !supabase) return empty;
+export async function syncDriverEarnings(driverId: string): Promise<DriverEarnings> {
+  const empty: DriverEarnings = { today: 0, thisWeek: 0, thisMonth: 0, total: 0 };
+  if (!isSupabaseConfigured || !supabase || !driverId) return empty;
+
   try {
+    // 1. Fetch completed bookings for this driver
+    const { data: bookings } = await supabase
+      .from('bookings')
+      .select('id, final_price, estimated_price, status, completed_at, updated_at, created_at')
+      .eq('driver_id', driverId)
+      .in('status', ['completed', 'vehicle_delivered']);
+
+    // 2. Fetch ledger entries for this driver
+    const { data: ledgerEntries } = await supabase
+      .from('ledger_entries')
+      .select('booking_id, driver_net_earning, gross_customer_fare, commission_amount, customer_tip, created_at')
+      .eq('driver_id', driverId);
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    let today = 0;
+    let thisWeek = 0;
+    let thisMonth = 0;
+    let total = 0;
+
+    const countedBookingIds = new Set<string>();
+
+    // Priority 1: Aggregate from ledger entries (official financial records)
+    (ledgerEntries || []).forEach((le: any) => {
+      if (le.booking_id) countedBookingIds.add(le.booking_id);
+      const net = Number(le.driver_net_earning || 0);
+      const time = new Date(le.created_at || now).getTime();
+
+      total += net;
+      if (time >= startOfMonth) thisMonth += net;
+      if (time >= startOfWeek) thisWeek += net;
+      if (time >= startOfToday || (now.getTime() - time) < 24 * 3600 * 1000) today += net;
+    });
+
+    // Priority 2: Also include completed bookings that don't have a ledger entry yet
+    (bookings || []).forEach((b: any) => {
+      if (!countedBookingIds.has(b.id)) {
+        const gross = Number(b.final_price || b.estimated_price || 0);
+        const net = Math.round(gross * 0.90); // 10% platform fee deducted
+        const time = new Date(b.completed_at || b.updated_at || b.created_at || now).getTime();
+
+        total += net;
+        if (time >= startOfMonth) thisMonth += net;
+        if (time >= startOfWeek) thisWeek += net;
+        if (time >= startOfToday || (now.getTime() - time) < 24 * 3600 * 1000) today += net;
+      }
+    });
+
+    const result: DriverEarnings = {
+      today: Math.round(today),
+      thisWeek: Math.round(thisWeek),
+      thisMonth: Math.round(thisMonth),
+      total: Math.round(total),
+    };
+
+    // 3. Upsert to driver_earnings table in Supabase
+    try {
+      await supabase.from('driver_earnings').upsert({
+        driver_id: driverId,
+        today: result.today,
+        this_week: result.thisWeek,
+        this_month: result.thisMonth,
+        total: result.total,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'driver_id' });
+    } catch (uErr) {
+      console.warn('upsert driver_earnings error:', uErr);
+    }
+
+    return result;
+  } catch (err) {
+    console.warn('syncDriverEarnings error:', err);
+    return empty;
+  }
+}
+
+export async function getDriverEarnings(driverId: string): Promise<DriverEarnings> {
+  const empty: DriverEarnings = { today: 0, thisWeek: 0, thisMonth: 0, total: 0 };
+  if (!isSupabaseConfigured || !supabase || !driverId) return empty;
+  try {
+    // 1. Fetch current row
     const { data, error } = await supabase
       .from('driver_earnings')
       .select('*')
       .eq('driver_id', driverId)
       .maybeSingle();
 
-    if (error || !data) return empty;
-    return {
-      today: Number(data.today || 0),
-      thisWeek: Number(data.this_week || 0),
-      thisMonth: Number(data.this_month || 0),
-      total: Number(data.total || 0),
-    };
+    if (!error && data && Number(data.total || 0) > 0) {
+      // Re-sync asynchronously in background to ensure zero staleness
+      syncDriverEarnings(driverId).catch(() => {});
+      return {
+        today: Number(data.today || 0),
+        thisWeek: Number(data.this_week || 0),
+        thisMonth: Number(data.this_month || 0),
+        total: Number(data.total || 0),
+      };
+    }
+
+    // 2. If row doesn't exist or is 0, compute immediately from completed trips
+    return await syncDriverEarnings(driverId);
   } catch (err) {
     return empty;
+  }
+}
+
+export async function getDriverWalletTransactions(driverId: string): Promise<any[]> {
+  if (!isSupabaseConfigured || !supabase || !driverId) return [];
+  try {
+    const { data: wtData } = await supabase
+      .from('wallet_transactions')
+      .select('*')
+      .eq('driver_id', driverId)
+      .order('created_at', { ascending: false });
+
+    const { data: ledgerData } = await supabase
+      .from('ledger_entries')
+      .select('*')
+      .eq('driver_id', driverId)
+      .order('created_at', { ascending: false });
+
+    const seenBookingIds = new Set<string>();
+    const transactions: any[] = [];
+
+    (wtData || []).forEach((t: any) => {
+      if (t.booking_id) seenBookingIds.add(t.booking_id);
+      transactions.push({
+        id: t.id,
+        booking_id: t.booking_id,
+        type: t.type,
+        amount: Number(t.amount || 0),
+        description: t.description || (t.type === 'credit' ? 'Trip Earnings' : 'Payout'),
+        created_at: t.created_at,
+        isCredit: t.type === 'credit',
+        reference: t.payment_id || t.settlement_id || t.utr_number || '',
+      });
+    });
+
+    (ledgerData || []).forEach((le: any) => {
+      if (!seenBookingIds.has(le.booking_id)) {
+        const net = Number(le.driver_net_earning || le.gross_customer_fare || 0);
+        transactions.push({
+          id: le.id,
+          booking_id: le.booking_id,
+          type: 'credit',
+          amount: net,
+          commission_amount: Number(le.commission_amount || 0),
+          fare_amount: Number(le.gross_customer_fare || 0),
+          description: `Trip Earnings - ${le.ledger_number || (le.booking_id ? le.booking_id.slice(0, 8) : 'Trip')}`,
+          created_at: le.created_at,
+          isCredit: true,
+          reference: le.payment_id || le.ledger_number || '',
+        });
+      }
+    });
+
+    transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return transactions;
+  } catch (err) {
+    console.warn('getDriverWalletTransactions error:', err);
+    return [];
   }
 }
 

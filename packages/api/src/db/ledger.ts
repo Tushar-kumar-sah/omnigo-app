@@ -1,21 +1,29 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
+import { syncDriverEarnings } from './drivers';
 
 export async function createLedgerEntry(data: any): Promise<any> {
   if (!isSupabaseConfigured || !supabase) return null;
   try {
+    const grossFare = Number(data.grossCustomerFare ?? data.amount ?? data.totalAmount ?? 0);
+    const commissionRate = Number(data.commissionRate ?? 0.10);
+    const commissionAmount = Number(data.commissionAmount ?? Math.round(grossFare * commissionRate));
+    const driverGross = Number(data.driverGrossEarning ?? grossFare);
+    const tip = Number(data.customerTip ?? 0);
+    const driverNet = Number(data.driverNetEarning ?? (driverGross - commissionAmount + tip));
+
     const insertPayload: any = {
       ledger_number: data.ledgerNumber || `LDG-${Date.now()}`,
       booking_id: data.bookingId || null,
       payment_id: data.paymentId || `PAY-${Date.now()}`,
       driver_id: data.driverId || null,
       driver_name: data.driverName || '—',
-      gross_customer_fare: data.grossCustomerFare || 0,
-      commission_rate: data.commissionRate || 0.10,
-      commission_amount: data.commissionAmount || 0,
+      gross_customer_fare: grossFare,
+      commission_rate: commissionRate,
+      commission_amount: commissionAmount,
       gst_on_commission: data.gstOnCommission || 0,
-      driver_gross_earning: data.driverGrossEarning || 0,
-      customer_tip: data.customerTip || 0,
-      driver_net_earning: data.driverNetEarning || 0,
+      driver_gross_earning: driverGross,
+      customer_tip: tip,
+      driver_net_earning: driverNet,
       settlement_status: data.settlementStatus || 'unsettled',
     };
 
@@ -25,7 +33,35 @@ export async function createLedgerEntry(data: any): Promise<any> {
       .select()
       .single();
 
-    if (error || !created) return null;
+    if (error || !created) {
+      console.warn('createLedgerEntry insert error:', error);
+      return null;
+    }
+
+    // 1. Create wallet credit record for driver
+    if (insertPayload.driver_id && driverNet > 0) {
+      try {
+        await supabase.from('wallet_transactions').insert({
+          driver_id: insertPayload.driver_id,
+          type: 'credit',
+          amount: driverNet,
+          description: data.description || `Trip Earnings - ${insertPayload.booking_id || insertPayload.ledger_number}`,
+          booking_id: insertPayload.booking_id,
+          payment_id: insertPayload.payment_id,
+          created_at: new Date().toISOString(),
+        });
+      } catch (wErr) {
+        console.warn('wallet_transactions credit insert error:', wErr);
+      }
+
+      // 2. Real-time sync of driver_earnings table
+      try {
+        await syncDriverEarnings(insertPayload.driver_id);
+      } catch (sErr) {
+        console.warn('syncDriverEarnings error:', sErr);
+      }
+    }
+
     return created;
   } catch (err) {
     console.warn('createLedgerEntry error:', err);
@@ -101,6 +137,23 @@ export async function createSettlement(data: any): Promise<any> {
       .single();
 
     if (error || !created) return null;
+
+    // Record wallet debit for payout
+    if (insertPayload.driver_id && Number(insertPayload.net_payable || 0) > 0) {
+      try {
+        await supabase.from('wallet_transactions').insert({
+          driver_id: insertPayload.driver_id,
+          type: 'debit',
+          amount: Number(insertPayload.net_payable),
+          description: `Bank Payout (${insertPayload.settlement_number})`,
+          settlement_id: insertPayload.settlement_number,
+          created_at: new Date().toISOString(),
+        });
+      } catch (wErr) {
+        console.warn('wallet_transactions debit insert error:', wErr);
+      }
+    }
+
     return created;
   } catch (err) {
     return null;

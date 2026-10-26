@@ -8,16 +8,18 @@ import { THEME } from '@/constants/theme';
 
 import { updateBookingStatus, getBookingById, Booking } from '@omnigo/api';
 import { useLocalSearchParams } from 'expo-router';
+import { getAuthenticatedDriverId } from '@/lib/auth';
 
 export default function CompleteScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const jobId = (params.id as string);
-  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
 
   const [rating, setRating] = useState(0);
   const [notes, setNotes] = useState('');
   const [booking, setBooking] = useState<Booking | null>(null);
+
+  const DRIVER_ID = booking?.driverId || getAuthenticatedDriverId();
 
   useEffect(() => {
     async function loadData() {
@@ -41,17 +43,22 @@ export default function CompleteScreen() {
     }
   };
 
+  const grossFare = Number(booking?.finalPrice || booking?.estimatedPrice || 0);
+  const commissionRate = 0.10;
+  const commissionAmount = Math.round(grossFare * commissionRate);
+  const netEarnings = grossFare - commissionAmount;
+
   const jobData = booking ? {
     distance: booking.distance ? booking.distance + ' km' : '—',
     duration: booking.estimatedETA ? booking.estimatedETA + ' mins' : '—',
-    driverEarnings: `₹${booking.finalPrice || booking.estimatedPrice || 0}`,
-    customerPayment: `₹${booking.estimatedPrice || 0}`,
-    baseFare: `₹${Math.round((booking.estimatedPrice || 0) * 0.7)}`,
-    distanceFare: `₹${Math.round((booking.estimatedPrice || 0) * 0.2)}`,
+    driverEarnings: `₹${netEarnings}`,
+    customerPayment: `₹${grossFare}`,
+    baseFare: `₹${Math.round(grossFare * 0.7)}`,
+    distanceFare: `₹${Math.round(grossFare * 0.2)}`,
     tip: '₹0',
     platformCommissionRate: '10%',
-    platformFee: '₹0',
-    customerName: 'Customer'
+    platformFee: `₹${commissionAmount}`,
+    customerName: booking.user?.name || 'Customer'
   } : null;
 
   if (!jobData) {

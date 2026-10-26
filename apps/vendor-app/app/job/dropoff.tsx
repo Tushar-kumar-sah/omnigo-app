@@ -8,15 +8,17 @@ import { THEME } from '@/constants/theme';
 
 import { updateBookingStatus, createLedgerEntry, getLedgerByBooking, getBookingById, Booking } from '@omnigo/api';
 import { useLocalSearchParams } from 'expo-router';
+import { getAuthenticatedDriverId } from '@/lib/auth';
 
 export default function DropoffScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const jobId = (params.id as string);
-  const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001'; // TODO: Replace with authenticated driver ID
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
+
+  const DRIVER_ID = booking?.driverId || getAuthenticatedDriverId();
 
   useEffect(() => {
     async function loadData() {
@@ -34,16 +36,27 @@ export default function DropoffScreen() {
 
   const handleComplete = async () => {
     try {
-      const totalAmount = booking?.finalPrice || booking?.estimatedPrice || 0;
-      await updateBookingStatus(jobId, 'completed', { finalPrice: totalAmount });
+      const grossFare = Number(booking?.finalPrice || booking?.estimatedPrice || 0);
+      const commissionRate = 0.10;
+      const commissionAmount = Math.round(grossFare * commissionRate);
+      const netEarning = grossFare - commissionAmount;
+      const effectiveDriverId = booking?.driverId || getAuthenticatedDriverId();
+
+      await updateBookingStatus(jobId, 'completed', { finalPrice: grossFare });
       if (booking) {
         await createLedgerEntry({
           bookingId: jobId,
-          driverId: DRIVER_ID,
-          amount: totalAmount,
+          driverId: effectiveDriverId,
+          grossCustomerFare: grossFare,
+          commissionRate: commissionRate,
+          commissionAmount: commissionAmount,
+          driverGrossEarning: grossFare,
+          driverNetEarning: netEarning,
+          amount: netEarning,
           type: 'credit',
-          description: `Trip ${jobId} Net Earning`,
-          status: 'Completed'
+          description: `Trip Earnings - ${booking.bookingNumber || jobId.slice(0, 8)}`,
+          status: 'Completed',
+          settlementStatus: 'unsettled',
         });
       }
       router.push({ pathname: '/job/complete', params: { id: jobId } });
@@ -53,15 +66,20 @@ export default function DropoffScreen() {
     }
   };
 
+  const grossFare = Number(booking?.finalPrice || booking?.estimatedPrice || 0);
+  const commissionRate = 0.10;
+  const commissionAmount = Math.round(grossFare * commissionRate);
+  const netEarnings = grossFare - commissionAmount;
+
   const jobData = booking ? {
     distance: booking.distance ? `${booking.distance} km` : '—',
     duration: booking.estimatedETA ? `${booking.estimatedETA} mins` : '—',
     vehiclePlate: booking.customerVehicle?.number || '—',
-    customerPayment: `₹${booking.finalPrice || booking.estimatedPrice || 0}`,
-    platformFee: '₹0',
+    customerPayment: `₹${grossFare}`,
+    platformFee: `₹${commissionAmount}`,
     platformCommissionRate: '10%',
     tip: '₹0',
-    driverEarnings: `₹${booking.finalPrice || booking.estimatedPrice || 0}`
+    driverEarnings: `₹${netEarnings}`
   } : null;
 
   if (!jobData) {

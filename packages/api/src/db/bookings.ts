@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { Booking, BookingStatus } from '../types';
+import { syncDriverEarnings } from './drivers';
 
 export const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
   'pending',
@@ -324,6 +325,9 @@ export async function updateBookingStatus(id: string, status: BookingStatus, ext
   try {
     const isUuid = UUID_REGEX.test(id);
     const updatePayload: any = { status, updated_at: new Date().toISOString() };
+    if (status === 'completed') {
+      updatePayload.completed_at = new Date().toISOString();
+    }
     if (extraData?.finalPrice) updatePayload.final_price = extraData.finalPrice;
     if (extraData?.driverRating) updatePayload.driver_rating = extraData.driverRating;
 
@@ -346,9 +350,17 @@ export async function updateBookingStatus(id: string, status: BookingStatus, ext
           .ilike('booking_number', `%${id}%`)
           .select('*, users(name, phone), drivers(name, vehicle_plate)')
           .maybeSingle();
-        if (fallback) return mapDbBookingToBooking(fallback);
+        if (fallback) {
+          if (status === 'completed' && fallback.driver_id) {
+            syncDriverEarnings(fallback.driver_id).catch(() => {});
+          }
+          return mapDbBookingToBooking(fallback);
+        }
       }
       return null;
+    }
+    if (status === 'completed' && updated.driver_id) {
+      syncDriverEarnings(updated.driver_id).catch(() => {});
     }
     return mapDbBookingToBooking(updated);
   } catch (err) {
