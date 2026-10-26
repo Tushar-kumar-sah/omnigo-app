@@ -197,8 +197,8 @@ export default function EarningsScreen() {
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <Text style={styles.title}>Earnings & Wallet</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>
-            Track revenue, commissions & bank payouts
+          <Text style={styles.subtitle}>
+            Track revenue, commissions & payouts
           </Text>
         </View>
         <View style={styles.statusPill}>
@@ -290,27 +290,29 @@ export default function EarningsScreen() {
             {/* Operational Metrics Row */}
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
-                <Ionicons name="car-sport" size={18} color={THEME.colors.primary} />
+                <Ionicons name="car-sport" size={16} color={THEME.colors.primary} />
                 <Text style={styles.statBoxValue}>{currentData.trips}</Text>
-                <Text style={styles.statBoxLabel}>Trips</Text>
+                <Text style={styles.statBoxLabel} numberOfLines={1}>Trips</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Ionicons name="time" size={18} color={THEME.colors.secondary} />
+                <Ionicons name="time" size={16} color={THEME.colors.secondary} />
                 <Text style={styles.statBoxValue}>{currentData.online}</Text>
-                <Text style={styles.statBoxLabel}>Online Hrs</Text>
+                <Text style={styles.statBoxLabel} numberOfLines={1}>Online Hrs</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Ionicons name="speedometer" size={18} color={THEME.colors.success} />
+                <Ionicons name="speedometer" size={16} color={THEME.colors.success} />
                 <Text style={styles.statBoxValue}>{currentData.distance}</Text>
-                <Text style={styles.statBoxLabel}>Distance</Text>
+                <Text style={styles.statBoxLabel} numberOfLines={1}>Distance</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Ionicons name="checkmark-done" size={18} color={THEME.colors.primary} />
-                <Text style={styles.statBoxValue}>{driverData.acceptance_rate || driverData.acceptanceRate || 100}%</Text>
-                <Text style={styles.statBoxLabel}>Acceptance</Text>
+                <Ionicons name="checkmark-done" size={16} color={THEME.colors.primary} />
+                <Text style={styles.statBoxValue}>
+                  {String(driverData.acceptance_rate || driverData.acceptanceRate || 100).replace(/%/g, '')}%
+                </Text>
+                <Text style={styles.statBoxLabel} numberOfLines={1}>Accept Rate</Text>
               </View>
             </View>
           </CardWrapper>
@@ -319,21 +321,21 @@ export default function EarningsScreen() {
           <Text style={styles.sectionTitle}>Commission & Fare Breakdown</Text>
           <CardWrapper style={styles.breakdownCard}>
             <View style={styles.feeRow}>
-              <Text style={styles.feeLabel}>Gross Customer Payments</Text>
+              <Text style={styles.feeLabel} numberOfLines={1}>Gross Customer Payments</Text>
               <Text style={styles.feeValue}>₹{periodData.grossFare}</Text>
             </View>
             <View style={styles.feeRow}>
-              <Text style={styles.feeLabel}>OmniGo Platform Commission (10%)</Text>
+              <Text style={styles.feeLabel} numberOfLines={1}>OmniGo Commission (10%)</Text>
               <Text style={[styles.feeValue, { color: THEME.colors.danger }]}>-₹{periodData.commissionFee}</Text>
             </View>
             <View style={styles.feeRow}>
-              <Text style={styles.feeLabel}>Customer Tips Received (100% to Driver)</Text>
+              <Text style={styles.feeLabel} numberOfLines={1}>Direct Customer Tips (100%)</Text>
               <Text style={[styles.feeValue, { color: THEME.colors.success }]}>+₹{periodData.tips}</Text>
             </View>
             <View style={styles.divider} />
-            <View style={styles.feeRow}>
-              <Text style={[styles.feeLabel, { fontFamily: THEME.fonts.outfit.bold, color: '#fff' }]}>Your Take-Home Earnings</Text>
-              <Text style={[styles.feeValue, { fontFamily: THEME.fonts.outfit.bold, color: THEME.colors.success, fontSize: 16 }]}>{currentData.amount}</Text>
+            <View style={[styles.feeRow, { paddingTop: 6 }]}>
+              <Text style={styles.feeTotalLabel} numberOfLines={1}>Your Net Take-Home</Text>
+              <Text style={styles.feeTotalValue}>{currentData.amount}</Text>
             </View>
           </CardWrapper>
 
@@ -588,51 +590,57 @@ const styles = StyleSheet.create({
     borderRadius: THEME.borderRadius.lg,
     borderWidth: 1,
     borderColor: THEME.colors.glassBorder,
-    padding: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
     alignItems: 'center',
     marginBottom: 20,
     overflow: 'hidden',
   },
   periodLabel: {
     fontFamily: THEME.fonts.inter.medium,
-    fontSize: 14,
+    fontSize: 13,
     color: THEME.colors.textSecondary,
     marginBottom: 4,
   },
   amountText: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 42,
+    fontSize: 40,
     color: THEME.colors.success,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     width: '100%',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
   statBox: {
     alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
+    paddingHorizontal: 2,
   },
   statDivider: {
     width: 1,
-    height: 28,
+    height: 26,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   statBoxValue: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 15,
+    fontSize: 14,
     color: THEME.colors.text,
     marginTop: 4,
+    textAlign: 'center',
   },
   statBoxLabel: {
-    fontFamily: THEME.fonts.inter.regular,
-    fontSize: 11,
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 10.5,
     color: THEME.colors.textSecondary,
     marginTop: 2,
+    textAlign: 'center',
   },
   sectionTitle: {
     fontFamily: THEME.fonts.outfit.bold,
@@ -653,7 +661,8 @@ const styles = StyleSheet.create({
     borderRadius: THEME.borderRadius.md,
     borderWidth: 1,
     borderColor: THEME.colors.glassBorder,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 20,
     overflow: 'hidden',
   },
@@ -661,19 +670,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 7,
+    minHeight: 28,
   },
   feeLabel: {
     fontFamily: THEME.fonts.inter.regular,
     fontSize: 13,
     color: THEME.colors.textSecondary,
     flex: 1,
-    paddingRight: 8,
+    paddingRight: 10,
   },
   feeValue: {
-    fontFamily: THEME.fonts.inter.bold,
-    fontSize: 13,
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 14,
     color: THEME.colors.text,
+    textAlign: 'right',
+    flexShrink: 0,
+  },
+  feeTotalLabel: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 15,
+    color: '#fff',
+    flex: 1,
+    paddingRight: 10,
+  },
+  feeTotalValue: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 18,
+    color: THEME.colors.success,
     textAlign: 'right',
     flexShrink: 0,
   },
