@@ -24,8 +24,10 @@ import {
   Easing,
   Modal,
   Vibration,
+  Platform,
 } from 'react-native';
 import { THEME } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,12 +35,28 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
+  const { isDark, colors } = useTheme();
   const [isOnline, setIsOnline] = useState(false);
   const [showJobPopup, setShowJobPopup] = useState(false);
   const [countdown, setCountdown] = useState(20);
   const [jobAccepted, setJobAccepted] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  const CardWrapper = ({ children, style }: { children: React.ReactNode; style: any }) => {
+    if (Platform.OS === 'android') {
+      return (
+        <View style={[style, { backgroundColor: isDark ? '#0d1428' : '#FFFFFF', borderColor: colors.cardBorder }]}>
+          {children}
+        </View>
+      );
+    }
+    return (
+      <BlurView intensity={25} tint={isDark ? 'dark' : 'light'} style={[style, !isDark && { backgroundColor: 'rgba(255, 255, 255, 0.95)', borderColor: colors.cardBorder }]}>
+        {children}
+      </BlurView>
+    );
+  };
 
   const [driver, setDriver] = useState<Driver | null>(null);
   const [todayJobs, setTodayJobs] = useState<Booking[]>([]);
@@ -412,7 +430,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 10, 50), paddingBottom: Math.max(insets.bottom + 140, 160) }]}
         showsVerticalScrollIndicator={false}
@@ -420,33 +438,33 @@ export default function HomeScreen() {
         {/* Greeting */}
         <View style={styles.greetingRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>Hello, Driver 👋</Text>
-            <Text style={styles.greetingSub}>Ready to hit the road?</Text>
+            <Text style={[styles.greeting, { color: colors.text }]}>Hello, Driver 👋</Text>
+            <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>Ready to hit the road?</Text>
           </View>
           <TouchableOpacity 
-            style={styles.notifBtn} 
+            style={[styles.notifBtn, { backgroundColor: colors.pillBg }]} 
             activeOpacity={0.7}
             onPress={() => router.push('/notifications')}
           >
-            <Ionicons name="notifications-outline" size={22} color="#fff" />
+            <Ionicons name="notifications-outline" size={22} color={colors.text} />
             <View style={styles.notifDot} />
           </TouchableOpacity>
         </View>
 
         {/* Active Job in Progress Banner */}
         {activeJob && (
-          <BlurView intensity={25} tint="dark" style={styles.activeJobCard}>
+          <CardWrapper style={[styles.activeJobCard, { backgroundColor: isDark ? 'rgba(0, 207, 255, 0.08)' : 'rgba(0, 149, 217, 0.08)', borderColor: colors.cardBorder }]}>
             <View style={styles.activeJobHeader}>
               <View style={styles.activeJobBadge}>
                 <View style={styles.activeJobPulseDot} />
                 <Text style={styles.activeJobBadgeText}>JOB IN PROGRESS</Text>
               </View>
-              <Text style={styles.activeJobNumber}>{(activeJob as any)?.bookingNumber || `Order #${activeJob.id.slice(0, 8)}`}</Text>
+              <Text style={[styles.activeJobNumber, { color: colors.text }]}>{(activeJob as any)?.bookingNumber || `Order #${activeJob.id.slice(0, 8)}`}</Text>
             </View>
             <View style={styles.activeJobBody}>
               <View style={{ flex: 1, marginRight: 12 }}>
-                <Text style={styles.activeJobRouteLabel}>PICKUP LOCATION</Text>
-                <Text style={styles.activeJobAddress} numberOfLines={1}>
+                <Text style={[styles.activeJobRouteLabel, { color: colors.textSecondary }]}>PICKUP LOCATION</Text>
+                <Text style={[styles.activeJobAddress, { color: colors.text }]} numberOfLines={1}>
                   {activeJob.pickup?.address || 'Pickup in progress'}
                 </Text>
               </View>
@@ -459,16 +477,16 @@ export default function HomeScreen() {
                 <Text style={styles.resumeNavBtnText}>Resume</Text>
               </TouchableOpacity>
             </View>
-          </BlurView>
+          </CardWrapper>
         )}
 
         {/* Go Online / Offline Card */}
-        <BlurView intensity={25} tint="dark" style={styles.onlineCard}>
+        <CardWrapper style={[styles.onlineCard, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
           <View style={styles.onlineLeft}>
             <View style={[styles.statusDot, { backgroundColor: isOnline ? '#00FF97' : '#FF4D4D' }]} />
             <View>
-              <Text style={styles.onlineStatus}>{isOnline ? 'You are Online' : 'You are Offline'}</Text>
-              <Text style={styles.onlineHint}>
+              <Text style={[styles.onlineStatus, { color: colors.text }]}>{isOnline ? 'You are Online' : 'You are Offline'}</Text>
+              <Text style={[styles.onlineHint, { color: colors.textSecondary }]}>
                 {isOnline ? 'Waiting for new jobs...' : 'Go online to receive jobs'}
               </Text>
             </View>
@@ -476,75 +494,75 @@ export default function HomeScreen() {
           <Switch
             value={isOnline}
             onValueChange={handleToggleOnline}
-            trackColor={{ false: '#333', true: 'rgba(0,255,151,0.3)' }}
+            trackColor={{ false: isDark ? '#333' : '#ddd', true: 'rgba(0,255,151,0.3)' }}
             thumbColor={isOnline ? '#00FF97' : '#ccc'}
           />
-        </BlurView>
+        </CardWrapper>
 
         {/* Today's Summary */}
-        <BlurView intensity={20} tint="dark" style={styles.summaryCard}>
-          <Text style={styles.sectionTitle}>Today's Summary</Text>
+        <CardWrapper style={[styles.summaryCard, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Summary</Text>
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Ionicons name="wallet-outline" size={22} color="#00FF97" />
-              <Text style={styles.statValue}>₹{todayEarningsAmount}</Text>
-              <Text style={styles.statLabel}>Earnings</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>₹{todayEarningsAmount}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Earnings</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
             <View style={styles.statBox}>
-              <Ionicons name="car-outline" size={22} color={THEME.colors.primary} />
-              <Text style={styles.statValue}>{todayJobs.length}</Text>
-              <Text style={styles.statLabel}>Jobs Done</Text>
+              <Ionicons name="car-outline" size={22} color={colors.primary} />
+              <Text style={[styles.statValue, { color: colors.text }]}>{todayJobs.length}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Jobs Done</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
             <View style={styles.statBox}>
               <Ionicons name="star" size={22} color={reviewStats.hasRatings ? "#FFD60A" : "rgba(255,255,255,0.35)"} />
-              <Text style={styles.statValue}>{reviewStats.ratingText}</Text>
-              <Text style={styles.statLabel}>{reviewStats.reviewLabel}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{reviewStats.ratingText}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{reviewStats.reviewLabel}</Text>
             </View>
           </View>
-        </BlurView>
+        </CardWrapper>
 
         {/* Quick Actions */}
-        <Text style={styles.sectionTitleStandalone}>Quick Actions</Text>
+        <Text style={[styles.sectionTitleStandalone, { color: colors.text }]}>Quick Actions</Text>
         <View style={styles.actionsGrid}>
-          <TouchableOpacity style={styles.actionCard} activeOpacity={0.8} onPress={() => router.push('/job/incoming')}>
+          <TouchableOpacity style={[styles.actionCard, !isDark && { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.cardBorder }]} activeOpacity={0.8} onPress={() => router.push('/job/incoming')}>
             <LinearGradient colors={['rgba(0,207,255,0.12)', 'rgba(0,207,255,0.04)']} style={styles.actionGradient}>
-              <View style={styles.actionIcon}><Ionicons name="flash" size={24} color={THEME.colors.primary} /></View>
-              <Text style={styles.actionText}>New Job</Text>
-              <Text style={styles.actionHint}>Demo request</Text>
+              <View style={styles.actionIcon}><Ionicons name="flash" size={24} color={colors.primary} /></View>
+              <Text style={[styles.actionText, { color: colors.text }]}>New Job</Text>
+              <Text style={[styles.actionHint, { color: colors.textSecondary }]}>Demo request</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard} activeOpacity={0.8} onPress={() => router.push('/(tabs)/earnings')}>
+          <TouchableOpacity style={[styles.actionCard, !isDark && { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.cardBorder }]} activeOpacity={0.8} onPress={() => router.push('/(tabs)/earnings')}>
             <LinearGradient colors={['rgba(0,255,151,0.12)', 'rgba(0,255,151,0.04)']} style={styles.actionGradient}>
               <View style={[styles.actionIcon, { backgroundColor: 'rgba(0,255,151,0.12)' }]}><Ionicons name="trending-up" size={24} color="#00FF97" /></View>
-              <Text style={styles.actionText}>Earnings</Text>
-              <Text style={styles.actionHint}>View details</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>Earnings</Text>
+              <Text style={[styles.actionHint, { color: colors.textSecondary }]}>View details</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard} activeOpacity={0.8} onPress={() => router.push('/(tabs)/history')}>
+          <TouchableOpacity style={[styles.actionCard, !isDark && { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.cardBorder }]} activeOpacity={0.8} onPress={() => router.push('/(tabs)/history')}>
             <LinearGradient colors={['rgba(255,214,10,0.12)', 'rgba(255,214,10,0.04)']} style={styles.actionGradient}>
               <View style={[styles.actionIcon, { backgroundColor: 'rgba(255,214,10,0.12)' }]}><Ionicons name="time" size={24} color="#FFD60A" /></View>
-              <Text style={styles.actionText}>History</Text>
-              <Text style={styles.actionHint}>Past jobs</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>History</Text>
+              <Text style={[styles.actionHint, { color: colors.textSecondary }]}>Past jobs</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard} activeOpacity={0.8} onPress={() => router.push('/(tabs)/profile')}>
+          <TouchableOpacity style={[styles.actionCard, !isDark && { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.cardBorder }]} activeOpacity={0.8} onPress={() => router.push('/(tabs)/profile')}>
             <LinearGradient colors={['rgba(168,85,247,0.12)', 'rgba(168,85,247,0.04)']} style={styles.actionGradient}>
               <View style={[styles.actionIcon, { backgroundColor: 'rgba(168,85,247,0.12)' }]}><Ionicons name="person" size={24} color="#A855F7" /></View>
-              <Text style={styles.actionText}>Profile</Text>
-              <Text style={styles.actionHint}>Your info</Text>
+              <Text style={[styles.actionText, { color: colors.text }]}>Profile</Text>
+              <Text style={[styles.actionHint, { color: colors.textSecondary }]}>Your info</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
 
         {/* Recent Job */}
-        <Text style={styles.sectionTitleStandalone}>Recent Job</Text>
+        <Text style={[styles.sectionTitleStandalone, { color: colors.text }]}>Recent Job</Text>
         {todayJobs.length > 0 ? (
-          <BlurView intensity={20} tint="dark" style={styles.recentCard}>
+          <CardWrapper style={[styles.recentCard, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
             <View style={styles.recentTop}>
               <View style={styles.recentBadge}><Text style={styles.recentBadgeText}>COMPLETED</Text></View>
               <Text style={styles.recentEarning}>+₹{todayJobs[0].finalPrice || todayJobs[0].estimatedPrice || 0}</Text>
@@ -556,30 +574,30 @@ export default function HomeScreen() {
                 <View style={styles.redDot} />
               </View>
               <View style={styles.routeTexts}>
-                <Text style={styles.routeText}>{todayJobs[0].pickup?.address || '—'}</Text>
-                <Text style={[styles.routeText, { marginTop: 18 }]}>{todayJobs[0].dropoff?.address || '—'}</Text>
+                <Text style={[styles.routeText, { color: colors.text }]}>{todayJobs[0].pickup?.address || '—'}</Text>
+                <Text style={[styles.routeText, { color: colors.textSecondary, marginTop: 18 }]}>{todayJobs[0].dropoff?.address || '—'}</Text>
               </View>
             </View>
             <View style={styles.recentMeta}>
-              <View style={styles.metaItem}><Ionicons name="navigate-outline" size={14} color={THEME.colors.textSecondary} /><Text style={styles.metaText}>—</Text></View>
-              <View style={styles.metaItem}><Ionicons name="time-outline" size={14} color={THEME.colors.textSecondary} /><Text style={styles.metaText}>—</Text></View>
-              <View style={styles.metaItem}><Ionicons name="star" size={14} color="#FFD60A" /><Text style={styles.metaText}>—</Text></View>
+              <View style={styles.metaItem}><Ionicons name="navigate-outline" size={14} color={colors.textSecondary} /><Text style={[styles.metaText, { color: colors.textSecondary }]}>—</Text></View>
+              <View style={styles.metaItem}><Ionicons name="time-outline" size={14} color={colors.textSecondary} /><Text style={[styles.metaText, { color: colors.textSecondary }]}>—</Text></View>
+              <View style={styles.metaItem}><Ionicons name="star" size={14} color="#FFD60A" /><Text style={[styles.metaText, { color: colors.textSecondary }]}>—</Text></View>
             </View>
-          </BlurView>
+          </CardWrapper>
         ) : (
-          <BlurView intensity={20} tint="dark" style={[styles.recentCard, { alignItems: 'center', paddingVertical: 30 }]}>
-            <Text style={{ color: 'rgba(255,255,255,0.5)' }}>No recent jobs</Text>
-          </BlurView>
+          <CardWrapper style={[styles.recentCard, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder, alignItems: 'center', paddingVertical: 30 }]}>
+            <Text style={{ color: colors.textSecondary }}>No recent jobs</Text>
+          </CardWrapper>
         )}
 
         {/* Tip */}
-        <BlurView intensity={15} tint="dark" style={styles.tipCard}>
+        <CardWrapper style={[styles.tipCard, { backgroundColor: isDark ? 'rgba(255,214,10,0.04)' : 'rgba(217, 119, 6, 0.06)', borderColor: colors.cardBorder }]}>
           <Ionicons name="bulb-outline" size={20} color="#FFD60A" />
           <View style={styles.tipContent}>
             <Text style={styles.tipTitle}>💡 Tip</Text>
-            <Text style={styles.tipText}>Stay online during peak hours (8-10 AM, 5-8 PM) to get more jobs and earn extra!</Text>
+            <Text style={[styles.tipText, { color: colors.textSecondary }]}>Stay online during peak hours (8-10 AM, 5-8 PM) to get more jobs and earn extra!</Text>
           </View>
-        </BlurView>
+        </CardWrapper>
 
         <View style={{ height: 80 }} />
       </ScrollView>

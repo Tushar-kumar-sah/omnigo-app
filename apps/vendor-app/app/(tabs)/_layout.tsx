@@ -1,11 +1,13 @@
 import { Tabs } from 'expo-router';
 import { THEME } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   // On Android with 3-button navigation, insets.bottom is typically 24-48px.
   // When insets.bottom is 0 (or undefined), provide standard 10px padding.
@@ -24,14 +26,18 @@ export default function TabLayout() {
           right: 0,
           height: TAB_BAR_HEIGHT,
           borderTopWidth: 1,
-          borderTopColor: 'rgba(255, 255, 255, 0.08)',
-          backgroundColor: Platform.OS === 'android' ? '#080d19' : 'rgba(8, 13, 25, 0.95)',
-          elevation: 0,
+          borderTopColor: colors.divider,
+          backgroundColor: Platform.OS === 'android' ? (isDark ? '#080d19' : '#FFFFFF') : (isDark ? 'rgba(8, 13, 25, 0.95)' : 'rgba(255, 255, 255, 0.95)'),
+          elevation: isDark ? 0 : 8,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: isDark ? 0 : 0.08,
+          shadowRadius: 8,
           paddingTop: 8,
           paddingBottom: TAB_PADDING_BOTTOM,
         },
-        tabBarActiveTintColor: THEME.colors.primary,
-        tabBarInactiveTintColor: THEME.colors.textSecondary,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelStyle: {
           fontFamily: 'Inter_500Medium',
           fontSize: 10,
@@ -46,7 +52,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'map' : 'map-outline'} size={22} color={color as any} />
-              {focused && <View style={styles.activeDot} />}
+              {focused && <View style={[styles.activeDot, { backgroundColor: colors.success }]} />}
             </View>
           ),
         }}
@@ -58,7 +64,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'trending-up' : 'trending-up-outline'} size={22} color={color as any} />
-              {focused && <View style={styles.activeDot} />}
+              {focused && <View style={[styles.activeDot, { backgroundColor: colors.success }]} />}
             </View>
           ),
         }}
@@ -70,7 +76,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={22} color={color as any} />
-              {focused && <View style={styles.activeDot} />}
+              {focused && <View style={[styles.activeDot, { backgroundColor: colors.success }]} />}
             </View>
           ),
         }}
@@ -82,7 +88,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'time' : 'time-outline'} size={22} color={color as any} />
-              {focused && <View style={styles.activeDot} />}
+              {focused && <View style={[styles.activeDot, { backgroundColor: colors.success }]} />}
             </View>
           ),
         }}
@@ -94,7 +100,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color as any} />
-              {focused && <View style={styles.activeDot} />}
+              {focused && <View style={[styles.activeDot, { backgroundColor: colors.success }]} />}
             </View>
           ),
         }}

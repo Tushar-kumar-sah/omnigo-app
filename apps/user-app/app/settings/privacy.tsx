@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 const PRIVACY_SECTIONS = [
   {
@@ -60,23 +61,24 @@ const PRIVACY_SECTIONS = [
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient
-        colors={['#050810', '#0a1222', '#050810']}
+        colors={colors.gradient}
         style={StyleSheet.absoluteFill}
       />
       
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20), borderBottomColor: colors.divider }]}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, !isDark && { backgroundColor: colors.pillBg }]}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Policy</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Privacy Policy</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -93,22 +95,22 @@ export default function PrivacyPolicyScreen() {
             <MaterialCommunityIcons name="shield-check" size={48} color="#00FF97" />
             <View style={styles.glowEffect} />
           </View>
-          <Text style={styles.lastUpdatedText}>Effective: August 1, 2026</Text>
-          <Text style={styles.introText}>
+          <Text style={[styles.lastUpdatedText, { color: colors.textSecondary }]}>Effective: August 1, 2026</Text>
+          <Text style={[styles.introText, { color: colors.textSecondary }]}>
             We value your privacy and are committed to protecting your personal information.
           </Text>
         </View>
 
         {PRIVACY_SECTIONS.map((section) => (
-          <View key={section.id} style={styles.glassCard}>
+          <View key={section.id} style={[styles.glassCard, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
             <View style={styles.sectionHeader}>
               <View style={styles.iconContainer}>
                 <MaterialCommunityIcons name={section.icon as any} size={24} color="#00CFFF" />
               </View>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
             </View>
-            <View style={styles.separator} />
-            <Text style={styles.sectionContent}>{section.content}</Text>
+            <View style={[styles.separator, { backgroundColor: colors.divider }]} />
+            <Text style={[styles.sectionContent, { color: colors.textSecondary }]}>{section.content}</Text>
           </View>
         ))}
       </ScrollView>

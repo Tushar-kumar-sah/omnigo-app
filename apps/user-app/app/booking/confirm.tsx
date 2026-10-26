@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Location from 'expo-location';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { createNewBooking, fetchCurrentUser, fetchActiveBooking, initiateCashfreePayment, recordPaymentSuccess } from '@/lib/api';
 import CashfreePaymentModal from '@/components/CashfreePaymentModal';
 import { getPricingRules } from '@omnigo/api';
@@ -26,6 +27,7 @@ type PaymentId = typeof PAYMENT_METHODS[number]['id'];
 export default function ConfirmBookingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const params = useLocalSearchParams();
 
   const [selectedPayment, setSelectedPayment] = useState<PaymentId>('upi');
@@ -271,15 +273,15 @@ export default function ConfirmBookingScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Confirm & Pay</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Confirm & Pay</Text>
         <View style={{ width: 40 }} />
       </View>
 

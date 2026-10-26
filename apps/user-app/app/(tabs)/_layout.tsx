@@ -3,10 +3,12 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchCurrentUser, fetchActiveBooking } from '@/lib/api';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isDark, colors } = useTheme();
 
   // On Android with 3-button navigation, insets.bottom is typically 24-48px.
   // When insets.bottom is 0 (or undefined), provide standard 10px padding.
@@ -25,14 +27,18 @@ export default function TabLayout() {
           right: 0,
           height: TAB_BAR_HEIGHT,
           borderTopWidth: 1,
-          borderTopColor: 'rgba(255, 255, 255, 0.08)',
-          backgroundColor: Platform.OS === 'android' ? '#050810' : 'rgba(5, 8, 16, 0.95)',
-          elevation: 0,
+          borderTopColor: colors.divider,
+          backgroundColor: Platform.OS === 'android' ? (isDark ? '#050810' : '#FFFFFF') : (isDark ? 'rgba(5, 8, 16, 0.95)' : 'rgba(255, 255, 255, 0.95)'),
+          elevation: isDark ? 0 : 8,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: isDark ? 0 : 0.08,
+          shadowRadius: 8,
           paddingTop: 8,
           paddingBottom: TAB_PADDING_BOTTOM,
         },
-        tabBarActiveTintColor: '#00FF97',
-        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.5)',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelStyle: {
           fontFamily: 'Inter_500Medium',
           fontSize: 10,
@@ -48,7 +54,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color as any} />
-              {focused && <View style={styles.activeIndicator} />}
+              {focused && <View style={[styles.activeIndicator, { backgroundColor: colors.primary }]} />}
             </View>
           ),
         }}
@@ -62,7 +68,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'navigate' : 'navigate-outline'} size={22} color={color as any} />
-              {focused && <View style={styles.activeIndicator} />}
+              {focused && <View style={[styles.activeIndicator, { backgroundColor: colors.primary }]} />}
             </View>
           ),
         }}
@@ -74,14 +80,14 @@ export default function TabLayout() {
         options={{
           title: 'Book',
           tabBarIcon: ({ focused }) => (
-            <View style={styles.centerBookBadge}>
-              <MaterialCommunityIcons name="tow-truck" size={26} color="#000000" />
+            <View style={[styles.centerBookBadge, { backgroundColor: colors.primary }]}>
+              <MaterialCommunityIcons name="tow-truck" size={26} color="#FFFFFF" />
             </View>
           ),
           tabBarLabelStyle: {
             fontFamily: 'Outfit_700Bold',
             fontSize: 10,
-            color: '#FFFFFF',
+            color: colors.text,
             marginTop: 4,
           },
         }}
@@ -114,7 +120,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'time' : 'time-outline'} size={22} color={color as any} />
-              {focused && <View style={styles.activeIndicator} />}
+              {focused && <View style={[styles.activeIndicator, { backgroundColor: colors.primary }]} />}
             </View>
           ),
         }}
@@ -128,7 +134,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'settings' : 'settings-outline'} size={22} color={color as any} />
-              {focused && <View style={styles.activeIndicator} />}
+              {focused && <View style={[styles.activeIndicator, { backgroundColor: colors.primary }]} />}
             </View>
           ),
         }}
@@ -153,7 +159,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#00FF97',
+    backgroundColor: '#00CFFF',
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 4,

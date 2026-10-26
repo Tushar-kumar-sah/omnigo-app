@@ -8,6 +8,7 @@ import {
   Pressable,
 } from 'react-native';
 import { THEME } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -35,6 +36,7 @@ interface DriverNotification {
 export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const DRIVER_ID = getAuthenticatedDriverId();
 
   const [notifications, setNotifications] = useState<DriverNotification[]>([]);
@@ -124,15 +126,15 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 50) }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={THEME.colors.text} />
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 50), borderBottomColor: colors.divider }]}>
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.pillBg, borderColor: colors.cardBorder }]} onPress={() => router.back()} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
         
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.title}>Notifications</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Notifications</Text>
           {unreadCount > 0 && (
             <View style={styles.badgePill}>
               <Text style={styles.badgeText}>{unreadCount} new</Text>
@@ -219,9 +221,10 @@ export default function NotificationsScreen() {
               <BlurView
                 key={notif.id}
                 intensity={20}
-                tint="dark"
+                tint={isDark ? "dark" : "light"}
                 style={[
                   styles.card,
+                  !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder },
                   !notif.read && styles.unreadCard,
                 ]}
               >
@@ -235,7 +238,7 @@ export default function NotificationsScreen() {
 
                   <View style={styles.textContainer}>
                     <View style={styles.topRow}>
-                      <Text style={styles.notifTitle} numberOfLines={1}>
+                      <Text style={[styles.notifTitle, { color: colors.text }]} numberOfLines={1}>
                         {notif.title}
                       </Text>
                       <View style={styles.metaRow}>

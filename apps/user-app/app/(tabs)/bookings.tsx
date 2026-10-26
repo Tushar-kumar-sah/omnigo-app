@@ -8,6 +8,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { fetchCurrentUser, fetchUserBookings } from '@/lib/api';
 
 const mapToUIBooking = (b: any, overrideStatus?: 'Active' | 'Completed' | 'Cancelled') => {
@@ -104,6 +105,7 @@ const STATUS_COLOR: Record<string, string> = {
 export default function BookingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const [activeTab, setActiveTab] = useState<Tab>('All');
   const [bookings, setBookings] = useState<any[]>([]);
   const [invoice, setInvoice] = useState<any | null>(null);
@@ -162,13 +164,13 @@ export default function BookingsScreen() {
   });
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 12 : 44 }]}>
-        <Text style={styles.headerTitle}>My Bookings</Text>
-        <Text style={styles.headerSub}>Track rides & view receipts</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>My Bookings</Text>
+        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Track rides & view receipts</Text>
       </View>
 
       {/* Filter Tabs */}
@@ -207,7 +209,7 @@ export default function BookingsScreen() {
         )}
 
         {filtered.map(booking => (
-          <View key={booking.id} style={[styles.card, Platform.OS === 'android' && styles.cardAndroid]}>
+          <View key={booking.id} style={[styles.card, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }, Platform.OS === 'android' && (isDark ? styles.cardAndroid : { backgroundColor: '#FFFFFF' })]}>
             {/* Top Row */}
             <View style={styles.cardTop}>
               {(() => {
@@ -218,22 +220,22 @@ export default function BookingsScreen() {
                   </View>
                 );
               })()}
-              <Text style={styles.bookingId}>{booking.id}</Text>
+              <Text style={[styles.bookingId, { color: colors.textSecondary }]}>{booking.id}</Text>
             </View>
 
-            <Text style={styles.dateText}>{booking.date}</Text>
+            <Text style={[styles.dateText, { color: colors.textSecondary }]}>{booking.date}</Text>
 
             {/* Service & Vehicle */}
             <View style={styles.serviceRow}>
-              <MaterialCommunityIcons name="tow-truck" size={20} color={theme.colors.primary} />
+              <MaterialCommunityIcons name="tow-truck" size={20} color={colors.primary} />
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.serviceTitle}>{booking.service}</Text>
-                <Text style={styles.vehicleText}>{booking.vehicle}</Text>
+                <Text style={[styles.serviceTitle, { color: colors.text }]}>{booking.service}</Text>
+                <Text style={[styles.vehicleText, { color: colors.textSecondary }]}>{booking.vehicle}</Text>
               </View>
-              <Text style={styles.totalText}>₹{booking.fare.total}</Text>
+              <Text style={[styles.totalText, { color: colors.primary }]}>₹{booking.fare.total}</Text>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
             {/* Route Points */}
             <View style={styles.routeBlock}>

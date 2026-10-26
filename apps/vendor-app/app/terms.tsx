@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { THEME } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 const PARTNER_TERMS = [
   {
@@ -75,26 +76,27 @@ const PARTNER_TERMS = [
 export default function PartnerTermsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient
-        colors={['#050810', '#0a1222', '#050810']}
+        colors={colors.gradient}
         style={StyleSheet.absoluteFill}
       />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 44) }]}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleWrap}>
-          <Text style={styles.headerTitle}>Partner Terms</Text>
-          <Text style={styles.headerSubtitle}>Towing Partner Agreement</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Partner Terms</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Towing Partner Agreement</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -107,34 +109,34 @@ export default function PartnerTermsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Badge Card */}
-        <View style={styles.badgeCard}>
+        <View style={[styles.badgeCard, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
           <View style={styles.badgeIconBox}>
             <MaterialCommunityIcons name="tow-truck" size={28} color="#00FF97" />
           </View>
           <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={styles.badgeTitle}>OmniGo Towing Partner Terms</Text>
-            <Text style={styles.badgeMeta}>Last updated: October 2026 · Version 2.4</Text>
+            <Text style={[styles.badgeTitle, { color: colors.text }]}>OmniGo Towing Partner Terms</Text>
+            <Text style={[styles.badgeMeta, { color: colors.textSecondary }]}>Last updated: October 2026 · Version 2.4</Text>
           </View>
         </View>
 
-        <Text style={styles.introText}>
+        <Text style={[styles.introText, { color: colors.textSecondary }]}>
           Please read these Partner Terms of Service carefully before accepting dispatches on the OmniGo Partner Network. By registering as a driver or towing vendor, you agree to these legal conditions.
         </Text>
 
         {/* Terms Sections */}
         {PARTNER_TERMS.map((sec) => (
-          <View key={sec.id} style={styles.sectionCard}>
+          <View key={sec.id} style={[styles.sectionCard, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionIconWrap}>
                 <MaterialCommunityIcons
                   name={sec.icon as any}
                   size={20}
-                  color={THEME.colors.primary}
+                  color={colors.primary}
                 />
               </View>
-              <Text style={styles.sectionTitle}>{sec.title}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{sec.title}</Text>
             </View>
-            <Text style={styles.sectionBody}>{sec.content}</Text>
+            <Text style={[styles.sectionBody, { color: colors.textSecondary }]}>{sec.content}</Text>
           </View>
         ))}
 

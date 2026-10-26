@@ -18,6 +18,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { fetchCurrentUser, fetchUserBookings, fetchActiveBooking, cancelUserBooking } from '@/lib/api';
 
 const AI_CAPTIONS = [
@@ -38,6 +39,7 @@ const CardWrapper = React.memo(({ style, children }: { style: any; children: Rea
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   const [captionIndex, setCaptionIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -228,16 +230,16 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
-        <Text style={{ color: '#00CFFF', fontFamily: 'Outfit_600SemiBold' }}>Loading...</Text>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }]}>
+        <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
+        <Text style={{ color: colors.primary, fontFamily: 'Outfit_600SemiBold' }}>Loading...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
 
       <ScrollView
         contentContainerStyle={[
@@ -253,16 +255,16 @@ export default function HomeScreen() {
               <Image source={require('@/assets/logo.png')} style={styles.logoImg} resizeMode="contain" />
             </View>
             <View style={styles.headerTextWrap}>
-              <Text style={styles.greetingText}>Good Morning</Text>
-              <Text style={styles.welcomeText} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={[styles.greetingText, { color: colors.textSecondary }]}>Good Morning</Text>
+              <Text style={[styles.welcomeText, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
                 Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}! 👋
               </Text>
             </View>
           </View>
 
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')}>
-              <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
+            <TouchableOpacity style={[styles.iconBtn, { backgroundColor: colors.pillBg, borderColor: colors.cardBorder }]} onPress={() => router.push('/notifications')}>
+              <Ionicons name="notifications-outline" size={18} color={colors.text} />
               <View style={styles.notificationDot} />
             </TouchableOpacity>
 
@@ -285,12 +287,12 @@ export default function HomeScreen() {
         {/* 2. Search Box + AI Avatar */}
         <View style={styles.searchSectionContainer}>
           <View style={styles.searchRowWithExternalAi}>
-            <View style={styles.searchBoxLeft}>
-              <Ionicons name="search" size={18} color="rgba(255, 255, 255, 0.4)" style={{ marginRight: 10 }} />
+            <View style={[styles.searchBoxLeft, { backgroundColor: isDark ? 'rgba(13, 20, 32, 0.65)' : '#FFFFFF', borderColor: colors.cardBorder }]}>
+              <Ionicons name="search" size={18} color={colors.textSecondary} style={{ marginRight: 10 }} />
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, { color: colors.text }]}
                 placeholder="Search services, towing..."
-                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                placeholderTextColor={colors.textSecondary}
               />
             </View>
 
@@ -401,16 +403,16 @@ export default function HomeScreen() {
 
         {/* 3. Quick Actions + AI Callout Pill on Same Compact Row */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
           <TouchableOpacity
             style={styles.aiCalloutBelowContainer}
             onPress={() => router.push('/ai-assistant')}
             activeOpacity={0.8}
           >
-            <View style={styles.aiSpeechBubbleCalloutBelow}>
-              <Ionicons name="sparkles" size={12} color="#00CFFF" style={{ marginRight: 4 }} />
+            <View style={[styles.aiSpeechBubbleCalloutBelow, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
+              <Ionicons name="sparkles" size={12} color={colors.primary} style={{ marginRight: 4 }} />
               <Animated.View style={{ opacity: fadeAnim }}>
-                <Text style={styles.aiSpeechTextCallout}>{AI_CAPTIONS[captionIndex]}</Text>
+                <Text style={[styles.aiSpeechTextCallout, { color: colors.text }]}>{AI_CAPTIONS[captionIndex]}</Text>
               </Animated.View>
             </View>
           </TouchableOpacity>
@@ -422,7 +424,7 @@ export default function HomeScreen() {
           onPress={() => handleStartBooking('/booking/select-vehicle')}
           activeOpacity={0.85}
         >
-          <CardWrapper style={[styles.actionCard, styles.bookTowBorder]}>
+          <CardWrapper style={[styles.actionCard, styles.bookTowBorder, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
             <LinearGradient
               colors={['rgba(0, 207, 255, 0.38)', 'rgba(0, 255, 151, 0.12)', 'transparent']}
               start={{ x: 0, y: 0 }}
@@ -430,8 +432,8 @@ export default function HomeScreen() {
               style={StyleSheet.absoluteFill}
             />
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Book Tow</Text>
-              <Text style={styles.cardSubtitle}>Instant dispatch to your location</Text>
+              <Text style={[styles.cardTitle, !isDark && { color: colors.text }]}>Book Tow</Text>
+              <Text style={[styles.cardSubtitle, !isDark && { color: colors.textSecondary }]}>Instant dispatch to your location</Text>
             </View>
             <View style={styles.cardRightGraphic}>
               <Image source={BOOK_TOW_TRUCK_IMG} style={styles.towTruckThumb} resizeMode="contain" fadeDuration={0} />
@@ -445,7 +447,7 @@ export default function HomeScreen() {
           onPress={() => handleStartBooking('/booking/schedule-tow')}
           activeOpacity={0.85}
         >
-          <CardWrapper style={[styles.actionCard, styles.scheduleTowBorder]}>
+          <CardWrapper style={[styles.actionCard, styles.scheduleTowBorder, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
             <LinearGradient
               colors={['rgba(0, 255, 151, 0.38)', 'rgba(0, 207, 255, 0.12)', 'transparent']}
               start={{ x: 0, y: 0 }}
@@ -453,8 +455,8 @@ export default function HomeScreen() {
               style={StyleSheet.absoluteFill}
             />
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Schedule Tow</Text>
-              <Text style={styles.cardSubtitle}>Plan a pickup for later</Text>
+              <Text style={[styles.cardTitle, !isDark && { color: colors.text }]}>Schedule Tow</Text>
+              <Text style={[styles.cardSubtitle, !isDark && { color: colors.textSecondary }]}>Plan a pickup for later</Text>
             </View>
             <View style={styles.scheduleIconBadge}>
               <Ionicons name="calendar-outline" size={24} color="#00FF97" />
@@ -468,7 +470,7 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/sos')}
           activeOpacity={0.85}
         >
-          <CardWrapper style={[styles.actionCard, styles.emergencySosBorder]}>
+          <CardWrapper style={[styles.actionCard, styles.emergencySosBorder, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
             <LinearGradient
               colors={['rgba(255, 59, 48, 0.40)', 'rgba(255, 149, 0, 0.12)', 'transparent']}
               start={{ x: 0, y: 0 }}
@@ -476,8 +478,8 @@ export default function HomeScreen() {
               style={StyleSheet.absoluteFill}
             />
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Emergency SOS</Text>
-              <Text style={styles.cardSubtitle}>Immediate roadside assistance</Text>
+              <Text style={[styles.cardTitle, !isDark && { color: colors.text }]}>Emergency SOS</Text>
+              <Text style={[styles.cardSubtitle, !isDark && { color: colors.textSecondary }]}>Immediate roadside assistance</Text>
             </View>
             <View style={styles.sosBadge}>
               <Text style={styles.sosText}>SOS</Text>
@@ -487,16 +489,16 @@ export default function HomeScreen() {
 
         {/* 4. Recent Activity */}
         <View style={styles.recentSectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')}>
-            <Text style={styles.viewAllText}>View All &gt;</Text>
+            <Text style={[styles.viewAllText, { color: colors.primary }]}>View All &gt;</Text>
           </TouchableOpacity>
         </View>
 
         {recentBookings.length === 0 && (
           <View style={styles.emptyActivity}>
-            <Ionicons name="car-sport-outline" size={36} color="rgba(255,255,255,0.12)" />
-            <Text style={styles.emptyActivityText}>No recent bookings</Text>
+            <Ionicons name="car-sport-outline" size={36} color={colors.textSecondary} />
+            <Text style={[styles.emptyActivityText, { color: colors.textSecondary }]}>No recent bookings</Text>
           </View>
         )}
 
@@ -519,13 +521,13 @@ export default function HomeScreen() {
                 }
               }}
             >
-              <View style={styles.activityItem}>
+              <View style={[styles.activityItem, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
                 <View style={[styles.activityIconBadge, { backgroundColor: isActive ? 'rgba(0, 255, 151, 0.18)' : 'rgba(0, 207, 255, 0.15)' }]}>
                   <Ionicons name={isActive ? 'navigate' : 'car-sport'} size={20} color={isActive ? '#00FF97' : '#00CFFF'} />
                 </View>
                 <View style={styles.activityInfo}>
-                  <Text style={styles.activityTitle}>{booking.service_type || booking.service || 'Tow Service'}</Text>
-                  <Text style={styles.activitySubtitle} numberOfLines={1}>
+                  <Text style={[styles.activityTitle, { color: colors.text }]}>{booking.service_type || booking.service || 'Tow Service'}</Text>
+                  <Text style={[styles.activitySubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
                     {booking.pickup ||
                       (typeof booking.pickup_location === 'object' ? booking.pickup_location?.address : null) ||
                       'Unknown Location'}

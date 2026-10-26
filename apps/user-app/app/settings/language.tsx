@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 const LANGUAGES = [
   { id: 'en', name: 'English', native: 'English' },
@@ -31,6 +32,7 @@ const LANGUAGES = [
 export default function LanguageSelectorScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const initialLanguage = 'en'; // Assuming current saved language is 'en'
@@ -50,21 +52,21 @@ export default function LanguageSelectorScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient
-        colors={['#050810', '#0a1222', '#050810']}
+        colors={colors.gradient}
         style={StyleSheet.absoluteFill}
       />
       
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20), borderBottomColor: colors.divider }]}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, !isDark && { backgroundColor: colors.pillBg }]}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Language</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Language</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -73,12 +75,12 @@ export default function LanguageSelectorScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color="rgba(255, 255, 255, 0.5)" />
+          <View style={[styles.searchBar, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
+            <Ionicons name="search" size={20} color={colors.textSecondary} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: colors.text }]}
               placeholder="Search languages..."
-              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(15, 23, 42, 0.4)'}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoCapitalize="none"
@@ -86,7 +88,7 @@ export default function LanguageSelectorScreen() {
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color="rgba(255, 255, 255, 0.5)" />
+                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -100,15 +102,15 @@ export default function LanguageSelectorScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.glassCard}>
+          <View style={[styles.glassCard, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
             {filteredLanguages.length === 0 ? (
               <View style={styles.emptyState}>
                 <MaterialCommunityIcons
                   name="translate-off"
                   size={48}
-                  color="rgba(255, 255, 255, 0.3)"
+                  color={colors.textMuted}
                 />
-                <Text style={styles.emptyStateText}>No languages found</Text>
+                <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>No languages found</Text>
               </View>
             ) : (
               filteredLanguages.map((lang, index) => {
@@ -129,11 +131,12 @@ export default function LanguageSelectorScreen() {
                     <View style={styles.languageInfo}>
                       <Text style={[
                         styles.languageName,
+                        { color: colors.text },
                         isSelected && styles.languageNameSelected
                       ]}>
                         {lang.name}
                       </Text>
-                      <Text style={styles.nativeName}>{lang.native}</Text>
+                      <Text style={[styles.nativeName, { color: colors.textSecondary }]}>{lang.native}</Text>
                     </View>
                     
                     <View style={[

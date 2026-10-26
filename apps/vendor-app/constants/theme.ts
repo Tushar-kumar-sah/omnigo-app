@@ -5,6 +5,7 @@ export const DARK_THEME = {
   colors: {
     background: '#0A0E17',
     backgroundDeep: '#050810',
+    gradient: ['#050810', '#0a1222', '#050810'] as [string, string, string],
     glassBg: 'rgba(13, 20, 32, 0.65)',
     glassBorder: 'rgba(0, 207, 255, 0.15)',
     primary: '#00CFFF', // Cyan
@@ -59,6 +60,7 @@ export const LIGHT_THEME: typeof DARK_THEME = {
   colors: {
     background: '#F1F5F9', // Slate 100
     backgroundDeep: '#FFFFFF',
+    gradient: ['#F1F5F9', '#FFFFFF', '#F1F5F9'] as [string, string, string],
     glassBg: 'rgba(255, 255, 255, 0.95)',
     glassBorder: 'rgba(0, 149, 217, 0.2)',
     primary: '#0095D9', // Deep vibrant Cyan/Blue for clear contrast in daylight

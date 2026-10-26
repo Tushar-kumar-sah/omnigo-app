@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { fetchCurrentUser, fetchUserBookings, fetchUserWallet } from '@/lib/api';
 
 const mapToUIRide = (b: any) => {
@@ -96,6 +97,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const [selectedRide, setSelectedRide] = useState<any | null>(null);
   const [rides, setRides] = useState<any[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
@@ -130,13 +132,13 @@ export default function WalletScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.headerArea, { paddingTop: Math.max(insets.top + 10, 44) }]}>
-        <Text style={styles.headerTitle}>Trip History</Text>
-        <Text style={styles.headerSubtitle}>View past request logs & download receipts</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Trip History</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>View past request logs & download receipts</Text>
       </View>
 
       <ScrollView contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom + 120, 140) }]} showsVerticalScrollIndicator={false}>
@@ -144,9 +146,9 @@ export default function WalletScreen() {
           const statusColor = STATUS_COLOR[ride.status] || '#FFD60A';
           return (
             <TouchableOpacity key={ride.id} onPress={() => setSelectedRide(ride)} activeOpacity={0.85} style={styles.cardTouch}>
-              <View style={[styles.card, Platform.OS === 'android' && { backgroundColor: 'rgba(13,20,40,0.96)' }]}>
+              <View style={[styles.card, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }, Platform.OS === 'android' && (isDark ? { backgroundColor: 'rgba(13,20,40,0.96)' } : { backgroundColor: '#FFFFFF' })]}>
                 <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.04)', 'transparent']}
+                  colors={isDark ? ['rgba(255, 255, 255, 0.04)', 'transparent'] : ['rgba(0, 0, 0, 0.02)', 'transparent']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={StyleSheet.absoluteFill}
@@ -156,7 +158,7 @@ export default function WalletScreen() {
                   <View style={[styles.statusBadge, { backgroundColor: `${statusColor}18`, borderColor: `${statusColor}35` }]}>
                     <Text style={[styles.statusText, { color: statusColor }]}>{ride.status}</Text>
                   </View>
-                  <Text style={styles.rideId}>{ride.id}</Text>
+                  <Text style={[styles.rideId, { color: colors.textSecondary }]}>{ride.id}</Text>
                 </View>
 
                 <Text style={styles.dateText}>{ride.date}</Text>

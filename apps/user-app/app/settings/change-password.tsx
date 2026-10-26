@@ -14,10 +14,12 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -55,15 +57,15 @@ export default function ChangePasswordScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
       
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+      <View style={[styles.header, { paddingTop: insets.top + 16, borderBottomColor: colors.divider }]}>
+        <TouchableOpacity style={[styles.iconButton, !isDark && { backgroundColor: colors.pillBg }]} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Change Password</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Change Password</Text>
         <View style={styles.placeholder} />
       </View>
 

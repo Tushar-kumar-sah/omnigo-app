@@ -10,6 +10,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import * as Location from 'expo-location';
 import { fetchBookingById, fetchDriverById, submitDriverRating, fetchCurrentUser, fetchUserBookings, cancelUserBooking } from '@/lib/api';
 import { subscribeToDriverLocation, updateBookingDestination, subscribeToBooking, getBookingChatMessages, sendBookingChatMessage, subscribeToBookingChat, ChatMessage } from '@omnigo/api';
@@ -64,6 +65,7 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 export default function TrackingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const { bookingId, driverId, openChat } = useLocalSearchParams<{ bookingId?: string; driverId?: string; openChat?: string }>();
 
   const [pickupOtp, setPickupOtp] = useState('— — — —');
@@ -521,8 +523,8 @@ export default function TrackingScreen() {
   const showCompletionOtp = currentStep >= 5;
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#040711', '#09101E', '#040711']} style={StyleSheet.absoluteFill} pointerEvents="none" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} pointerEvents="none" />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
@@ -530,9 +532,9 @@ export default function TrackingScreen() {
           <View style={styles.liveDot} />
           <Text style={styles.liveText}>GPS TELEMETRY ACTIVE</Text>
         </View>
-        <Text style={styles.headerTitle}>Live Fleet Tracking</Text>
-        <TouchableOpacity onPress={() => router.push('/(tabs)')} style={styles.closeBtn}>
-          <Ionicons name="close" size={20} color="#fff" />
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Live Fleet Tracking</Text>
+        <TouchableOpacity onPress={() => router.push('/(tabs)')} style={[styles.closeBtn, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
+          <Ionicons name="close" size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
 

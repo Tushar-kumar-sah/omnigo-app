@@ -16,10 +16,12 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function VehicleDetailsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors: themeColors } = useTheme();
   
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
@@ -58,19 +60,19 @@ export default function VehicleDetailsScreen() {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container} 
+      style={[styles.container, { backgroundColor: themeColors.background }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={themeColors.gradient} style={StyleSheet.absoluteFill} />
       
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={[styles.inner, { paddingTop: insets.top }]}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, !isDark && { backgroundColor: '#FFFFFF', borderColor: themeColors.cardBorder }]}>
+              <Ionicons name="arrow-back" size={24} color={themeColors.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Vehicle Details</Text>
+            <Text style={[styles.headerTitle, { color: themeColors.text }]}>Vehicle Details</Text>
             <View style={{ width: 40 }} />
           </View>
 

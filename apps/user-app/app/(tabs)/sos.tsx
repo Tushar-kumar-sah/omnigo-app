@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { createSOSAlert, fetchCurrentUser } from '@/lib/api';
 
 const USER_ID = 'a0000000-0000-0000-0000-000000000001';
@@ -34,6 +35,7 @@ const EMERGENCY_SERVICES = [
 
 export default function SOSScreen() {
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const [dispatched, setDispatched]       = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<IncidentId | null>(null);
   const [incidentId, setIncidentId]       = useState('');
@@ -123,13 +125,13 @@ export default function SOSScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#0A0005', '#1A0008', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={isDark ? ['#0A0005', '#1A0008', '#050810'] : ['#FFF5F5', '#FEE2E2', '#F8FAFC']} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 12, 54) }]}>
-        <Text style={styles.headerTitle}>Emergency SOS</Text>
-        <Text style={styles.headerSub}>Priority dispatch · Instant response</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Emergency SOS</Text>
+        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Priority dispatch · Instant response</Text>
       </View>
 
       <ScrollView
@@ -139,14 +141,14 @@ export default function SOSScreen() {
         {!dispatched ? (
           <>
             {/* Location Card */}
-            <View style={styles.locationCard}>
+            <View style={[styles.locationCard, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
               <View style={styles.locationRow}>
                 <View style={styles.locationDot} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.locationLabel}>Your Current Location</Text>
-                  <Text style={styles.locationText}>{location}</Text>
+                  <Text style={[styles.locationLabel, { color: colors.textSecondary }]}>Your Current Location</Text>
+                  <Text style={[styles.locationText, { color: colors.text }]}>{location}</Text>
                 </View>
-                <Ionicons name="locate" size={20} color={theme.colors.primary} />
+                <Ionicons name="locate" size={20} color={colors.primary} />
               </View>
               <View style={styles.gpsActiveBadge}>
                 <Ionicons name="checkmark-circle" size={13} color="#00FF97" />
@@ -155,7 +157,7 @@ export default function SOSScreen() {
             </View>
 
             {/* Incident Type */}
-            <Text style={styles.sectionTitle}>What's the emergency?</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>What's the emergency?</Text>
             <View style={styles.incidentGrid}>
               {INCIDENT_TYPES.map(inc => (
                 <TouchableOpacity

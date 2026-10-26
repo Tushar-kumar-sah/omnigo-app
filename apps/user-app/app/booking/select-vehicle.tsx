@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 import { fetchCurrentUser, fetchActiveBooking } from '@/lib/api';
 
@@ -60,6 +61,7 @@ const PHOTO_LABELS = ['Front View', 'Rear View', 'Left Side', 'Right Side'];
 export default function SelectVehicleScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   // Vehicle type
   const [selectedType, setSelectedType] = useState('hatchback');
@@ -222,17 +224,17 @@ export default function SelectVehicleScreen() {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container} 
+      style={[styles.container, { backgroundColor: colors.background }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Book a Tow</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Book a Tow</Text>
         <View style={{ width: 40 }} />
       </View>
 

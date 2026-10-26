@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { THEME } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -11,13 +12,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function EarningsScreen() {
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   const CardWrapper = ({ children, style }: { children: React.ReactNode; style: any }) => {
     if (Platform.OS === 'android') {
-      return <View style={[style, styles.cardAndroid]}>{children}</View>;
+      return <View style={[style, { backgroundColor: isDark ? '#0d1428' : '#FFFFFF', borderColor: colors.cardBorder }]}>{children}</View>;
     }
     return (
-      <BlurView intensity={20} tint="dark" style={style}>
+      <BlurView intensity={20} tint={isDark ? "dark" : "light"} style={[style, !isDark && { backgroundColor: 'rgba(255, 255, 255, 0.95)', borderColor: colors.cardBorder }]}>
         {children}
       </BlurView>
     );
@@ -192,12 +194,12 @@ export default function EarningsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 10, 50), paddingBottom: Math.max(insets.bottom + 140, 160) }]} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 10, 50), paddingBottom: Math.max(insets.bottom + 140, 160) }]} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
-          <Text style={styles.title}>Earnings & Wallet</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: colors.text }]}>Earnings & Wallet</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Track revenue, commissions & payouts
           </Text>
         </View>
@@ -208,7 +210,7 @@ export default function EarningsScreen() {
       </View>
 
       {/* Top Tab Switcher: Overview | Wallet | Payouts */}
-      <View style={styles.topTabs}>
+      <View style={[styles.topTabs, { backgroundColor: isDark ? 'rgba(13, 20, 32, 0.65)' : 'rgba(0, 0, 0, 0.05)', borderColor: colors.cardBorder }]}>
         <TouchableOpacity
           style={[styles.topTab, activeTab === 'overview' && styles.topTabActive]}
           onPress={() => setActiveTab('overview')}

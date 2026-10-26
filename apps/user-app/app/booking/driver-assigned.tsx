@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { theme, glassStyle } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchDriverById } from '@/lib/api';
@@ -9,6 +10,7 @@ import { useLocalSearchParams } from 'expo-router';
 
 export default function DriverAssignedScreen() {
   const router = useRouter();
+  const { isDark, colors } = useTheme();
   const { driverId, bookingId } = useLocalSearchParams<{ driverId?: string; bookingId?: string }>();
   const [driver, setDriver] = React.useState<any>(null);
 
@@ -43,12 +45,12 @@ export default function DriverAssignedScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a101d', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
       
       <View style={styles.overlay}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Driver Assigned!</Text>
+        <View style={[styles.card, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
+          <Text style={[styles.title, { color: colors.text }]}>Driver Assigned!</Text>
           {driver ? (
             <>
               <View style={styles.driverInfo}>

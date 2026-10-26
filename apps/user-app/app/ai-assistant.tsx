@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 // ─── Problem Detection Tree ──────────────────────────────────
 const SYMPTOMS = [
@@ -379,6 +380,7 @@ function getKnowledgeResponse(input: string): { text: string; actionBtn?: Action
 export default function AIAssistantScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   const [messages, setMessages] = useState<ChatMsg[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState('');
@@ -468,26 +470,26 @@ export default function AIAssistantScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48), borderBottomColor: colors.divider }]}>
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Omni AI</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Omni AI</Text>
           <View style={styles.onlineBadge}>
             <View style={styles.onlineDot} />
             <Text style={styles.onlineText}>Online</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={handleReset} style={styles.resetBtn} activeOpacity={0.7}>
-          <Ionicons name="refresh-outline" size={20} color="rgba(255,255,255,0.7)" />
+        <TouchableOpacity onPress={handleReset} style={[styles.resetBtn, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]} activeOpacity={0.7}>
+          <Ionicons name="refresh-outline" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -604,12 +606,13 @@ export default function AIAssistantScreen() {
         style={[
           styles.inputBar,
           { paddingBottom: Math.max(insets.bottom + 8, 16) },
+          !isDark && { backgroundColor: '#FFFFFF', borderTopColor: colors.cardBorder },
         ]}
       >
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.text }]}
           placeholder="Describe your problem or ask anything..."
-          placeholderTextColor="rgba(255,255,255,0.4)"
+          placeholderTextColor={isDark ? 'rgba(255,255,255,0.4)' : 'rgba(15,23,42,0.4)'}
           value={input}
           onChangeText={setInput}
           onSubmitEditing={handleSend}

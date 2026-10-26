@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { useTheme } from '@/context/ThemeContext';
 import { fetchCurrentUser, updateCurrentUserProfile } from '@/lib/api';
 
 const DEFAULT_USER_ID = 'a0000000-0000-0000-0000-000000000001';
@@ -61,6 +62,7 @@ function parseDobString(dobStr: string): { day: number; month: number; year: num
 export default function EditProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   const [userId, setUserId] = useState(DEFAULT_USER_ID);
   const [fullName, setFullName] = useState('');
@@ -273,15 +275,15 @@ export default function EditProfileScreen() {
   ];
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+      <View style={[styles.header, { paddingTop: insets.top + 12, borderBottomColor: colors.divider }]}>
+        <TouchableOpacity style={[styles.iconButton, !isDark && { backgroundColor: colors.pillBg }]} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Profile</Text>
         <TouchableOpacity onPress={handleSave} disabled={saving}>
           <Text style={styles.saveText}>{saving ? 'Saving...' : 'Save'}</Text>
         </TouchableOpacity>

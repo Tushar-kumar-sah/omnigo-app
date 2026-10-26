@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/context/ThemeContext';
 import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 const WebViewComponent = WebView as any;
@@ -60,6 +61,7 @@ const TIME_SLOTS = [
 export default function ScheduleTowScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   const [selectedDate, setSelectedDate] = useState(DATES[1].full);
   const [selectedTime, setSelectedTime] = useState('10:00 AM');
@@ -265,15 +267,15 @@ export default function ScheduleTowScreen() {
     : '';
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Schedule Tow</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Schedule Tow</Text>
         <View style={{ width: 40 }} />
       </View>
 

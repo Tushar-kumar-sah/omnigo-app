@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 interface Address {
   id: string;
@@ -30,6 +31,7 @@ const initialAddresses: Address[] = [];
 export default function SavedAddressesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const [addresses, setAddresses] = useState<Address[]>(initialAddresses);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newLabel, setNewLabel] = useState('');
@@ -52,38 +54,38 @@ export default function SavedAddressesScreen() {
   };
 
   const renderAddressCard = (item: Address) => (
-    <View key={item.id} style={styles.card}>
+    <View key={item.id} style={[styles.card, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
       <View style={[styles.iconCircle, { backgroundColor: `${item.color}20` }]}>
         <Ionicons name={item.icon} size={24} color={item.color} />
       </View>
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardLabel}>{item.label}</Text>
+          <Text style={[styles.cardLabel, { color: colors.text }]}>{item.label}</Text>
           {item.isDefault && (
             <View style={styles.defaultBadge}>
               <Text style={styles.defaultText}>Default</Text>
             </View>
           )}
         </View>
-        <Text style={styles.cardAddressText} numberOfLines={2}>{item.address}</Text>
+        <Text style={[styles.cardAddressText, { color: colors.textSecondary }]} numberOfLines={2}>{item.address}</Text>
       </View>
       <TouchableOpacity style={styles.menuButton}>
-        <Ionicons name="ellipsis-vertical" size={20} color="rgba(255, 255, 255, 0.5)" />
+        <Ionicons name="ellipsis-vertical" size={20} color={colors.textSecondary} />
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
       
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+      <View style={[styles.header, { paddingTop: insets.top + 16, borderBottomColor: colors.divider }]}>
+        <TouchableOpacity style={[styles.iconButton, !isDark && { backgroundColor: colors.pillBg }]} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Saved Addresses</Text>
-        <TouchableOpacity style={styles.iconButton} onPress={() => setShowAddModal(true)}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Saved Addresses</Text>
+        <TouchableOpacity style={[styles.iconButton, !isDark && { backgroundColor: colors.pillBg }]} onPress={() => setShowAddModal(true)}>
           <Ionicons name="add" size={24} color="#00CFFF" />
         </TouchableOpacity>
       </View>

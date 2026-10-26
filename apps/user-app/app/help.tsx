@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/context/ThemeContext';
 
 if (Platform.OS === 'android' && typeof UIManager?.setLayoutAnimationEnabledExperimental === 'function') {
   try {
@@ -23,6 +24,7 @@ const FAQ_DATA = [
 export default function HelpScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -60,27 +62,27 @@ export default function HelpScreen() {
   });
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
       
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+      <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomColor: colors.divider }]}>
+        <TouchableOpacity style={[styles.backButton, !isDark && { backgroundColor: colors.pillBg }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Help & Support</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Help & Support</Text>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]} showsVerticalScrollIndicator={false}>
         
         {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="rgba(255, 255, 255, 0.5)" />
+        <View style={[styles.searchContainer, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Search for help..."
-            placeholderTextColor="rgba(255, 255, 255, 0.5)"
+            placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(15, 23, 42, 0.4)'}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -89,44 +91,44 @@ export default function HelpScreen() {
         {/* Quick Contact Cards */}
         <View style={styles.quickContactContainer}>
           <TouchableOpacity 
-            style={styles.contactCard} 
+            style={[styles.contactCard, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]} 
             activeOpacity={0.7}
             onPress={handleCallSupport}
           >
             <View style={[styles.iconContainer, { backgroundColor: 'rgba(0, 255, 151, 0.15)' }]}>
               <Ionicons name="call" size={22} color="#00FF97" />
             </View>
-            <Text style={styles.contactTitle} numberOfLines={1}>Call Support</Text>
-            <Text style={styles.contactSubtitle} numberOfLines={1}>+91 7569743173</Text>
+            <Text style={[styles.contactTitle, { color: colors.text }]} numberOfLines={1}>Call Support</Text>
+            <Text style={[styles.contactSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>+91 7569743173</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.contactCard} 
+            style={[styles.contactCard, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]} 
             activeOpacity={0.7}
             onPress={handleEmailSupport}
           >
             <View style={[styles.iconContainer, { backgroundColor: 'rgba(0, 207, 255, 0.15)' }]}>
               <Ionicons name="mail" size={22} color="#00CFFF" />
             </View>
-            <Text style={styles.contactTitle} numberOfLines={1}>Email Us</Text>
-            <Text style={styles.contactSubtitle} numberOfLines={1}>info@omnigo.si</Text>
+            <Text style={[styles.contactTitle, { color: colors.text }]} numberOfLines={1}>Email Us</Text>
+            <Text style={[styles.contactSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>info@omnigo.si</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.contactCard} 
+            style={[styles.contactCard, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]} 
             activeOpacity={0.7}
             onPress={handleLiveChat}
           >
             <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 214, 10, 0.15)' }]}>
               <Ionicons name="chatbubbles" size={22} color="#FFD60A" />
             </View>
-            <Text style={styles.contactTitle} numberOfLines={1}>Live Chat</Text>
-            <Text style={styles.contactSubtitle} numberOfLines={1}>Chat Now</Text>
+            <Text style={[styles.contactTitle, { color: colors.text }]} numberOfLines={1}>Live Chat</Text>
+            <Text style={[styles.contactSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>Chat Now</Text>
           </TouchableOpacity>
         </View>
 
         {/* FAQ Section */}
-        <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Frequently Asked Questions</Text>
         
         <View style={styles.faqContainer}>
           {filteredFaqs.map((item) => {
@@ -134,12 +136,16 @@ export default function HelpScreen() {
             return (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.faqItem, isExpanded && styles.faqItemExpanded]}
+                style={[
+                  styles.faqItem,
+                  !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder },
+                  isExpanded && styles.faqItemExpanded
+                ]}
                 onPress={() => toggleExpand(item.id)}
                 activeOpacity={0.8}
               >
                 <View style={styles.faqHeader}>
-                  <Text style={[styles.faqQuestion, isExpanded && { color: '#00CFFF' }]}>
+                  <Text style={[styles.faqQuestion, { color: colors.text }, isExpanded && { color: '#00CFFF' }]}>
                     {item.question}
                   </Text>
                   <Ionicons 

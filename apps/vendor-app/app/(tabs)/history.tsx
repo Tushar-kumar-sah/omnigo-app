@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { THEME } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { BlurView } from 'expo-blur';
 import { getBookingsByDriver, Booking } from '@omnigo/api';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +38,7 @@ const cleanDuration = (dur: any) => {
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const [filter, setFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -118,17 +120,17 @@ export default function HistoryScreen() {
 
   const CardWrapper = ({ children, style }: { children: React.ReactNode; style: any }) => {
     if (Platform.OS === 'android') {
-      return <View style={[style, styles.jobCardAndroid]}>{children}</View>;
+      return <View style={[style, { backgroundColor: isDark ? '#0d1428' : '#FFFFFF', borderColor: colors.cardBorder }]}>{children}</View>;
     }
     return (
-      <BlurView intensity={25} tint="dark" style={style}>
+      <BlurView intensity={25} tint={isDark ? "dark" : "light"} style={[style, !isDark && { backgroundColor: 'rgba(255, 255, 255, 0.95)', borderColor: colors.cardBorder }]}>
         {children}
       </BlurView>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -149,8 +151,8 @@ export default function HistoryScreen() {
       >
         {/* Header Row */}
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Job History</Text>
-          <Text style={styles.subtitle}>Track completed rides, earnings and trip routes</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Job History</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Track completed rides, earnings and trip routes</Text>
         </View>
 
         {/* Segmented Filter Control (Equal-width tabs, full container) */}

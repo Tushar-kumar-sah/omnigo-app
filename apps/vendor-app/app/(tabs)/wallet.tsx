@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { THEME } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,13 +39,14 @@ const WALLET_TRANSACTIONS: WalletTransaction[] = [];
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   const CardWrapper = ({ children, style }: { children: React.ReactNode; style: any }) => {
     if (Platform.OS === 'android') {
-      return <View style={[style, styles.cardAndroid]}>{children}</View>;
+      return <View style={[style, { backgroundColor: isDark ? '#0d1428' : '#FFFFFF', borderColor: colors.cardBorder }]}>{children}</View>;
     }
     return (
-      <BlurView intensity={25} tint="dark" style={style}>
+      <BlurView intensity={25} tint={isDark ? "dark" : "light"} style={[style, !isDark && { backgroundColor: 'rgba(255, 255, 255, 0.95)', borderColor: colors.cardBorder }]}>
         {children}
       </BlurView>
     );
@@ -168,7 +170,7 @@ export default function WalletScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -179,8 +181,8 @@ export default function WalletScreen() {
         {/* Header */}
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
-            <Text style={styles.title}>Driver Wallet</Text>
-            <Text style={styles.subtitle} numberOfLines={1}>
+            <Text style={[styles.title, { color: colors.text }]}>Driver Wallet</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={1}>
               Payouts, Instant Withdrawals & Bank
             </Text>
           </View>

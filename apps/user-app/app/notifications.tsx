@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import {
   fetchCurrentUser,
   fetchNotifications as apiFetchNotifications,
@@ -28,6 +29,7 @@ interface NotificationItem {
 export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -99,7 +101,7 @@ export default function NotificationsScreen() {
     return (
       <TouchableOpacity 
         key={item.id} 
-        style={[styles.notificationCard, item.isUnread && styles.unreadCard]}
+        style={[styles.notificationCard, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }, item.isUnread && styles.unreadCard]}
         activeOpacity={0.7}
         onPress={() => { if(item.isUnread) handleMarkAsRead(item.id); }}
       >
@@ -108,10 +110,10 @@ export default function NotificationsScreen() {
         </View>
         <View style={styles.textContainer}>
           <View style={styles.titleRow}>
-            <Text style={styles.titleText}>{item.title}</Text>
-            <Text style={styles.timeText}>{item.time}</Text>
+            <Text style={[styles.titleText, { color: colors.text }]}>{item.title}</Text>
+            <Text style={[styles.timeText, { color: colors.textSecondary }]}>{item.time}</Text>
           </View>
-          <Text style={styles.descriptionText} numberOfLines={2}>
+          <Text style={[styles.descriptionText, { color: colors.textSecondary }]} numberOfLines={2}>
             {item.description}
           </Text>
         </View>
@@ -124,19 +126,19 @@ export default function NotificationsScreen() {
   const earlierNotifications = notifications.filter(n => n.section === 'Earlier');
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" {...({ backgroundColor: '#050810' } as any)} />
-      <LinearGradient colors={['#050810', '#0a1222', '#050810']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      <LinearGradient colors={colors.gradient} style={StyleSheet.absoluteFill} />
       
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+      <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomColor: colors.divider }]}>
+        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.pillBg, borderColor: colors.cardBorder }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
         <TouchableOpacity style={styles.markAllButton} onPress={markAllRead}>
-          <Ionicons name="checkmark-done" size={20} color="#00CFFF" />
-          <Text style={styles.markAllText}>Read All</Text>
+          <Ionicons name="checkmark-done" size={20} color={colors.primary} />
+          <Text style={[styles.markAllText, { color: colors.primary }]}>Read All</Text>
         </TouchableOpacity>
       </View>
 

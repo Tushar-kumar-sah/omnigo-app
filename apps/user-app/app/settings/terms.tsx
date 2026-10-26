@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 const TERMS_SECTIONS = [
   {
@@ -58,23 +59,24 @@ const TERMS_SECTIONS = [
 export default function TermsOfServiceScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient
-        colors={['#050810', '#0a1222', '#050810']}
+        colors={colors.gradient}
         style={StyleSheet.absoluteFill}
       />
       
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20), borderBottomColor: colors.divider }]}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, !isDark && { backgroundColor: colors.pillBg }]}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Terms of Service</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Terms of Service</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -88,22 +90,22 @@ export default function TermsOfServiceScreen() {
       >
         <View style={styles.metaContainer}>
           <Ionicons name="document-text-outline" size={32} color="#00CFFF" style={styles.metaIcon} />
-          <Text style={styles.lastUpdatedText}>Last updated: August 1, 2026</Text>
-          <Text style={styles.introText}>
+          <Text style={[styles.lastUpdatedText, { color: colors.textSecondary }]}>Last updated: August 1, 2026</Text>
+          <Text style={[styles.introText, { color: colors.textSecondary }]}>
             Please read these terms carefully before using the OmniGo platform.
           </Text>
         </View>
 
         {TERMS_SECTIONS.map((section, index) => (
-          <View key={section.id} style={styles.glassCard}>
+          <View key={section.id} style={[styles.glassCard, !isDark && { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
             <View style={styles.sectionHeader}>
               <View style={styles.badgeContainer}>
                 <Text style={styles.badgeText}>{section.id}</Text>
               </View>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
             </View>
-            <View style={styles.separator} />
-            <Text style={styles.sectionContent}>{section.content}</Text>
+            <View style={[styles.separator, { backgroundColor: colors.divider }]} />
+            <Text style={[styles.sectionContent, { color: colors.textSecondary }]}>{section.content}</Text>
           </View>
         ))}
       </ScrollView>
