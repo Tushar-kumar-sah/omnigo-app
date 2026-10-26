@@ -799,6 +799,15 @@ export async function updateBookingStatusApi(id: string, status: string): Promis
   }
 }
 
+export async function cancelUserBooking(id: string, reason?: string): Promise<any | null> {
+  try {
+    return await updateBookingStatus(id, 'cancelled' as any, { cancellationReason: reason });
+  } catch (e) {
+    console.warn('[api] cancelUserBooking failed', e);
+    return null;
+  }
+}
+
 // ─── Drivers ──────────────────────────────────────────────────
 
 export async function fetchDriverById(id: string): Promise<any> {

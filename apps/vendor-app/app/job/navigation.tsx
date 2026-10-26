@@ -96,28 +96,50 @@ export default function NavigationScreen() {
   }, [isSimulating]);
 
   useEffect(() => {
-    async function loadData() {
+    let isMounted = true;
+    let pollInterval: any;
+
+    async function checkBooking() {
       if (!jobId) return;
       try {
         const b = await getBookingById(jobId);
-        if (b) {
-          // Ownership verification: ensure this driver actually won the order
-          if (b.driverId && b.driverId !== DRIVER_ID) {
-            Alert.alert(
-              'Order Claimed by Another Partner',
-              'Another nearby towing partner has already claimed this order.',
-              [{ text: 'Return to Home', onPress: () => router.replace('/(tabs)') }]
-            );
-            return;
-          }
-          setBooking(b);
+        if (!isMounted || !b) return;
+
+        const status = (b.bookingStatus || b.status || '').toLowerCase();
+        if (status === 'cancelled') {
+          if (pollInterval) clearInterval(pollInterval);
+          Alert.alert(
+            'Booking Cancelled',
+            'This booking has been cancelled by the customer.',
+            [{ text: 'Return to Home', onPress: () => router.replace('/(tabs)') }]
+          );
+          return;
         }
+
+        // Ownership verification: ensure this driver actually won the order
+        if (b.driverId && b.driverId !== DRIVER_ID) {
+          if (pollInterval) clearInterval(pollInterval);
+          Alert.alert(
+            'Order Claimed by Another Partner',
+            'Another nearby towing partner has already claimed this order.',
+            [{ text: 'Return to Home', onPress: () => router.replace('/(tabs)') }]
+          );
+          return;
+        }
+        setBooking(b);
       } catch (err) {
         console.error(err);
       }
     }
-    loadData();
-  }, [jobId]);
+
+    checkBooking();
+    pollInterval = setInterval(checkBooking, 2500);
+
+    return () => {
+      isMounted = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [jobId, DRIVER_ID]);
 
   const CANCEL_REASONS = [
     'Customer no-show',

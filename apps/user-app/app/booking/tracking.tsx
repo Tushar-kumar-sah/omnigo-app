@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { theme } from '@/constants/theme';
 import * as Location from 'expo-location';
-import { fetchBookingById, fetchDriverById, submitDriverRating, fetchCurrentUser, fetchUserBookings } from '@/lib/api';
+import { fetchBookingById, fetchDriverById, submitDriverRating, fetchCurrentUser, fetchUserBookings, cancelUserBooking } from '@/lib/api';
 import { subscribeToDriverLocation, updateBookingDestination, subscribeToBooking } from '@omnigo/api';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 import LiveRouteMap from '@/components/LiveRouteMap';
@@ -85,6 +85,8 @@ export default function TrackingScreen() {
   const [ratingSuccess, setRatingSuccess] = useState(false);
   const [updatedDriverStats, setUpdatedDriverStats] = useState<{ averageRating?: number; reviewCount?: number } | null>(null);
   const ratingModalShownRef = useRef(false);
+  const isCancelledRef = useRef(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const handleSubmitRating = async () => {
     const targetBookingId = booking?.id || bookingId;
@@ -132,6 +134,18 @@ export default function TrackingScreen() {
     setBooking(b);
     const status = (b.bookingStatus || b.status || '').toLowerCase();
     
+    if (status === 'cancelled') {
+      if (!isCancelledRef.current) {
+        isCancelledRef.current = true;
+        Alert.alert(
+          'Booking Cancelled',
+          'This towing request has been cancelled. You can now place a new booking.',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        );
+      }
+      return;
+    }
+
     if (status === 'completed') {
       setCurrentStep(6);
     } else if (status === 'arriving_dropoff' || status === 'arriving') {
@@ -366,6 +380,30 @@ export default function TrackingScreen() {
     setTimeout(() => {
       setChatHistory(h => [...h, { from: 'driver', text: 'Got it, noting location details! 👍' }]);
     }, 1000);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!selectedReason || isCancelling) return;
+    const targetBookingId = booking?.id || booking?.uuid || bookingId;
+    setIsCancelling(true);
+    try {
+      if (targetBookingId) {
+        await cancelUserBooking(targetBookingId, selectedReason);
+      }
+      isCancelledRef.current = true;
+      setShowCancel(false);
+      Alert.alert(
+        'Booking Cancelled',
+        'Your towing request has been cancelled.',
+        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+      );
+    } catch (e) {
+      console.warn('[Tracking] Cancel error:', e);
+      setShowCancel(false);
+      router.replace('/(tabs)');
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   const handleLocationUpdate = async (data: { address: string; coordinates: { latitude: number; longitude: number } }) => {
@@ -778,14 +816,11 @@ export default function TrackingScreen() {
                 <Text style={styles.cancelKeepText}>Keep Booking</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.cancelConfirmBtn, !selectedReason && { opacity: 0.5 }]}
-                disabled={!selectedReason}
-                onPress={() => {
-                  setShowCancel(false);
-                  router.replace('/(tabs)');
-                }}
+                style={[styles.cancelConfirmBtn, (!selectedReason || isCancelling) && { opacity: 0.5 }]}
+                disabled={!selectedReason || isCancelling}
+                onPress={handleConfirmCancel}
               >
-                <Text style={styles.cancelConfirmText}>Confirm Cancel</Text>
+                <Text style={styles.cancelConfirmText}>{isCancelling ? 'Cancelling...' : 'Confirm Cancel'}</Text>
               </TouchableOpacity>
             </View>
           </BlurView>

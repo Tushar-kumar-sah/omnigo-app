@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getAuthenticatedDriverId } from '@/lib/auth';
 import {
   getDriverById,
@@ -7,6 +7,7 @@ import {
   updateDriverLocation,
   subscribeToIncomingJobs,
   acceptBooking,
+  getActiveBookingByDriver,
   Driver,
   Booking
 } from '@omnigo/api';
@@ -28,7 +29,7 @@ import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
@@ -50,29 +51,48 @@ export default function HomeScreen() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
 
-  // Fetch initial data
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const d = await getDriverById(DRIVER_ID);
-        setDriver(d);
-        const jobs = await getBookingsByDriver(DRIVER_ID);
-        const completed = jobs.filter(j => j.status === 'completed');
-        setTodayJobs(completed);
-        
-        const currentActive = jobs.find(j => 
-          ['driver_assigned', 'driver_arriving', 'at_pickup', 'towing', 'in_progress'].includes(j.status)
-        );
-        setActiveJob(currentActive || null);
+  // Fetch driver data and active job
+  const loadData = useCallback(async () => {
+    try {
+      const d = await getDriverById(DRIVER_ID);
+      setDriver(d);
+      const [jobs, currentActive] = await Promise.all([
+        getBookingsByDriver(DRIVER_ID),
+        getActiveBookingByDriver(DRIVER_ID),
+      ]);
+      const completed = jobs.filter(j => (j.status || j.bookingStatus || '').toLowerCase() === 'completed');
+      setTodayJobs(completed);
+      setActiveJob(currentActive || null);
 
-        if (d) {
-          setIsOnline(d.isOnline);
-        }
-      } catch (err) {
-        console.error(err);
+      if (d) {
+        setIsOnline(d.isOnline);
       }
+    } catch (err) {
+      console.error(err);
     }
-    loadData();
+  }, [DRIVER_ID]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
+  // Active job status synchronizer: clears active job immediately when cancelled or completed
+  useEffect(() => {
+    let isMounted = true;
+    const interval = setInterval(async () => {
+      try {
+        const currentActive = await getActiveBookingByDriver(DRIVER_ID);
+        if (isMounted) {
+          setActiveJob(currentActive || null);
+        }
+      } catch (_) {}
+    }, 2500);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [DRIVER_ID]);
 
   // Live GPS Tracking & Broadcast to Supabase when Online

@@ -17,7 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
-import { fetchCurrentUser, fetchUserBookings, fetchActiveBooking } from '@/lib/api';
+import { fetchCurrentUser, fetchUserBookings, fetchActiveBooking, cancelUserBooking } from '@/lib/api';
 
 const AI_CAPTIONS = [
   "How can I help you?",
@@ -58,7 +58,12 @@ export default function HomeScreen() {
           fetchActiveBooking(uid),
         ]);
         setRecentBookings(bookingsData.slice(0, 3));
-        setActiveBooking(active);
+        const activeStatus = (active?.status || active?.bookingStatus || '').toLowerCase();
+        if (active && activeStatus !== 'cancelled' && activeStatus !== 'completed') {
+          setActiveBooking(active);
+        } else {
+          setActiveBooking(null);
+        }
       }
     } catch (e) {
       console.warn('[Home] data fetch error', e);
@@ -66,6 +71,74 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }, []);
+
+  const handleCancelActiveBooking = () => {
+    if (!activeBooking) return;
+    const targetId = activeBooking.uuid || activeBooking.id;
+    Alert.alert(
+      'Cancel Towing Booking?',
+      'Are you sure you want to cancel this booking? This will immediately dismiss the active ride and release the driver.',
+      [
+        { text: 'Keep Booking', style: 'cancel' },
+        {
+          text: 'Yes, Cancel Ride',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setActiveBooking(null);
+              await cancelUserBooking(targetId, 'Cancelled by user from home');
+              if (user) {
+                const uid = user.uuid || user.id;
+                if (uid) {
+                  const bList = await fetchUserBookings(uid);
+                  setRecentBookings(bList.slice(0, 3));
+                }
+              }
+              Alert.alert('Booking Cancelled', 'Your towing request has been cancelled.');
+            } catch (e) {
+              console.warn('[Home] cancel booking error', e);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Real-time synchronization of active booking: automatically clears card when cancelled or completed
+  useEffect(() => {
+    if (!user) return;
+    const uid = user.uuid || user.id;
+    if (!uid) return;
+
+    let isMounted = true;
+
+    // Fast 2.5s polling loop to immediately detect when a driver or customer cancels/completes the ride
+    const interval = setInterval(async () => {
+      try {
+        const latestActive = await fetchActiveBooking(uid);
+        if (isMounted) {
+          const status = (latestActive?.status || latestActive?.bookingStatus || '').toLowerCase();
+          if (!latestActive || status === 'cancelled' || status === 'completed') {
+            setActiveBooking((prev: any) => {
+              if (prev) {
+                fetchUserBookings(uid).then((bList) => {
+                  if (isMounted) setRecentBookings(bList.slice(0, 3));
+                }).catch(() => {});
+              }
+              return null;
+            });
+          } else {
+            setActiveBooking(latestActive);
+          }
+        }
+      } catch (_) {}
+    }, 2500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [user]);
 
   const handleStartBooking = (targetRoute: string) => {
     if (activeBooking) {
@@ -256,22 +329,33 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              <TouchableOpacity
-                style={styles.activeTowTrackBtn}
-                onPress={() =>
-                  router.push({
-                    pathname: '/booking/tracking',
-                    params: {
-                      bookingId: activeBooking.uuid || activeBooking.id,
-                      driverId: activeBooking.driverId || activeBooking.driver_id,
-                    },
-                  })
-                }
-                activeOpacity={0.8}
-              >
-                <Ionicons name="navigate" size={16} color="#050810" />
-                <Text style={styles.activeTowTrackBtnText}>Track Live Booking</Text>
-              </TouchableOpacity>
+              <View style={styles.activeTowActionsRow}>
+                <TouchableOpacity
+                  style={[styles.activeTowTrackBtn, { flex: 1 }]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/booking/tracking',
+                      params: {
+                        bookingId: activeBooking.uuid || activeBooking.id,
+                        driverId: activeBooking.driverId || activeBooking.driver_id,
+                      },
+                    })
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="navigate" size={16} color="#050810" />
+                  <Text style={styles.activeTowTrackBtnText}>Track Live Booking</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.activeTowCancelBtn}
+                  onPress={handleCancelActiveBooking}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close-circle-outline" size={16} color="#F43F5E" />
+                  <Text style={styles.activeTowCancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </LinearGradient>
           </View>
         )}
@@ -838,5 +922,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     fontSize: 13,
     color: '#050810',
+  },
+  activeTowActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 2,
+  },
+  activeTowCancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(244, 63, 94, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.35)',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
+    gap: 5,
+  },
+  activeTowCancelBtnText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 13,
+    color: '#F43F5E',
   },
 });

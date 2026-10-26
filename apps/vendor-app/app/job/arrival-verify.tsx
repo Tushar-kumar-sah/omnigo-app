@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, Alert } from 'react-native';
 import { THEME } from '@/constants/theme';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,6 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { getBookingById, verifyPickupOtp, updateBookingStatus, Booking } from '@omnigo/api';
-import { useEffect } from 'react';
 
 export default function ArrivalVerifyScreen() {
   const router = useRouter();
@@ -18,19 +17,71 @@ export default function ArrivalVerifyScreen() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
-    async function loadData() {
+    let isMounted = true;
+    let pollInterval: any;
+
+    async function checkBooking() {
       if (!jobId) return;
       try {
         const b = await getBookingById(jobId);
+        if (!isMounted || !b) return;
+
+        const status = (b.bookingStatus || b.status || '').toLowerCase();
+        if (status === 'cancelled') {
+          if (pollInterval) clearInterval(pollInterval);
+          Alert.alert(
+            'Booking Cancelled',
+            'This booking has been cancelled by the customer.',
+            [{ text: 'Return to Home', onPress: () => router.replace('/(tabs)') }]
+          );
+          return;
+        }
         setBooking(b);
       } catch (err) {
         console.error(err);
       }
     }
-    loadData();
+
+    checkBooking();
+    pollInterval = setInterval(checkBooking, 2500);
+
+    return () => {
+      isMounted = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }, [jobId]);
+
+  const handleCancelJob = () => {
+    Alert.alert(
+      'Cancel This Job?',
+      'Are you sure you want to cancel this booking (Customer No-Show / Vehicle Unavailable)?',
+      [
+        { text: 'Keep Waiting', style: 'cancel' },
+        {
+          text: 'Cancel Job',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              if (jobId) {
+                await updateBookingStatus(jobId, 'cancelled');
+              }
+              Alert.alert('Job Cancelled', 'This ride has been cancelled.');
+              router.replace('/(tabs)');
+            } catch (e) {
+              console.warn('[ArrivalVerify] cancel error', e);
+              router.replace('/(tabs)');
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleOtpChange = (value: string, index: number) => {
     const newOtp = [...otp];
@@ -173,6 +224,16 @@ export default function ArrivalVerifyScreen() {
             </Text>
           </LinearGradient>
         </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.cancelBtn} 
+          onPress={handleCancelJob}
+          disabled={cancelling || verifying}
+        >
+          <Text style={styles.cancelBtnText}>
+            {cancelling ? 'CANCELLING JOB...' : 'CANCEL JOB / CUSTOMER NO-SHOW'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
@@ -309,5 +370,22 @@ const styles = StyleSheet.create({
   },
   verifyBtnTextDisabled: {
     color: THEME.colors.textSecondary,
+  },
+  cancelBtn: {
+    marginTop: 16,
+    width: '100%',
+    height: 52,
+    borderRadius: THEME.borderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.4)',
+    backgroundColor: 'rgba(255, 59, 48, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 14,
+    color: '#FF4D4F',
+    letterSpacing: 0.5,
   },
 });

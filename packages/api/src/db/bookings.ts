@@ -220,6 +220,26 @@ export async function getActiveBookingByUser(userId: string): Promise<any | null
   }
 }
 
+export async function getActiveBookingByDriver(driverId: string): Promise<any | null> {
+  if (!isSupabaseConfigured || !supabase || !driverId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*, users(name, phone), drivers(name, vehicle_plate)')
+      .eq('driver_id', driverId)
+      .in('status', ACTIVE_BOOKING_STATUSES)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapDbBookingToBooking(data);
+  } catch (err) {
+    console.warn('getActiveBookingByDriver error:', err);
+    return null;
+  }
+}
+
 export async function createBooking(data: any): Promise<any | null> {
   if (!isSupabaseConfigured || !supabase) return null;
   try {
