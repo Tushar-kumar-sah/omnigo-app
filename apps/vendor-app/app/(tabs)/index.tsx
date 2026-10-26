@@ -92,6 +92,41 @@ export default function HomeScreen() {
     return Number(driver?.earnings?.today || (driver as any)?.wallet?.balance || 0);
   }, [driver, todayJobs]);
 
+  const reviewStats = useMemo(() => {
+    // 1. Check if driver object has ratings
+    if (driver?.hasRatings && driver?.rating && Number(driver.rating) > 0) {
+      return {
+        hasRatings: true,
+        ratingText: Number(driver.rating).toFixed(1),
+        reviewLabel: `${driver.reviewCount || 1} ${driver.reviewCount === 1 ? 'Review' : 'Reviews'}`,
+      };
+    }
+    // 2. Check if driver record has a positive rating
+    if (driver?.rating && Number(driver.rating) > 0) {
+      return {
+        hasRatings: true,
+        ratingText: Number(driver.rating).toFixed(1),
+        reviewLabel: `${driver.reviewCount || 1} ${driver.reviewCount === 1 ? 'Review' : 'Reviews'}`,
+      };
+    }
+    // 3. Check if any completed booking has a driverRating
+    const rated = todayJobs.filter(j => j.driverRating != null && Number(j.driverRating) > 0);
+    if (rated.length > 0) {
+      const sum = rated.reduce((acc, j) => acc + Number(j.driverRating), 0);
+      const avg = (sum / rated.length).toFixed(1);
+      return {
+        hasRatings: true,
+        ratingText: avg,
+        reviewLabel: `${rated.length} ${rated.length === 1 ? 'Review' : 'Reviews'}`,
+      };
+    }
+    return {
+      hasRatings: false,
+      ratingText: 'New',
+      reviewLabel: 'No reviews',
+    };
+  }, [driver, todayJobs]);
+
   useFocusEffect(
     useCallback(() => {
       loadData();
@@ -463,9 +498,9 @@ export default function HomeScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
-              <Ionicons name="star" size={22} color={driver?.hasRatings ? "#FFD60A" : "rgba(255,255,255,0.35)"} />
-              <Text style={styles.statValue}>{driver?.hasRatings && driver?.rating ? `${Number(driver.rating).toFixed(1)}` : 'New'}</Text>
-              <Text style={styles.statLabel}>{driver?.hasRatings ? `${driver.reviewCount || 1} ${driver.reviewCount === 1 ? 'Review' : 'Reviews'}` : 'No reviews'}</Text>
+              <Ionicons name="star" size={22} color={reviewStats.hasRatings ? "#FFD60A" : "rgba(255,255,255,0.35)"} />
+              <Text style={styles.statValue}>{reviewStats.ratingText}</Text>
+              <Text style={styles.statLabel}>{reviewStats.reviewLabel}</Text>
             </View>
           </View>
         </BlurView>

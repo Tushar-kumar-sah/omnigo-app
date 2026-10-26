@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 import { getDriverById, getDriverDocuments, Driver } from '@omnigo/api';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAuthenticatedDriverId, logoutDriver } from '@/lib/auth';
 
@@ -32,19 +32,26 @@ export default function ProfileScreen() {
   const [documents, setDocuments] = useState<any[]>([]);
   const DRIVER_ID = getAuthenticatedDriverId();
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const d = await getDriverById(DRIVER_ID);
-        setDriver(d);
-        const docs = await getDriverDocuments(DRIVER_ID);
-        setDocuments(docs || []);
-      } catch (err) {
-        console.error('[Profile] loadData error:', err);
-      }
+  const loadData = useCallback(async () => {
+    try {
+      const d = await getDriverById(DRIVER_ID);
+      setDriver(d);
+      const docs = await getDriverDocuments(DRIVER_ID);
+      setDocuments(docs || []);
+    } catch (err) {
+      console.error('[Profile] loadData error:', err);
     }
-    loadData();
   }, [DRIVER_ID]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const displayDriver = (driver || {}) as any;
 
@@ -126,9 +133,13 @@ export default function ProfileScreen() {
 
         {/* Rating Badge */}
         <View style={styles.ratingBadge}>
-          <Ionicons name="star" size={14} color={displayDriver.hasRatings ? '#FFD700' : 'rgba(255,255,255,0.4)'} />
+          <Ionicons
+            name="star"
+            size={14}
+            color={(displayDriver.hasRatings || (displayDriver.rating && Number(displayDriver.rating) > 0)) ? '#FFD700' : 'rgba(255,255,255,0.4)'}
+          />
           <Text style={styles.ratingText}>
-            {displayDriver.hasRatings && displayDriver.rating
+            {(displayDriver.hasRatings || (displayDriver.rating && Number(displayDriver.rating) > 0)) && Number(displayDriver.rating || 0) > 0
               ? `${Number(displayDriver.rating).toFixed(1)} Rating (${displayDriver.reviewCount || 1} ${displayDriver.reviewCount === 1 ? 'review' : 'reviews'})`
               : 'New Partner · No ratings yet'}
           </Text>

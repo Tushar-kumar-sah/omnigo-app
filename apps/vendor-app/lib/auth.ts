@@ -5,14 +5,49 @@ import {
   updateDriver,
   createDriver,
 } from '@omnigo/api';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 
-export const DEFAULT_DRIVER_ID = 'b0000000-0000-0000-0000-000000000001';
+export const DEFAULT_DRIVER_ID = 'cb6c5672-987b-446a-911a-7c64dee5ca24';
 
 export const DEFAULT_GOOGLE_AVATAR =
   'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&q=80';
 
 let activeDriver: any | null = null;
 let pendingDriverPhoneOtp: { phone: string; code: string } | null = null;
+
+const SESSION_FILE = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}omnigo_driver_session.json` : null;
+
+// Auto-restore driver session from storage
+try {
+  if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+    const raw = localStorage.getItem('omnigo_driver_session');
+    if (raw) activeDriver = JSON.parse(raw);
+  } else if (SESSION_FILE) {
+    FileSystem.readAsStringAsync(SESSION_FILE).then((raw) => {
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved?.id || saved?.uuid) activeDriver = saved;
+      }
+    }).catch(() => {});
+  }
+} catch (_) {}
+
+export function saveDriverSession(driver: any | null) {
+  activeDriver = driver;
+  try {
+    if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+      if (driver) localStorage.setItem('omnigo_driver_session', JSON.stringify(driver));
+      else localStorage.removeItem('omnigo_driver_session');
+    } else if (SESSION_FILE) {
+      if (driver) {
+        FileSystem.writeAsStringAsync(SESSION_FILE, JSON.stringify(driver)).catch(() => {});
+      } else {
+        FileSystem.deleteAsync(SESSION_FILE, { idempotent: true }).catch(() => {});
+      }
+    }
+  } catch (_) {}
+}
 
 export function getAuthenticatedDriverId(): string {
   return activeDriver?.id || activeDriver?.uuid || DEFAULT_DRIVER_ID;
@@ -23,11 +58,11 @@ export function getAuthenticatedDriver(): any | null {
 }
 
 export function setAuthenticatedDriver(driver: any | null) {
-  activeDriver = driver;
+  saveDriverSession(driver);
 }
 
 export function logoutDriver() {
-  activeDriver = null;
+  saveDriverSession(null);
   pendingDriverPhoneOtp = null;
   if (supabase?.auth) {
     supabase.auth.signOut().catch(() => {});
@@ -89,6 +124,7 @@ export async function signInWithGoogleDriver(customProfile?: {
         avatar: googleAvatar,
       });
       activeDriver = { ...(updated || matched), name: googleName, email: googleEmail, avatar: googleAvatar };
+      saveDriverSession(activeDriver);
       return { driver: activeDriver, isNew: false, error: null };
     }
 
@@ -107,6 +143,7 @@ export async function signInWithGoogleDriver(customProfile?: {
 
     if (created) {
       activeDriver = created;
+      saveDriverSession(activeDriver);
       return { driver: created, isNew: true, error: null };
     }
 
@@ -119,6 +156,7 @@ export async function signInWithGoogleDriver(customProfile?: {
       phone: '+919876543210',
     };
     activeDriver = fallback;
+    saveDriverSession(activeDriver);
     return { driver: fallback, isNew: false, error: null };
   } catch (err: any) {
     console.warn('[Driver Auth] Google sign in error:', err);
@@ -215,6 +253,7 @@ export async function verifyDriverPhoneOtp(params: {
         avatar: avatarUrl,
       });
       activeDriver = { ...(updated || matched), name: displayName, phone: formatted, avatar: avatarUrl };
+      saveDriverSession(activeDriver);
       return { driver: activeDriver, isNew: false, error: null };
     }
 
@@ -234,6 +273,7 @@ export async function verifyDriverPhoneOtp(params: {
 
     if (created) {
       activeDriver = created;
+      saveDriverSession(activeDriver);
       return { driver: created, isNew: true, error: null };
     }
 
@@ -245,6 +285,7 @@ export async function verifyDriverPhoneOtp(params: {
       avatar: avatarUrl,
     };
     activeDriver = fallback;
+    saveDriverSession(activeDriver);
     return { driver: fallback, isNew: false, error: null };
   } catch (err: any) {
     console.warn('[Driver Auth] verify OTP error:', err);

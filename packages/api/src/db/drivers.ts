@@ -142,7 +142,7 @@ export async function getDriverById(id: string): Promise<any | null> {
       .eq('driver_id', id)
       .not('driver_rating', 'is', null);
 
-    const reviewCount = ratedBookings?.length || 0;
+    let reviewCount = ratedBookings?.length || 0;
     let avgRating = 0;
     let hasRatings = false;
 
@@ -150,11 +150,15 @@ export async function getDriverById(id: string): Promise<any | null> {
       const sum = ratedBookings!.reduce((acc: number, b: any) => acc + Number(b.driver_rating || 0), 0);
       avgRating = Math.round((sum / reviewCount) * 10) / 10;
       hasRatings = true;
+    } else if (data.rating != null && Number(data.rating) > 0) {
+      avgRating = Number(data.rating);
+      reviewCount = 1;
+      hasRatings = true;
     }
 
     const mapped = mapDbDriverToDriver(data);
-    mapped.rating = hasRatings ? avgRating : 0;
-    mapped.hasRatings = hasRatings;
+    mapped.rating = hasRatings ? avgRating : (data.rating ? Number(data.rating) : 0);
+    mapped.hasRatings = hasRatings || Boolean(data.rating && Number(data.rating) > 0);
     mapped.reviewCount = reviewCount;
 
     // Attach real driver earnings and wallet balance
@@ -188,8 +192,17 @@ export async function rateDriverBooking(
       query = query.eq('booking_number', bookingId);
     }
 
-    const { data: booking, error: bErr } = await query.maybeSingle();
-    if (bErr || !booking) {
+    let { data: booking, error: bErr } = await query.maybeSingle();
+    if (!booking) {
+      const { data: fallback } = await supabase
+        .from('bookings')
+        .select('id, driver_id, status')
+        .or(`id.eq.${bookingId},booking_number.ilike.%${bookingId}%`)
+        .maybeSingle();
+      if (fallback) booking = fallback;
+    }
+
+    if (!booking) {
       console.warn('rateDriverBooking: booking not found', bookingId);
       return { success: false };
     }
