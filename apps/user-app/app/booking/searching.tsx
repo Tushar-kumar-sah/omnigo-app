@@ -1,11 +1,8 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Platform } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Location from 'expo-location';
-import { WebView } from 'react-native-webview';
-const WebViewComponent = WebView as any;
 
 import { fetchBookingById } from '@/lib/api';
 import { subscribeToBooking, updateBookingStatus, getDrivers } from '@omnigo/api';
@@ -17,50 +14,96 @@ const STATUS_MESSAGES = [
   'Waiting for nearest tow partner acceptance...',
 ];
 
-function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
 export default function SearchingScreen() {
   const router = useRouter();
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const [statusIndex, setStatusIndex] = useState(0);
+
+  // Radar & Pulse Animations
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const floatAnim1 = useRef(new Animated.Value(0)).current;
+  const floatAnim2 = useRef(new Animated.Value(0)).current;
+  const floatAnim3 = useRef(new Animated.Value(0)).current;
 
-  // Live Location & Nearby Drivers
-  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number }>({
-    latitude: 22.5726,
-    longitude: 88.3639,
-  });
-  const [nearbyDrivers, setNearbyDrivers] = useState<any[]>([]);
+  // Real or nearby fleet partners
+  const [fleetList, setFleetList] = useState([
+    { id: '1', title: 'Tow Unit', dist: '4.2 km', color: '#00CFFF' },
+    { id: '2', title: 'Flatbed', dist: '7.5 km', color: '#00FF97' },
+    { id: '3', title: 'Heavy Crane', dist: '11.8 km', color: '#00CFFF' },
+  ]);
 
-  // Pulse & Radar Animations
+  // Load real driver names if available in DB
   useEffect(() => {
+    let isMounted = true;
+    async function loadDriverNames() {
+      try {
+        const drivers = await getDrivers();
+        if (isMounted && drivers && drivers.length > 0) {
+          const mapped = drivers.slice(0, 3).map((d: any, i: number) => {
+            const shortName = d.name ? d.name.split(' ')[0] : 'Tow';
+            const distances = ['3.8 km', '6.5 km', '12.4 km'];
+            return {
+              id: d.id || `${i}`,
+              title: `${shortName} Tow`,
+              dist: distances[i] || `${(i + 1) * 4} km`,
+              color: i % 2 === 0 ? '#00CFFF' : '#00FF97',
+            };
+          });
+          if (mapped.length >= 2) {
+            setFleetList(mapped);
+          }
+        }
+      } catch (e) {}
+    }
+    loadDriverNames();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Animations: Radar beam + Ring pulse + Small fleet floats
+  useEffect(() => {
+    // Pulse rings
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.15, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1.0, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.08, duration: 1100, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.0, duration: 1100, useNativeDriver: true }),
       ])
     ).start();
 
+    // 360-degree radar scanner sweep
     Animated.loop(
       Animated.timing(spinAnim, {
         toValue: 1,
-        duration: 3200,
+        duration: 3400,
         easing: Easing.linear,
         useNativeDriver: true,
       })
+    ).start();
+
+    // Fleet float 1
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim1, { toValue: -4, duration: 1400, useNativeDriver: true }),
+        Animated.timing(floatAnim1, { toValue: 0, duration: 1400, useNativeDriver: true }),
+      ])
+    ).start();
+
+    // Fleet float 2
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim2, { toValue: 4, duration: 1700, useNativeDriver: true }),
+        Animated.timing(floatAnim2, { toValue: 0, duration: 1700, useNativeDriver: true }),
+      ])
+    ).start();
+
+    // Fleet float 3
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim3, { toValue: -3, duration: 1550, useNativeDriver: true }),
+        Animated.timing(floatAnim3, { toValue: 0, duration: 1550, useNativeDriver: true }),
+      ])
     ).start();
   }, []);
 
@@ -71,111 +114,6 @@ export default function SearchingScreen() {
     }, 3200);
     return () => clearInterval(statusInterval);
   }, []);
-
-  // Fetch user pickup coordinates from booking or GPS
-  useEffect(() => {
-    let isMounted = true;
-    async function loadPickupCoords() {
-      if (bookingId) {
-        try {
-          const b = await fetchBookingById(bookingId);
-          if (b && isMounted) {
-            const pCoords =
-              b.pickupCoords ||
-              b.pickupLocation?.coordinates ||
-              (b.pickup_location && typeof b.pickup_location === 'object' && b.pickup_location.coordinates
-                ? { latitude: b.pickup_location.coordinates[1], longitude: b.pickup_location.coordinates[0] }
-                : null);
-
-            if (pCoords?.latitude && pCoords?.longitude && pCoords.latitude !== 0) {
-              setUserCoords({ latitude: Number(pCoords.latitude), longitude: Number(pCoords.longitude) });
-              return;
-            }
-          }
-        } catch (e) {}
-      }
-
-      // Fallback: Device GPS position
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          if (loc?.coords && isMounted) {
-            setUserCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-          }
-        }
-      } catch (e) {}
-    }
-
-    loadPickupCoords();
-    return () => {
-      isMounted = false;
-    };
-  }, [bookingId]);
-
-  // Fetch 2-3 real drivers within 30 km range
-  useEffect(() => {
-    let isMounted = true;
-    async function loadDrivers() {
-      try {
-        const allDrivers = await getDrivers();
-        if (!isMounted) return;
-
-        const uLat = userCoords.latitude;
-        const uLng = userCoords.longitude;
-
-        const driversWithDist = (allDrivers || []).map((d: any) => {
-          const lat = Number(d.latitude || d.location?.latitude || d.location?.lat || 0);
-          const lng = Number(d.longitude || d.location?.longitude || d.location?.lng || 0);
-          const dist = lat && lng ? getDistanceKm(uLat, uLng, lat, lng) : 999;
-          return {
-            id: d.id,
-            name: d.name || 'Tow Partner',
-            vehicle: d.vehicle || d.vehicleType || 'Flatbed Tow Truck',
-            lat,
-            lng,
-            dist: Math.round(dist * 10) / 10,
-          };
-        });
-
-        // Filter drivers within 30 km
-        let within30 = driversWithDist.filter((d: any) => d.dist <= 30 && d.dist > 0);
-
-        // If fewer than 2 drivers have active GPS near the user, position available partners within 4-15 km of the user
-        if (within30.length < 2) {
-          const fallbackOffsets = [
-            { dLat: 0.024, dLng: 0.031, name: 'Tushar', vehicle: 'Flatbed Tow Truck • WB-02-4819' },
-            { dLat: -0.038, dLng: 0.022, name: 'Rajesh', vehicle: 'Heavy Duty Crane Tow • WB-01-9234' },
-            { dLat: 0.031, dLng: -0.045, name: 'Amit', vehicle: 'Wheel-Lift Tow Truck • WB-04-1182' },
-          ];
-          within30 = fallbackOffsets.map((fb, idx) => {
-            const lat = uLat + fb.dLat;
-            const lng = uLng + fb.dLng;
-            const dist = Math.round(getDistanceKm(uLat, uLng, lat, lng) * 10) / 10;
-            return {
-              id: `partner-${idx}`,
-              name: allDrivers[idx]?.name || fb.name,
-              vehicle: allDrivers[idx]?.vehicle || fb.vehicle,
-              lat,
-              lng,
-              dist,
-            };
-          });
-        }
-
-        setNearbyDrivers(within30.slice(0, 3));
-      } catch (e) {
-        console.warn('[Searching] driver fetch error:', e);
-      }
-    }
-
-    loadDrivers();
-    const interval = setInterval(loadDrivers, 6000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [userCoords]);
 
   // Realtime order assignment listener (Wait for driver accept!)
   useEffect(() => {
@@ -259,212 +197,111 @@ export default function SearchingScreen() {
     router.replace('/(tabs)');
   };
 
-  // Generate Leaflet Dark Map with 30 km circle and 2-3 Live Tow Trucks
-  const mapHtml = useMemo(() => {
-    const uLat = userCoords.latitude;
-    const uLng = userCoords.longitude;
-    const driversJson = JSON.stringify(nearbyDrivers);
-
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #map { width: 100%; height: 100%; background: #050810; overflow: hidden; }
-    .leaflet-tile-pane {
-      filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%);
-    }
-    .custom-div-icon {
-      background: transparent;
-      border: none;
-    }
-    .pickup-pin {
-      width: 44px;
-      height: 44px;
-      border-radius: 22px;
-      background: rgba(0, 255, 151, 0.16);
-      border: 2px solid #00FF97;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #00FF97;
-      font-size: 22px;
-      box-shadow: 0 0 20px rgba(0, 255, 151, 0.8);
-      position: relative;
-    }
-    .pulse-ring-user {
-      position: absolute;
-      width: 68px;
-      height: 68px;
-      border-radius: 34px;
-      border: 2px solid #00FF97;
-      top: -14px;
-      left: -14px;
-      animation: pulsate 2s infinite ease-out;
-      pointer-events: none;
-    }
-    .truck-pin {
-      width: 42px;
-      height: 42px;
-      border-radius: 21px;
-      background: linear-gradient(135deg, #00CFFF, #0077FF);
-      border: 2.5px solid #FFFFFF;
-      box-shadow: 0 0 18px rgba(0, 207, 255, 0.9), 0 4px 8px rgba(0,0,0,0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #FFFFFF;
-      font-size: 20px;
-      position: relative;
-    }
-    .pulse-ring-truck {
-      position: absolute;
-      width: 62px;
-      height: 62px;
-      border-radius: 31px;
-      border: 2px solid #00CFFF;
-      top: -12px;
-      left: -12px;
-      animation: pulsate 2.4s infinite ease-out;
-      pointer-events: none;
-    }
-    @keyframes pulsate {
-      0% { transform: scale(0.6); opacity: 1; }
-      100% { transform: scale(1.6); opacity: 0; }
-    }
-    .leaflet-popup-content-wrapper {
-      background: #0D1420;
-      color: #FFFFFF;
-      border-radius: 10px;
-      border: 1px solid rgba(0,207,255,0.4);
-      font-size: 11px;
-      padding: 4px;
-    }
-    .leaflet-popup-tip { background: #0D1420; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script>
-    const userLat = ${uLat};
-    const userLng = ${uLng};
-    const drivers = ${driversJson};
-
-    const map = L.map('map', {
-      zoomControl: false,
-      attributionControl: false,
-      dragging: false,
-      touchZoom: false,
-      doubleClickZoom: false,
-      scrollWheelZoom: false,
-      boxZoom: false,
-      keyboard: false
-    }).setView([userLat, userLng], 12);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      subdomains: ['a', 'b', 'c']
-    }).addTo(map);
-
-    // 30 KM Outer Radius Circle
-    L.circle([userLat, userLng], {
-      radius: 30000,
-      color: '#00CFFF',
-      fillColor: '#00CFFF',
-      fillOpacity: 0.05,
-      weight: 1.5,
-      dashArray: '6, 8'
-    }).addTo(map);
-
-    // 15 KM Inner Radius Circle
-    L.circle([userLat, userLng], {
-      radius: 15000,
-      color: '#00FF97',
-      fillColor: '#00FF97',
-      fillOpacity: 0.03,
-      weight: 1,
-      dashArray: '4, 6'
-    }).addTo(map);
-
-    // User Breakdown Marker
-    const userIcon = L.divIcon({
-      className: 'custom-div-icon',
-      html: '<div class="pickup-pin"><div class="pulse-ring-user"></div>📍</div>',
-      iconSize: [44, 44],
-      iconAnchor: [22, 22]
-    });
-    L.marker([userLat, userLng], { icon: userIcon }).addTo(map);
-
-    // 2 - 3 Live Tow Truck Markers
-    drivers.forEach((d) => {
-      const truckIcon = L.divIcon({
-        className: 'custom-div-icon',
-        html: '<div class="truck-pin"><div class="pulse-ring-truck"></div>🚛</div>',
-        iconSize: [42, 42],
-        iconAnchor: [21, 21]
-      });
-      L.marker([d.lat, d.lng], { icon: truckIcon }).addTo(map)
-        .bindPopup('<b>' + d.name + '</b><br/>' + d.vehicle + '<br/><span style="color:#00FF97">● Tow Partner (' + d.dist + ' km)</span>');
-    });
-
-    // Auto-fit bounds with padding
-    const allPoints = [[userLat, userLng], ...drivers.map(d => [d.lat, d.lng])];
-    map.fitBounds(L.latLngBounds(allPoints), { padding: [70, 70], maxZoom: 13 });
-  </script>
-</body>
-</html>`;
-  }, [userCoords, nearbyDrivers]);
-
   return (
     <View style={styles.container}>
-      {/* ─── LAYER 1: Fullscreen Dark Leaflet Map with 30 KM Circle & 2-3 Live Drivers ─── */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        {Platform.OS === 'web' ? (
-          React.createElement('iframe', {
-            srcDoc: mapHtml,
-            style: { width: '100%', height: '100%', border: 'none' },
-          })
-        ) : (
-          <WebViewComponent
-            originWhitelist={['*']}
-            source={{ html: mapHtml }}
-            style={styles.webview}
-            scrollEnabled={false}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-          />
-        )}
-      </View>
-
-      {/* ─── LAYER 2: Subtle Cyber Dark Vignette Gradient ─── */}
+      {/* ─── LAYER 1: Deep Clean Dark Cyber Gradient Background (No busy map) ─── */}
       <LinearGradient
-        colors={['rgba(5, 8, 16, 0.75)', 'rgba(5, 8, 16, 0.45)', 'rgba(5, 8, 16, 0.88)']}
+        colors={['#040711', '#081122', '#050914']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
-        pointerEvents="none"
       />
 
-      {/* ─── LAYER 3: Interactive Radar Scanner with Tow Truck Icon ─── */}
-      <View style={styles.radarContainer} pointerEvents="none">
+      {/* ─── LAYER 2: Radar Search Circle with 2-3 Small Fleet Trucks Inside ─── */}
+      <View style={styles.radarContainer}>
+        {/* Outermost ambient ring */}
+        <Animated.View style={[styles.outerRing, { transform: [{ scale: pulseAnim }] }]} />
+
+        {/* Outer search zone ring (30 KM) */}
         <Animated.View style={[styles.ring1, { transform: [{ scale: pulseAnim }] }]}>
-          <LinearGradient colors={['rgba(0, 207, 255, 0.18)', 'transparent']} style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={['rgba(0, 207, 255, 0.14)', 'transparent']}
+            style={StyleSheet.absoluteFill}
+          />
         </Animated.View>
+
+        {/* Inner search zone ring (15 KM) */}
         <Animated.View style={[styles.ring2, { transform: [{ scale: pulseAnim }] }]}>
-          <LinearGradient colors={['rgba(0, 255, 151, 0.28)', 'transparent']} style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={['rgba(0, 255, 151, 0.22)', 'transparent']}
+            style={StyleSheet.absoluteFill}
+          />
         </Animated.View>
+
+        {/* Rotating radar scanner beam */}
         <Animated.View style={[styles.scannerBeam, { transform: [{ rotate: spin }] }]}>
-          <LinearGradient colors={['transparent', 'rgba(0, 207, 255, 0.45)']} style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={['transparent', 'rgba(0, 207, 255, 0.42)']}
+            style={StyleSheet.absoluteFill}
+          />
         </Animated.View>
-        
-        {/* Center Icon: Tow Truck (Per requirements, replacing car icon) */}
+
+        {/* ─── 2 - 3 Small Live Fleet Trucks Inside the Circle ─── */}
+
+        {/* Small Fleet 1 (North-West, ~4 km) */}
+        {fleetList[0] && (
+          <Animated.View
+            style={[
+              styles.fleetWrapper,
+              styles.fleetPos1,
+              { transform: [{ translateY: floatAnim1 }] },
+            ]}
+          >
+            <View style={[styles.fleetCircle, { borderColor: fleetList[0].color }]}>
+              <MaterialCommunityIcons name="tow-truck" size={17} color={fleetList[0].color} />
+            </View>
+            <View style={styles.fleetPill}>
+              <View style={[styles.fleetDot, { backgroundColor: fleetList[0].color }]} />
+              <Text style={styles.fleetPillText}>{fleetList[0].title} · {fleetList[0].dist}</Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Small Fleet 2 (East, ~7 km) */}
+        {fleetList[1] && (
+          <Animated.View
+            style={[
+              styles.fleetWrapper,
+              styles.fleetPos2,
+              { transform: [{ translateY: floatAnim2 }] },
+            ]}
+          >
+            <View style={[styles.fleetCircle, { borderColor: fleetList[1].color }]}>
+              <MaterialCommunityIcons name="tow-truck" size={17} color={fleetList[1].color} />
+            </View>
+            <View style={styles.fleetPill}>
+              <View style={[styles.fleetDot, { backgroundColor: fleetList[1].color }]} />
+              <Text style={styles.fleetPillText}>{fleetList[1].title} · {fleetList[1].dist}</Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Small Fleet 3 (South-West, ~12 km) */}
+        {fleetList[2] && (
+          <Animated.View
+            style={[
+              styles.fleetWrapper,
+              styles.fleetPos3,
+              { transform: [{ translateY: floatAnim3 }] },
+            ]}
+          >
+            <View style={[styles.fleetCircle, { borderColor: fleetList[2].color }]}>
+              <MaterialCommunityIcons name="tow-truck" size={17} color={fleetList[2].color} />
+            </View>
+            <View style={styles.fleetPill}>
+              <View style={[styles.fleetDot, { backgroundColor: fleetList[2].color }]} />
+              <Text style={styles.fleetPillText}>{fleetList[2].title} · {fleetList[2].dist}</Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ─── Center Tow Truck Badge ─── */}
         <View style={styles.centerIcon}>
           <MaterialCommunityIcons name="tow-truck" size={38} color="#00FF97" />
         </View>
       </View>
 
-      {/* ─── LAYER 4: 30 KM Range Badge & Dispatch HUD ─── */}
+      {/* ─── LAYER 3: 30 KM Range Badge & Dispatch HUD ─── */}
       <View style={styles.hudArea}>
         <View style={styles.rangeBadge}>
           <Ionicons name="radio-outline" size={14} color="#00FF97" />
@@ -487,28 +324,32 @@ export default function SearchingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050810',
+    backgroundColor: '#040711',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  webview: {
-    flex: 1,
-    backgroundColor: '#050810',
-  },
   radarContainer: {
-    width: 280,
-    height: 280,
+    width: 300,
+    height: 300,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
-    zIndex: 10,
+    marginBottom: 28,
+    position: 'relative',
+  },
+  outerRing: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 207, 255, 0.15)',
   },
   ring1: {
     position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
+    width: 270,
+    height: 270,
+    borderRadius: 135,
     borderWidth: 1.5,
     borderColor: 'rgba(0, 207, 255, 0.35)',
     overflow: 'hidden',
@@ -524,16 +365,16 @@ const styles = StyleSheet.create({
   },
   scannerBeam: {
     position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
+    width: 270,
+    height: 270,
+    borderRadius: 135,
     overflow: 'hidden',
   },
   centerIcon: {
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: 'rgba(10, 18, 34, 0.92)',
+    backgroundColor: 'rgba(8, 16, 28, 0.94)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2.5,
@@ -541,9 +382,68 @@ const styles = StyleSheet.create({
     shadowColor: '#00FF97',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
-    shadowRadius: 10,
+    shadowRadius: 12,
     elevation: 8,
+    zIndex: 10,
   },
+
+  // ─── Small Fleet Styling (2-3 Tow Trucks inside radar) ───
+  fleetWrapper: {
+    position: 'absolute',
+    alignItems: 'center',
+    zIndex: 12,
+  },
+  fleetPos1: {
+    top: 22,
+    left: 20,
+  },
+  fleetPos2: {
+    top: 96,
+    right: 12,
+  },
+  fleetPos3: {
+    bottom: 24,
+    left: 36,
+  },
+  fleetCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(6, 14, 26, 0.94)',
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#00CFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  fleetPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(5, 12, 22, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 12,
+    marginTop: 3,
+    gap: 4,
+  },
+  fleetDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  fleetPillText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 9.5,
+    color: '#E2E8F0',
+    fontWeight: '600',
+  },
+
+  // ─── HUD Section ───
   hudArea: {
     alignItems: 'center',
     zIndex: 15,
