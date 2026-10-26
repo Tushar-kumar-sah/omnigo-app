@@ -34,6 +34,26 @@ export interface Driver {
   location: LatLng;
   earnings: DriverEarnings;
   createdAt: string;
+  acceptanceRate?: string | number;
+  completionRate?: string | number;
+  cancellationRate?: string | number;
+  onlineHours?: string;
+  memberSince?: string;
+  vehicle?: any;
+  vehicleDetails?: any;
+  vehiclePlate?: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  bank?: any;
+  bankDetails?: any;
+  bankAccountHolder?: string;
+  bankName?: string;
+  bankAccount?: string;
+  ifsc?: string;
+  bankUpi?: string;
+  wallet?: any;
+  performance?: any;
+  verificationStatus?: string;
 }
 
 export interface DriverEarnings {
