@@ -6,8 +6,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '@/constants/theme';
 import { CONDITION_CHECKLIST } from '@/constants/app-config';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ConditionReportScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams();
   const jobId = params.id as string;
@@ -22,7 +24,7 @@ export default function ConditionReportScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 16, 56), paddingBottom: Math.max(insets.bottom + 90, 110) }]}>
         <Text style={styles.title}>Vehicle Condition Report</Text>
         
         <BlurView intensity={20} tint="dark" style={styles.card}>
@@ -69,10 +71,9 @@ export default function ConditionReportScreen() {
         </BlurView>
 
         <Text style={styles.footerText}>A copy of this report will be automatically synced to the customer's app</Text>
-        <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 10, 18) }]}>
         <TouchableOpacity onPress={() => router.push({ pathname: '/job/towing', params: { id: jobId } })}>
           <LinearGradient
             colors={[THEME.colors.success, '#00CC7A']}

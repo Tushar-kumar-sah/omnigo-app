@@ -5,12 +5,14 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { updateBookingStatus, createLedgerEntry, getLedgerByBooking, getBookingById, Booking } from '@omnigo/api';
 import { useLocalSearchParams } from 'expo-router';
 import { getAuthenticatedDriverId } from '@/lib/auth';
 
 export default function DropoffScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams();
   const jobId = (params.id as string);
@@ -171,10 +173,10 @@ export default function DropoffScreen() {
             </Text>
           </View>
         </BlurView>
-        <View style={styles.bottomSpacer} />
+        <View style={{ height: Math.max(insets.bottom + 80, 100) }} />
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 10, 18) }]}>
         <TouchableOpacity onPress={handleComplete} disabled={!canComplete}>
           <LinearGradient
             colors={canComplete ? [THEME.colors.success, '#00CC7A'] : ['#333', '#222']}
