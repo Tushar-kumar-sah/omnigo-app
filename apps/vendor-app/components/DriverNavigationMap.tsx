@@ -16,6 +16,9 @@ export interface DriverNavigationMapProps {
   onRouteCalculated?: (route: RouteResult) => void;
   isSimulating?: boolean;
   onToggleSimulate?: () => void;
+  destinationLabel?: string;
+  showEtaPill?: boolean;
+  controlsTopOffset?: number;
 }
 
 export default function DriverNavigationMap({
@@ -29,6 +32,9 @@ export default function DriverNavigationMap({
   onRouteCalculated,
   isSimulating = false,
   onToggleSimulate,
+  destinationLabel = 'Customer',
+  showEtaPill = true,
+  controlsTopOffset = 140,
 }: DriverNavigationMapProps) {
   const uLat = userCoords?.latitude || 22.5515;
   const uLng = userCoords?.longitude || 88.3524;
@@ -317,7 +323,7 @@ export default function DriverNavigationMap({
       )}
 
       {/* Floating HUD Controls */}
-      <View style={styles.floatingControls}>
+      <View style={[styles.floatingControls, { top: controlsTopOffset }]}>
         <TouchableOpacity
           style={styles.iconCircle}
           onPress={() => {
@@ -339,20 +345,22 @@ export default function DriverNavigationMap({
         </TouchableOpacity>
       </View>
 
-      {/* ETA HUD Pill on Top Left */}
-      <View style={styles.etaPill}>
-        <View style={styles.liveDot} />
-        {loadingRoute ? (
-          <ActivityIndicator size="small" color="#00FF97" style={{ marginRight: 6 }} />
-        ) : (
-          <Ionicons name="speedometer-outline" size={14} color="#00FF97" style={{ marginRight: 6 }} />
-        )}
-        <Text style={styles.etaText}>
-          {routeData
-            ? `${routeData.durationMinutes} mins · ${routeData.distanceKm} km to Customer`
-            : `Live Route to Customer`}
-        </Text>
-      </View>
+      {/* ETA HUD Pill on Top Left (Rendered only if showEtaPill is true) */}
+      {showEtaPill && (
+        <View style={[styles.etaPill, { top: controlsTopOffset }]}>
+          <View style={styles.liveDot} />
+          {loadingRoute ? (
+            <ActivityIndicator size="small" color="#00FF97" style={{ marginRight: 6 }} />
+          ) : (
+            <Ionicons name="speedometer-outline" size={14} color="#00FF97" style={{ marginRight: 6 }} />
+          )}
+          <Text style={styles.etaText}>
+            {routeData
+              ? `${routeData.durationMinutes} mins · ${routeData.distanceKm} km to ${destinationLabel}`
+              : `Live Route to ${destinationLabel}`}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }

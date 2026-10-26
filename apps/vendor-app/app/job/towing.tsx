@@ -57,6 +57,13 @@ export default function TowingScreen() {
         const b = await getBookingById(jobId);
         if (isMounted && b) {
           setBooking(b);
+          if (b.estimatedETA) {
+            setEtaText(`${b.estimatedETA} mins`);
+          }
+          if (b.distance) {
+            const cleanD = String(b.distance).replace(/km/gi, '').trim();
+            setDistanceText(`${cleanD} km`);
+          }
         }
       } catch (err) {
         console.error('[TowingScreen] getBooking error:', err);
@@ -272,6 +279,9 @@ export default function TowingScreen() {
           driverSpeed={driverSpeed}
           driverHeading={driverHeading}
           onRouteCalculated={handleRouteCalculated}
+          destinationLabel="Dropoff"
+          showEtaPill={false}
+          controlsTopOffset={Math.max(insets.top + 112, 152)}
         />
       ) : (
         <View style={styles.gpsAcquiringView}>
@@ -291,15 +301,31 @@ export default function TowingScreen() {
         </LinearGradient>
       </View>
 
-      {/* Floating External Google Navigation Button */}
-      <TouchableOpacity
-        style={[styles.floatingNavBtn, { top: Math.max(insets.top + 68, 108) }]}
-        onPress={handleOpenGoogleMaps}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="navigate-circle" size={20} color="#00CFFF" />
-        <Text style={styles.floatingNavText}>Open in Google Maps</Text>
-      </TouchableOpacity>
+      {/* Unified HUD Row: Live ETA on Left + Google Maps Shortcut on Right (Zero Overlap) */}
+      <View style={[styles.topHudRow, { top: Math.max(insets.top + 62, 102) }]}>
+        {/* Left: ETA / Distance Live Route Pill */}
+        <View style={styles.etaBadge}>
+          <View style={styles.liveDot} />
+          {isCalculatingRoute && !etaText ? (
+            <ActivityIndicator size="small" color="#00FF97" style={{ marginRight: 6 }} />
+          ) : (
+            <Ionicons name="speedometer-outline" size={14} color="#00FF97" style={{ marginRight: 6 }} />
+          )}
+          <Text style={styles.etaBadgeText} numberOfLines={1}>
+            {etaText && distanceText ? `${etaText} · ${distanceText}` : (etaText || distanceText || 'Live Route to Dropoff')}
+          </Text>
+        </View>
+
+        {/* Right: Google Maps Navigation Shortcut */}
+        <TouchableOpacity
+          style={styles.floatingNavBtn}
+          onPress={handleOpenGoogleMaps}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="navigate-circle" size={18} color="#00CFFF" />
+          <Text style={styles.floatingNavText}>Google Maps</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Bottom Floating Control Card with Proper System Bar Spacing */}
       <View
@@ -492,23 +518,58 @@ const styles = StyleSheet.create({
     color: '#000',
     letterSpacing: 0.3,
   },
-  floatingNavBtn: {
+  topHudRow: {
     position: 'absolute',
+    left: 16,
     right: 16,
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(10, 14, 23, 0.92)',
-    borderWidth: 1,
+    zIndex: 25,
+  },
+  etaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 18, 34, 0.92)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 100,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 255, 151, 0.35)',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    maxWidth: '56%',
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#00FF97',
+    marginRight: 6,
+  },
+  etaBadgeText: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
+  floatingNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 18, 34, 0.92)',
+    borderWidth: 1.5,
     borderColor: 'rgba(0, 207, 255, 0.4)',
     borderRadius: 100,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 6,
-    zIndex: 15,
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
     elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   floatingNavText: {
     fontFamily: THEME.fonts.inter.medium,
