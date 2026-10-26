@@ -3,17 +3,17 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start --lan -c --port 8081",
-    "dev": "expo start --lan -c --port 8081",
-    "tunnel": "expo start --tunnel -c --port 8081",
+    "start": "expo start --tunnel -c",
+    "dev": "expo start --tunnel -c",
+    "tunnel": "expo start --tunnel -c",
     "lan": "expo start --lan -c --port 8081",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "echo 'lint ok'",
     "typecheck": "tsc --noEmit",
-    "dev:vendor": "expo start --lan -c --port 8081",
-    "tunnel:vendor": "expo start --tunnel -c --port 8081"
+    "dev:vendor": "expo start --tunnel -c",
+    "tunnel:vendor": "expo start --tunnel -c"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",

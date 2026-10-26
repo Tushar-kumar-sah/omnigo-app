@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start --lan -c --port 8082",
-    "dev": "expo start --lan -c --port 8082",
+    "start": "expo start --tunnel -c --port 8082",
+    "dev": "expo start --tunnel -c --port 8082",
     "tunnel": "expo start --tunnel -c --port 8082",
     "lan": "expo start --lan -c --port 8082",
     "android": "expo start --android",
@@ -12,7 +12,7 @@
     "web": "expo start --web",
     "lint": "echo 'lint ok'",
     "typecheck": "tsc --noEmit",
-    "dev:user": "expo start --lan -c --port 8082",
+    "dev:user": "expo start --tunnel -c --port 8082",
     "tunnel:user": "expo start --tunnel -c --port 8082"
   },
   "dependencies": {
