@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { THEME } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { BlurView } from 'expo-blur';
 import { getDriverById, getDriverDocuments, Driver } from '@omnigo/api';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +28,7 @@ const formatPhone = (phoneStr: any) => {
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { mode, isDark, colors, setMode } = useTheme();
 
   const [driver, setDriver] = useState<Driver | null>(null);
   const [documents, setDocuments] = useState<any[]>([]);
@@ -75,10 +77,10 @@ export default function ProfileScreen() {
 
   const CardWrapper = ({ children, style }: { children: React.ReactNode; style: any }) => {
     if (Platform.OS === 'android') {
-      return <View style={[style, styles.cardAndroid]}>{children}</View>;
+      return <View style={[style, { backgroundColor: colors.cardAndroid, borderColor: colors.cardBorder }]}>{children}</View>;
     }
     return (
-      <BlurView intensity={20} tint="dark" style={style}>
+      <BlurView intensity={20} tint={isDark ? "dark" : "light"} style={style}>
         {children}
       </BlurView>
     );
@@ -86,7 +88,7 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -98,36 +100,46 @@ export default function ProfileScreen() {
     >
       {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity activeOpacity={0.7}>
-          <Text style={styles.editText}>Edit Profile</Text>
-        </TouchableOpacity>
+        <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.headerSettingsBtn, { backgroundColor: colors.pillBg, borderColor: colors.cardBorder }]}
+            activeOpacity={0.7}
+            onPress={() => router.push('/settings')}
+          >
+            <Ionicons name="settings-sharp" size={15} color={colors.primary} />
+            <Text style={[styles.headerSettingsText, { color: colors.primary }]}>Settings</Text>
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.7}>
+            <Text style={[styles.editText, { color: colors.primary }]}>Edit Profile</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Main Profile Card */}
-      <CardWrapper style={styles.headerCard}>
+      <CardWrapper style={[styles.headerCard, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
         {/* Avatar */}
-        <View style={styles.avatar}>
-          <Ionicons name="person" size={40} color={THEME.colors.primary} />
+        <View style={[styles.avatar, { borderColor: colors.primary, backgroundColor: isDark ? 'rgba(0, 207, 255, 0.1)' : 'rgba(0, 149, 217, 0.1)' }]}>
+          <Ionicons name="person" size={40} color={colors.primary} />
           <View style={styles.onlineDot} />
         </View>
 
         {/* Driver Name */}
-        <Text style={styles.name} numberOfLines={1}>
+        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
           {displayDriver.name || displayDriver.user?.name || 'Driver Partner'}
         </Text>
 
         {/* Phone & ID Pills (Clean, no UUID word break) */}
         <View style={styles.phoneIdRow}>
-          <View style={styles.infoPill}>
-            <Ionicons name="call-outline" size={12} color={THEME.colors.primary} />
-            <Text style={styles.infoPillText}>
+          <View style={[styles.infoPill, { backgroundColor: colors.pillBg, borderColor: colors.divider }]}>
+            <Ionicons name="call-outline" size={12} color={colors.primary} />
+            <Text style={[styles.infoPillText, { color: colors.textSecondary }]}>
               {formatPhone(displayDriver.phone || displayDriver.user?.phone)}
             </Text>
           </View>
-          <View style={styles.infoPill}>
-            <Ionicons name="id-card-outline" size={12} color={THEME.colors.primary} />
-            <Text style={styles.infoPillText}>ID: #{shortId}</Text>
+          <View style={[styles.infoPill, { backgroundColor: colors.pillBg, borderColor: colors.divider }]}>
+            <Ionicons name="id-card-outline" size={12} color={colors.primary} />
+            <Text style={[styles.infoPillText, { color: colors.textSecondary }]}>ID: #{shortId}</Text>
           </View>
         </View>
 
@@ -146,61 +158,61 @@ export default function ProfileScreen() {
         </View>
 
         {/* Performance & Operations Metrics Grid */}
-        <View style={styles.statsGrid}>
+        <View style={[styles.statsGrid, { borderTopColor: colors.divider }]}>
           <View style={styles.statCell}>
-            <Text style={styles.statValue} numberOfLines={1}>
+            <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1}>
               {displayDriver.totalTrips != null ? displayDriver.totalTrips : (displayDriver.performance?.totalTrips ?? 1)}
             </Text>
-            <Text style={styles.statLabel} numberOfLines={1}>Trips</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]} numberOfLines={1}>Trips</Text>
           </View>
 
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
 
           <View style={styles.statCell}>
-            <Text style={[styles.statValue, { color: THEME.colors.primary }]} numberOfLines={1}>
+            <Text style={[styles.statValue, { color: colors.primary }]} numberOfLines={1}>
               {formatPercent(displayDriver.acceptanceRate || displayDriver.performance?.acceptanceRate || 100)}
             </Text>
-            <Text style={styles.statLabel} numberOfLines={1}>Accepted</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]} numberOfLines={1}>Accepted</Text>
           </View>
 
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
 
           <View style={styles.statCell}>
-            <Text style={[styles.statValue, { color: THEME.colors.success }]} numberOfLines={1}>
+            <Text style={[styles.statValue, { color: colors.success }]} numberOfLines={1}>
               {formatPercent(displayDriver.completionRate != null ? displayDriver.completionRate : 100)}
             </Text>
-            <Text style={styles.statLabel} numberOfLines={1}>Completed</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]} numberOfLines={1}>Completed</Text>
           </View>
 
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
 
           <View style={styles.statCell}>
-            <Text style={[styles.statValue, { color: THEME.colors.danger }]} numberOfLines={1}>
+            <Text style={[styles.statValue, { color: colors.danger }]} numberOfLines={1}>
               {formatPercent(displayDriver.cancellationRate != null ? displayDriver.cancellationRate : 0)}
             </Text>
-            <Text style={styles.statLabel} numberOfLines={1}>Cancelled</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]} numberOfLines={1}>Cancelled</Text>
           </View>
         </View>
 
         {/* Online Hours Pill */}
-        <View style={styles.onlineHoursRow}>
-          <Ionicons name="timer-outline" size={14} color={THEME.colors.primary} />
-          <Text style={styles.onlineHoursText}>
+        <View style={[styles.onlineHoursRow, { backgroundColor: isDark ? 'rgba(0, 207, 255, 0.08)' : 'rgba(0, 149, 217, 0.08)', borderColor: colors.glassBorder }]}>
+          <Ionicons name="timer-outline" size={14} color={colors.primary} />
+          <Text style={[styles.onlineHoursText, { color: colors.primary }]}>
             Total Online Hours:{' '}
-            <Text style={{ color: '#fff', fontFamily: THEME.fonts.inter.bold }}>
+            <Text style={{ color: colors.text, fontFamily: THEME.fonts.inter.bold }}>
               {displayDriver.onlineHours && displayDriver.onlineHours !== '0 hrs' ? displayDriver.onlineHours : '14.5 hrs'}
             </Text>
           </Text>
         </View>
 
-        <Text style={styles.memberSince}>
+        <Text style={[styles.memberSince, { color: colors.textSecondary }]}>
           Partner since {displayDriver.memberSince || (displayDriver.createdAt ? new Date(displayDriver.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Oct 2026')}
         </Text>
       </CardWrapper>
 
       {/* Vehicle Verification Details */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Vehicle & Equipment Status</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Vehicle & Equipment Status</Text>
         <View style={styles.verifiedPill}>
           <Ionicons name="checkmark-circle" size={13} color={THEME.colors.success} />
           <Text style={styles.verifiedPillText}>
@@ -209,29 +221,29 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <CardWrapper style={styles.infoCard}>
+      <CardWrapper style={[styles.infoCard, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Vehicle Type</Text>
-          <Text style={styles.infoValue}>
+          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Vehicle Type</Text>
+          <Text style={[styles.infoValue, { color: colors.text }]}>
             {displayDriver.vehicleDetails?.type || (typeof displayDriver.vehicle === 'object' ? displayDriver.vehicle?.type : null) || displayDriver.vehicleType || 'Flatbed Tow Truck'}
           </Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Make & Model</Text>
-          <Text style={styles.infoValue}>{vehicleMakeModel}</Text>
+          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Make & Model</Text>
+          <Text style={[styles.infoValue, { color: colors.text }]}>{vehicleMakeModel}</Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Plate Number</Text>
-          <Text style={[styles.infoValue, { color: THEME.colors.primary, fontFamily: THEME.fonts.outfit.bold }]}>
+          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Plate Number</Text>
+          <Text style={[styles.infoValue, { color: colors.primary, fontFamily: THEME.fonts.outfit.bold }]}>
             {displayDriver.vehicleNumber || displayDriver.vehiclePlate || displayDriver.vehicleDetails?.plateNumber || (typeof displayDriver.vehicle === 'object' ? displayDriver.vehicle?.number : null) || 'MH 12 AB 1234'}
           </Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Last Field Inspection</Text>
-          <Text style={styles.infoValue}>
+          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Last Field Inspection</Text>
+          <Text style={[styles.infoValue, { color: colors.text }]}>
             {displayDriver.vehicleDetails?.inspectionDate || (typeof displayDriver.vehicle === 'object' ? displayDriver.vehicle?.inspectionDate : null) || displayDriver.inspectionDate || '15 Oct 2026'}
           </Text>
         </View>
@@ -239,36 +251,36 @@ export default function ProfileScreen() {
 
       {/* Document Verification & Expiry Alerts */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Verification & Compliance Documents</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Verification & Compliance Documents</Text>
       </View>
 
-      <CardWrapper style={styles.infoCard}>
+      <CardWrapper style={[styles.infoCard, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
         {documents.length === 0 ? (
           <View style={{ padding: 16, alignItems: 'center' }}>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: THEME.fonts.inter.regular, fontSize: 13 }}>
+            <Text style={{ color: colors.textSecondary, fontFamily: THEME.fonts.inter.regular, fontSize: 13 }}>
               No documents found
             </Text>
           </View>
         ) : (
           documents.map((doc, idx) => (
             <React.Fragment key={idx}>
-              {idx > 0 && <View style={styles.divider} />}
+              {idx > 0 && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
               <View style={styles.docRow}>
                 <View style={{ flex: 1, paddingRight: 8 }}>
-                  <Text style={styles.docName}>{doc.name || doc.type || doc.doc_name || 'Document'}</Text>
+                  <Text style={[styles.docName, { color: colors.text }]}>{doc.name || doc.type || doc.doc_name || 'Document'}</Text>
                   <View style={styles.docMetaRow}>
                     <Text style={[styles.verifiedText, (doc.status || 'verified').toLowerCase() !== 'verified' && { color: THEME.colors.warning }]}>
                       {(doc.status ? doc.status.charAt(0).toUpperCase() + doc.status.slice(1) : 'Verified')} {(doc.status || 'verified').toLowerCase() === 'verified' ? '✓' : '⚠️'}
                     </Text>
                     {(doc.expiryDate || doc.expiry_date) && (
-                      <Text style={styles.docExpiryText}>
+                      <Text style={[styles.docExpiryText, { color: colors.textSecondary }]}>
                         {' '}· Exp: {new Date(doc.expiryDate || doc.expiry_date).toLocaleDateString()}
                       </Text>
                     )}
                   </View>
                 </View>
-                <TouchableOpacity style={styles.updateBtn} activeOpacity={0.7}>
-                  <Text style={styles.updateBtnText}>View</Text>
+                <TouchableOpacity style={[styles.updateBtn, { backgroundColor: isDark ? 'rgba(0, 207, 255, 0.15)' : 'rgba(0, 149, 217, 0.15)', borderColor: colors.glassBorder }]} activeOpacity={0.7}>
+                  <Text style={[styles.updateBtnText, { color: colors.primary }]}>View</Text>
                 </TouchableOpacity>
               </View>
             </React.Fragment>
@@ -278,48 +290,166 @@ export default function ProfileScreen() {
 
       {/* Bank Account */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Payout Bank Account</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Payout Bank Account</Text>
         <View style={styles.verifiedPill}>
           <Ionicons name="shield-checkmark" size={13} color={THEME.colors.success} />
           <Text style={styles.verifiedPillText}>Approved</Text>
         </View>
       </View>
 
-      <CardWrapper style={styles.infoCard}>
+      <CardWrapper style={[styles.infoCard, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Account Holder</Text>
-          <Text style={styles.infoValue}>
+          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Account Holder</Text>
+          <Text style={[styles.infoValue, { color: colors.text }]}>
             {displayDriver.bank?.accountName || displayDriver.bankDetails?.accountName || displayDriver.bankAccountHolder || displayDriver.name || 'Tushar'}
           </Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Bank Name</Text>
-          <Text style={styles.infoValue}>
+          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Bank Name</Text>
+          <Text style={[styles.infoValue, { color: colors.text }]}>
             {displayDriver.bank?.bankName || displayDriver.bankDetails?.bankName || displayDriver.bankName || 'HDFC Bank'}
           </Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Account Number</Text>
-          <Text style={styles.infoValue}>
+          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Account Number</Text>
+          <Text style={[styles.infoValue, { color: colors.text }]}>
             {displayDriver.bank?.accountNumber || displayDriver.bankDetails?.accountNumber || displayDriver.bankAccount || '•••• •••• 4108'}
           </Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Branch & IFSC</Text>
-          <Text style={styles.infoValue}>
+          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Branch & IFSC</Text>
+          <Text style={[styles.infoValue, { color: colors.text }]}>
             {displayDriver.bank?.ifsc || displayDriver.bankDetails?.ifscCode || displayDriver.ifsc || 'HDFC0002410'}
           </Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Direct UPI ID</Text>
-          <Text style={[styles.infoValue, { color: THEME.colors.primary }]}>
+          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Direct UPI ID</Text>
+          <Text style={[styles.infoValue, { color: colors.primary }]}>
             {displayDriver.bank?.upiId || displayDriver.bankDetails?.upiId || displayDriver.bankUpi || '8100264108@paytm'}
           </Text>
         </View>
+      </CardWrapper>
+
+      {/* Settings & Appearance */}
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Settings & Appearance</Text>
+        <TouchableOpacity
+          style={styles.openSettingsBtn}
+          onPress={() => router.push('/settings')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="settings-outline" size={14} color={colors.primary} />
+          <Text style={[styles.openSettingsText, { color: colors.primary }]}>More Settings</Text>
+        </TouchableOpacity>
+      </View>
+
+      <CardWrapper style={[styles.infoCard, { backgroundColor: colors.glassBg, borderColor: colors.cardBorder }]}>
+        <View style={styles.themeHeaderRow}>
+          <View style={[styles.themeIconBox, { backgroundColor: isDark ? 'rgba(0, 207, 255, 0.12)' : 'rgba(0, 149, 217, 0.12)' }]}>
+            <Ionicons
+              name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'contrast'}
+              size={18}
+              color={colors.primary}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.themeTitleText, { color: colors.text }]}>Display Theme</Text>
+            <Text style={[styles.themeSubtitleText, { color: colors.textSecondary }]}>
+              {mode === 'light' ? '☀️ Day mode (High contrast sunlight visibility)' : mode === 'dark' ? '🌙 Night mode (Low glare dark theme)' : '⚙️ System default (Follows device appearance)'}
+            </Text>
+          </View>
+        </View>
+
+        {/* 3-Pill Theme Mode Selector */}
+        <View style={[styles.themeSelectorContainer, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.35)' : 'rgba(0, 0, 0, 0.05)', borderColor: colors.divider }]}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.themeOptionPill,
+              mode === 'light' && [styles.themeOptionPillActive, { backgroundColor: colors.primary }]
+            ]}
+            onPress={() => setMode('light')}
+          >
+            <Ionicons
+              name="sunny"
+              size={14}
+              color={mode === 'light' ? '#FFFFFF' : colors.textSecondary}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[
+              styles.themeOptionLabel,
+              { color: mode === 'light' ? '#FFFFFF' : colors.textSecondary },
+              mode === 'light' && styles.themeOptionLabelActive
+            ]}>
+              Day
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.themeOptionPill,
+              mode === 'dark' && [styles.themeOptionPillActive, { backgroundColor: colors.primary }]
+            ]}
+            onPress={() => setMode('dark')}
+          >
+            <Ionicons
+              name="moon"
+              size={14}
+              color={mode === 'dark' ? '#000000' : colors.textSecondary}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[
+              styles.themeOptionLabel,
+              { color: mode === 'dark' ? '#000000' : colors.textSecondary },
+              mode === 'dark' && styles.themeOptionLabelActive
+            ]}>
+              Night
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.themeOptionPill,
+              mode === 'system' && [styles.themeOptionPillActive, { backgroundColor: colors.primary }]
+            ]}
+            onPress={() => setMode('system')}
+          >
+            <Ionicons
+              name="phone-portrait-outline"
+              size={14}
+              color={mode === 'system' ? (isDark ? '#000000' : '#FFFFFF') : colors.textSecondary}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[
+              styles.themeOptionLabel,
+              { color: mode === 'system' ? (isDark ? '#000000' : '#FFFFFF') : colors.textSecondary },
+              mode === 'system' && styles.themeOptionLabelActive
+            ]}>
+              System
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.divider, { backgroundColor: colors.divider, marginVertical: 12 }]} />
+
+        {/* More Settings Link */}
+        <TouchableOpacity
+          style={styles.settingsLinkRow}
+          activeOpacity={0.7}
+          onPress={() => router.push('/settings')}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="options-outline" size={18} color={colors.primary} />
+            <Text style={[styles.settingsLinkText, { color: colors.text }]}>Preferences, Sound & Language</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+        </TouchableOpacity>
       </CardWrapper>
 
       {/* Logout */}
@@ -615,5 +745,95 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: THEME.colors.danger,
     letterSpacing: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerSettingsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  headerSettingsText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 13,
+  },
+  openSettingsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  openSettingsText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 12,
+  },
+  themeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  themeIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themeTitleText: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 15,
+  },
+  themeSubtitleText: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  themeSelectorContainer: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    padding: 4,
+    borderWidth: 1,
+    gap: 4,
+  },
+  themeOptionPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  themeOptionPillActive: {
+    shadowColor: '#00CFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  themeOptionLabel: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 13,
+  },
+  themeOptionLabelActive: {
+    fontFamily: THEME.fonts.inter.bold,
+  },
+  settingsLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  settingsLinkText: {
+    fontFamily: THEME.fonts.inter.medium,
+    fontSize: 13,
   },
 });
