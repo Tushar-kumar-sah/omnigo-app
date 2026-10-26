@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ScrollView, Platform, Linking } from 'react-native';
 import { THEME } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -22,6 +23,7 @@ const QUICK_CHATS = [
 ];
 
 export default function NavigationScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const CardWrapper = ({ children, style }: { children: React.ReactNode; style: any }) => {
@@ -406,7 +408,7 @@ export default function NavigationScreen() {
       {/* Top Banner & SOS Bar */}
       <LinearGradient
         colors={[THEME.colors.background, 'transparent']}
-        style={styles.topBannerContainer}
+        style={[styles.topBannerContainer, { paddingTop: Math.max(insets.top + 8, 48) }]}
       >
         <View style={styles.topBannerRow}>
           <View style={styles.topBanner}>
@@ -429,7 +431,7 @@ export default function NavigationScreen() {
       </LinearGradient>
 
       {/* Bottom Floating Control Card */}
-      <View style={styles.bottomContainer}>
+      <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 16) + 14 }]}>
         <CardWrapper style={styles.card}>
           <View style={styles.customerHeader}>
             <View style={{ flex: 1 }}>

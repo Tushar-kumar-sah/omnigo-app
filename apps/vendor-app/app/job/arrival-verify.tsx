@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, Alert } from 'react-native';
 import { THEME } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -9,6 +10,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { getBookingById, verifyPickupOtp, updateBookingStatus, Booking } from '@omnigo/api';
 
 export default function ArrivalVerifyScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [otp, setOtp] = useState(['', '', '', '']);
   const inputs = useRef<Array<any>>([]);
@@ -151,7 +153,7 @@ export default function ArrivalVerifyScreen() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={THEME.colors.text} />
         </TouchableOpacity>
@@ -159,7 +161,7 @@ export default function ArrivalVerifyScreen() {
         <View style={{ width: 44 }} />
       </View>
 
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 16) + 14 }]}>
         <View style={styles.infoCard}>
           <View style={styles.fraudBadge}>
             <Ionicons name="shield-checkmark" size={24} color={THEME.colors.success} />

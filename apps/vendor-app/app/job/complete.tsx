@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -184,7 +184,7 @@ export default function CompleteScreen() {
         <View style={{ height: Math.max(insets.bottom + 80, 100) }} />
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 10, 18) }]}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 16) + 14 }]}>
         <TouchableOpacity onPress={handleSubmit}>
           <LinearGradient
             colors={[THEME.colors.primary, THEME.colors.secondary]}

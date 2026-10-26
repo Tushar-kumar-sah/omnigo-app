@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  Platform,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,65 +24,109 @@ export default function ConditionReportScreen() {
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [fuelLevel, setFuelLevel] = useState<string>('Quarter');
 
-  const fuelOptions = ['Empty', 'Low', 'Quarter', 'Half', 'Full'];
+  const fuelOptions = [
+    { key: 'Empty', label: 'Empty' },
+    { key: 'Low', label: 'Low' },
+    { key: 'Quarter', label: '1/4' },
+    { key: 'Half', label: '1/2' },
+    { key: 'Full', label: 'Full' },
+  ];
 
   const handleToggle = (id: string) => {
-    setChecklist(prev => ({ ...prev, [id]: !prev[id] }));
+    setChecklist((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 16) + 14;
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 16, 56), paddingBottom: Math.max(insets.bottom + 90, 110) }]}>
-        <Text style={styles.title}>Vehicle Condition Report</Text>
-        
+      {/* Top Header Bar */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 48) }]}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={22} color={THEME.colors.text} />
+        </TouchableOpacity>
+        <View style={styles.headerTitleBox}>
+          <Text style={styles.headerTitle}>Condition Report</Text>
+          <Text style={styles.headerSub}>Vehicle Handover Verification</Text>
+        </View>
+        <View style={{ width: 40 }} />
+      </View>
+
+      {/* Scrollable Content Body */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.title}>Pre-Tow Inspection Summary</Text>
+
+        {/* Checklist Card */}
         <BlurView intensity={20} tint="dark" style={styles.card}>
           <Text style={styles.sectionTitle}>Checklist</Text>
-          {CONDITION_CHECKLIST.filter(i => i.type === 'toggle').map((item) => (
+          {CONDITION_CHECKLIST.filter((i) => i.type === 'toggle').map((item) => (
             <View key={item.id} style={styles.checklistItem}>
               <Text style={styles.checklistLabel}>{item.label}</Text>
               <Switch
                 value={checklist[item.id] || false}
                 onValueChange={() => handleToggle(item.id)}
-                trackColor={{ false: '#3e3e3e', true: THEME.colors.success }}
-                thumbColor={'#fff'}
+                trackColor={{ false: '#2A3040', true: THEME.colors.success }}
+                thumbColor={'#FFF'}
               />
             </View>
           ))}
 
           <View style={styles.divider} />
-          
-          <Text style={styles.checklistLabel}>Fuel Level</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fuelOptions}>
-            {fuelOptions.map(option => (
-              <TouchableOpacity
-                key={option}
-                style={[
-                  styles.fuelButton,
-                  fuelLevel === option && styles.fuelButtonActive
-                ]}
-                onPress={() => setFuelLevel(option)}
-              >
-                <Text style={[
-                  styles.fuelButtonText,
-                  fuelLevel === option && styles.fuelButtonTextActive
-                ]}>{option}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </BlurView>
 
-        <BlurView intensity={20} tint="dark" style={[styles.card, { marginTop: THEME.spacing.md }]}>
-          <View style={styles.damageHeader}>
-            <Ionicons name="warning-outline" size={20} color={THEME.colors.warning} />
-            <Text style={styles.damageText}>Damage recorded in pre-inspection saved</Text>
+          {/* Fuel Level Selection */}
+          <Text style={styles.checklistLabel}>Fuel Level</Text>
+          <View style={styles.fuelOptionsRow}>
+            {fuelOptions.map((option) => {
+              const isActive = fuelLevel === option.key;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[styles.fuelButton, isActive && styles.fuelButtonActive]}
+                  onPress={() => setFuelLevel(option.key)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.fuelButtonText, isActive && styles.fuelButtonTextActive]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </BlurView>
 
-        <Text style={styles.footerText}>A copy of this report will be automatically synced to the customer's app</Text>
+        {/* Damage Notice Badge */}
+        <BlurView intensity={20} tint="dark" style={[styles.card, { marginTop: THEME.spacing.md }]}>
+          <View style={styles.damageHeader}>
+            <Ionicons name="shield-checkmark" size={22} color={THEME.colors.success} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.damageTitle}>Pre-Inspection Damage Saved</Text>
+              <Text style={styles.damageSubtitle}>
+                GPS watermarked photos & marked zones are recorded in customer trip log.
+              </Text>
+            </View>
+          </View>
+        </BlurView>
+
+        <Text style={styles.footerNote}>
+          A copy of this condition report is automatically synced to the customer app and dispatch ledger.
+        </Text>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 10, 18) }]}>
-        <TouchableOpacity onPress={() => router.push({ pathname: '/job/towing', params: { id: jobId } })}>
+      {/* Pinned Bottom Footer with Generous System Bar Clearance */}
+      <View style={[styles.footer, { paddingBottom: bottomInset }]}>
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => router.push({ pathname: '/job/towing', params: { id: jobId } })}
+          activeOpacity={0.8}
+        >
           <LinearGradient
             colors={[THEME.colors.success, '#00CC7A']}
             style={styles.btn}
@@ -95,58 +147,100 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.colors.background,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    backgroundColor: THEME.colors.glassBg,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.colors.glassBorder,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitleBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 18,
+    color: THEME.colors.text,
+  },
+  headerSub: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 12,
+    color: THEME.colors.textSecondary,
+    marginTop: 2,
+  },
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
-    padding: THEME.spacing.md,
-    paddingTop: 64,
+    padding: 16,
+    paddingBottom: 24,
   },
   title: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 28,
+    fontSize: 22,
     color: THEME.colors.text,
-    marginBottom: THEME.spacing.lg,
+    marginBottom: 16,
   },
   card: {
     backgroundColor: THEME.colors.glassBg,
     borderColor: THEME.colors.glassBorder,
     borderWidth: 1,
-    borderRadius: THEME.borderRadius.md,
-    padding: THEME.spacing.md,
+    borderRadius: THEME.borderRadius.lg,
+    padding: 16,
     overflow: 'hidden',
   },
   sectionTitle: {
     fontFamily: THEME.fonts.outfit.bold,
-    fontSize: 18,
+    fontSize: 17,
     color: THEME.colors.text,
-    marginBottom: THEME.spacing.md,
+    marginBottom: 14,
   },
   checklistItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: THEME.spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
   },
   checklistLabel: {
     fontFamily: THEME.fonts.inter.medium,
-    fontSize: 16,
+    fontSize: 15,
     color: THEME.colors.text,
   },
   divider: {
     height: 1,
     backgroundColor: THEME.colors.glassBorder,
-    marginVertical: THEME.spacing.md,
+    marginVertical: 14,
   },
-  fuelOptions: {
+  fuelOptionsRow: {
     flexDirection: 'row',
-    marginTop: THEME.spacing.sm,
-    paddingBottom: THEME.spacing.sm,
+    gap: 8,
+    marginTop: 10,
+    width: '100%',
   },
   fuelButton: {
-    paddingHorizontal: THEME.spacing.md,
-    paddingVertical: THEME.spacing.sm,
-    borderRadius: THEME.borderRadius.full,
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 2,
+    borderRadius: THEME.borderRadius.md,
     borderWidth: 1,
     borderColor: THEME.colors.glassBorder,
-    marginRight: THEME.spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fuelButtonActive: {
     backgroundColor: THEME.colors.primary,
@@ -155,97 +249,61 @@ const styles = StyleSheet.create({
   fuelButtonText: {
     fontFamily: THEME.fonts.inter.medium,
     color: THEME.colors.textSecondary,
+    fontSize: 13,
   },
   fuelButtonTextActive: {
     color: '#000',
-    fontFamily: THEME.fonts.inter.bold,
+    fontFamily: THEME.fonts.outfit.bold,
   },
   damageHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: THEME.spacing.sm,
+    gap: 12,
   },
-  damageText: {
-    fontFamily: THEME.fonts.inter.medium,
-    color: THEME.colors.warning,
-    fontSize: 14,
-    flex: 1,
+  damageTitle: {
+    fontFamily: THEME.fonts.outfit.bold,
+    color: THEME.colors.text,
+    fontSize: 15,
   },
-  signatureCard: {
-    backgroundColor: THEME.colors.glassBg,
-    borderColor: THEME.colors.glassBorder,
-    borderWidth: 1,
-    borderRadius: THEME.borderRadius.md,
-    padding: THEME.spacing.md,
-    marginTop: THEME.spacing.md,
-    overflow: 'hidden',
-  },
-  subtitle: {
+  damageSubtitle: {
     fontFamily: THEME.fonts.inter.regular,
     color: THEME.colors.textSecondary,
-    marginBottom: THEME.spacing.md,
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
   },
-  signatureArea: {
-    height: 200,
-    backgroundColor: '#fff',
-    borderRadius: THEME.borderRadius.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  signPrompt: {
-    fontFamily: THEME.fonts.outfit.medium,
-    color: '#999',
-    fontSize: 18,
-  },
-  signedContent: {
-    alignItems: 'center',
-  },
-  signedText: {
-    fontFamily: THEME.fonts.outfit.medium,
-    color: THEME.colors.success,
-    marginTop: THEME.spacing.sm,
-    fontSize: 16,
-  },
-  clearBtn: {
-    marginTop: THEME.spacing.sm,
-    alignSelf: 'flex-end',
-  },
-  clearBtnText: {
-    color: THEME.colors.danger,
-    fontFamily: THEME.fonts.inter.bold,
-    fontSize: 14,
-  },
-  footerText: {
+  footerNote: {
     fontFamily: THEME.fonts.inter.regular,
     color: THEME.colors.textMuted,
     textAlign: 'center',
-    marginTop: THEME.spacing.lg,
+    marginTop: 20,
     fontSize: 12,
-  },
-  bottomSpacer: {
-    height: 100,
+    lineHeight: 18,
+    paddingHorizontal: 16,
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: THEME.spacing.md,
+    width: '100%',
+    paddingHorizontal: 16,
+    paddingTop: 12,
     backgroundColor: THEME.colors.background,
     borderTopWidth: 1,
     borderTopColor: THEME.colors.glassBorder,
   },
+  actionBtn: {
+    width: '100%',
+  },
   btn: {
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: THEME.spacing.md,
     borderRadius: THEME.borderRadius.md,
-    gap: THEME.spacing.sm,
+    gap: 8,
   },
   btnText: {
     color: '#000',
     fontFamily: THEME.fonts.outfit.bold,
     fontSize: 16,
-  }
+    letterSpacing: 0.5,
+  },
 });

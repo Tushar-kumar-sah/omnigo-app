@@ -5,6 +5,7 @@ import { Outfit_400Regular, Outfit_500Medium, Outfit_700Bold } from '@expo-googl
 import { THEME } from '@/constants/theme';
 import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -25,7 +26,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: THEME.colors.background } }}>
         <Stack.Screen name="index" />
@@ -38,6 +39,6 @@ export default function RootLayout() {
         <Stack.Screen name="terms" />
         <Stack.Screen name="privacy" />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }

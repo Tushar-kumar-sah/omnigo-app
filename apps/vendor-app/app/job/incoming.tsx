@@ -8,8 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BuzzerSound, BuzzerSoundHandle } from '@/components/BuzzerSound';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function IncomingJobScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams();
   const [timeLeft, setTimeLeft] = useState(20);
@@ -147,7 +149,7 @@ export default function IncomingJobScreen() {
       <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
       
       <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+        contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 16, 44), paddingBottom: Math.max(insets.bottom, 24) + 20 }]} 
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>

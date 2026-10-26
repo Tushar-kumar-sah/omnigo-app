@@ -518,7 +518,7 @@ export default function PreInspectionScreen() {
       </ScrollView>
 
       {/* Pinned Bottom Footer Actions with Safe Area Insets */}
-      <View style={[styles.footerActions, { paddingBottom: Math.max(insets.bottom + 8, 16) }]}>
+      <View style={[styles.footerActions, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 16) + 14 }]}>
         <TouchableOpacity style={styles.prevBtn} onPress={handleBack} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={18} color={THEME.colors.text} />
           <Text style={styles.prevBtnText}>BACK</Text>

@@ -5,6 +5,8 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform } from 'react-native';
 import { getBookingById, updateBookingStatus, Booking } from '@omnigo/api';
 
 const { width, height } = Dimensions.get('window');
@@ -12,6 +14,7 @@ const { width, height } = Dimensions.get('window');
 type JobState = 'LOADING' | 'IN_TRANSIT' | 'ARRIVED';
 
 export default function TowingScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams();
   const jobId = params.id as string;
@@ -116,7 +119,7 @@ export default function TowingScreen() {
       </LinearGradient>
 
       {/* Bottom Card */}
-      <View style={styles.bottomSection}>
+      <View style={[styles.bottomSection, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 16) + 14 }]}>
         <BlurView intensity={30} tint="dark" style={styles.bottomCard}>
           <Text style={styles.cardTitle}>Destination</Text>
           <View style={styles.locationRow}>

@@ -4,6 +4,7 @@ import { Outfit_400Regular, Outfit_600SemiBold, Outfit_700Bold } from '@expo-goo
 import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -24,7 +25,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0A0E17' } }}>
         <Stack.Screen name="index" />
@@ -38,6 +39,6 @@ export default function RootLayout() {
         <Stack.Screen name="privacy" />
         <Stack.Screen name="ai-assistant" options={{ presentation: 'modal' }} />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }

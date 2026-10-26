@@ -9,6 +9,7 @@ import {
   Image,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
@@ -166,7 +167,7 @@ export default function PostInspectionScreen() {
           </View>
         </ScrollView>
 
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 10, 18) }]}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 16) + 14 }]}>
           <TouchableOpacity
             onPress={() => router.push({ pathname: '/job/dropoff', params: { id: jobId } })}
             activeOpacity={0.8}
@@ -270,7 +271,7 @@ export default function PostInspectionScreen() {
       <BlurView
         intensity={30}
         tint="dark"
-        style={[styles.bottomControls, { paddingBottom: Math.max(insets.bottom + 12, 28) }]}
+        style={[styles.bottomControls, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 16) + 14 }]}
       >
         <Text style={styles.instructionTitle}>{currentStep.label}</Text>
         <Text style={styles.instructionDesc}>{currentStep.description}</Text>
