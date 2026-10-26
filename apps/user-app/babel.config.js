@@ -13,16 +13,9 @@ function resolvePresetExpo() {
 }
 
 module.exports = function (api) {
-  api.cache.using(() => process.env.NODE_ENV)
-
-  const plugins = []
-  if (process.env.NODE_ENV !== 'production') {
-    // Basalt: dev-only compile-time source injection for the phone preview.
-    plugins.push(path.join(__dirname, '.basalt', 'babel-plugin-basalt-source.js'))
-  }
+  api.cache.using(() => process.env.NODE_ENV);
 
   return {
     presets: [resolvePresetExpo()],
-    plugins
-  }
-}
+  };
+};

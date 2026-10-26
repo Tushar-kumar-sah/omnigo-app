@@ -1,6 +1,7 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 const fs = require('fs');
+const metroResolver = require('metro-resolver');
 
 // Fix Windows NTFS / OneDrive / pnpm reparse point EINVAL bug in Metro file-map
 if (process.platform === 'win32') {
@@ -110,7 +111,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (originalResolveRequest) {
     return originalResolveRequest(context, moduleName, platform);
   }
-  return context.resolveRequest(context, moduleName, platform);
+  return metroResolver.resolve(context, moduleName, platform);
 };
 
 // 4. Patch DependencyGraph.prototype.getOrComputeSha1 for pnpm symlinks on Windows
