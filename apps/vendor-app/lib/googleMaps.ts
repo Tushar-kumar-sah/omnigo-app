@@ -127,3 +127,36 @@ export function decodePolyline(encoded: string): Coordinates[] {
 
   return points;
 }
+
+/**
+ * Forward Geocoding: Converts an address string into real GPS coordinates (lat/lng)
+ */
+export async function geocodeAddress(address: string): Promise<Coordinates | null> {
+  if (!address || address.trim().length === 0) return null;
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_MAPS_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.status === 'OK' && data.results && data.results.length > 0) {
+      const loc = data.results[0].geometry.location;
+      return {
+        latitude: loc.lat,
+        longitude: loc.lng,
+      };
+    }
+    // Reliable fallback to Nominatim (OpenStreetMap) if Google key has restrictions
+    const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+    const nomRes = await fetch(nomUrl, { headers: { 'User-Agent': 'OmniGoDriver/1.0' } });
+    const nomData = await nomRes.json();
+    if (nomData && nomData.length > 0) {
+      return {
+        latitude: parseFloat(nomData[0].lat),
+        longitude: parseFloat(nomData[0].lon),
+      };
+    }
+    return null;
+  } catch (e) {
+    console.warn('[GoogleMaps] Geocoding error:', e);
+    return null;
+  }
+}

@@ -65,7 +65,7 @@ export default function DriverNavigationMap({
     return () => {
       isMounted = false;
     };
-  }, [uLat, uLng]);
+  }, [dLat, dLng, uLat, uLng]);
 
   // Dynamically update road route polyline without reloading HTML
   useEffect(() => {

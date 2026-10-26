@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   Platform,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
@@ -14,9 +14,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getBookingById, updateBookingStatus, Booking } from '@omnigo/api';
+import {
+  getBookingById,
+  updateBookingStatus,
+  updateDriverLocation,
+  Booking,
+} from '@omnigo/api';
 import * as Location from 'expo-location';
 import DriverNavigationMap from '@/components/DriverNavigationMap';
+import { geocodeAddress, RouteResult } from '@/lib/googleMaps';
 
 type JobState = 'LOADING' | 'IN_TRANSIT' | 'ARRIVED';
 
@@ -28,67 +34,164 @@ export default function TowingScreen() {
 
   const [jobState, setJobState] = useState<JobState>('LOADING');
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [driverCoords, setDriverCoords] = useState<{ latitude: number; longitude: number }>({
-    latitude: 22.5726,
-    longitude: 88.3639,
-  });
-  const [etaText, setEtaText] = useState('15 mins');
-  const [distanceText, setDistanceText] = useState('4.8 km');
 
+  // Live real-time device GPS coordinates & telemetry (no mock/fake data)
+  const [driverCoords, setDriverCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [driverSpeed, setDriverSpeed] = useState<number>(0);
+  const [driverHeading, setDriverHeading] = useState<number>(0);
+
+  // Real dropoff destination coordinates (geocoded from real booking address)
+  const [dropoffCoords, setDropoffCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  // Live route distance and ETA calculated directly from Google Routes API
+  const [etaText, setEtaText] = useState<string>('');
+  const [distanceText, setDistanceText] = useState<string>('');
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+
+  // 1. Fetch real booking details from Supabase
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
       if (!jobId) return;
       try {
         const b = await getBookingById(jobId);
-        if (isMounted) setBooking(b);
+        if (isMounted && b) {
+          setBooking(b);
+        }
       } catch (err) {
-        console.error(err);
+        console.error('[TowingScreen] getBooking error:', err);
       }
     }
     loadData();
-
-    // Request GPS location for the live navigation map
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          if (isMounted && loc?.coords) {
-            setDriverCoords({
-              latitude: loc.coords.latitude,
-              longitude: loc.coords.longitude,
-            });
-          }
-        }
-      } catch (e) {
-        console.warn('[TowingScreen] location error:', e);
-      }
-    })();
-
     return () => {
       isMounted = false;
     };
   }, [jobId]);
 
-  // Destination dropoff coordinates from booking
-  const dropoffCoords = React.useMemo(() => {
+  // 2. Obtain real destination dropoff coordinates from booking or geocode real address
+  useEffect(() => {
+    if (!booking) return;
+    let isMounted = true;
     const bAny = booking as any;
-    if (bAny?.dropoffCoords && (bAny.dropoffCoords.latitude !== 0 || bAny.dropoffCoords.longitude !== 0)) {
-      return bAny.dropoffCoords;
+
+    if (
+      bAny.dropoffCoords?.latitude &&
+      bAny.dropoffCoords?.longitude &&
+      (bAny.dropoffCoords.latitude !== 0 || bAny.dropoffCoords.longitude !== 0)
+    ) {
+      setDropoffCoords(bAny.dropoffCoords);
+      return;
     }
-    if (bAny?.dropoffLocation?.coordinates) {
-      return bAny.dropoffLocation.coordinates;
+
+    if (
+      bAny.dropoffLocation?.coordinates?.latitude &&
+      bAny.dropoffLocation?.coordinates?.longitude
+    ) {
+      setDropoffCoords(bAny.dropoffLocation.coordinates);
+      return;
     }
-    if (bAny?.dropoff_location?.coordinates) {
-      return {
+
+    if (bAny.dropoff_location?.coordinates && Array.isArray(bAny.dropoff_location.coordinates)) {
+      setDropoffCoords({
         latitude: bAny.dropoff_location.coordinates[1],
         longitude: bAny.dropoff_location.coordinates[0],
-      };
+      });
+      return;
     }
-    // Default Kolkata location if not set yet
-    return { latitude: 22.5855, longitude: 88.3712 };
+
+    // Geocode real destination address dynamically if lat/lng are missing
+    const address = bAny.dropoff?.address || bAny.dropoffAddress || '';
+    if (address) {
+      geocodeAddress(address).then((coords) => {
+        if (isMounted && coords) {
+          setDropoffCoords(coords);
+        }
+      });
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, [booking]);
+
+  // 3. Continuous real-time GPS tracking using device sensors (no fake coordinates)
+  useEffect(() => {
+    let isMounted = true;
+    let locationSub: Location.LocationSubscription | null = null;
+
+    async function startLiveGPSTracking() {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+
+        // Get initial real GPS fix
+        const initial = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+
+        if (isMounted && initial?.coords) {
+          setDriverCoords({
+            latitude: initial.coords.latitude,
+            longitude: initial.coords.longitude,
+          });
+          if (initial.coords.speed && initial.coords.speed > 0) {
+            setDriverSpeed(Math.round(initial.coords.speed * 3.6));
+          }
+        }
+
+        // Live continuous GPS subscription
+        locationSub = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 2000,
+            distanceInterval: 5,
+          },
+          (loc) => {
+            if (!isMounted || !loc?.coords) return;
+            const { latitude, longitude, speed, heading } = loc.coords;
+            setDriverCoords({ latitude, longitude });
+
+            if (speed !== null && speed >= 0) {
+              setDriverSpeed(Math.round(speed * 3.6));
+            }
+            if (heading !== null && heading >= 0) {
+              setDriverHeading(heading);
+            }
+
+            // Sync live driver GPS location with backend
+            const effectiveDriverId = booking?.driverId || 'b0000000-0000-0000-0000-000000000001';
+            updateDriverLocation(
+              effectiveDriverId,
+              latitude,
+              longitude,
+              heading || 0,
+              speed ? Math.round(speed * 3.6) : 0
+            ).catch(() => {});
+          }
+        );
+      } catch (e) {
+        console.warn('[TowingScreen] Live GPS subscription error:', e);
+      }
+    }
+
+    startLiveGPSTracking();
+
+    return () => {
+      isMounted = false;
+      if (locationSub) locationSub.remove();
+    };
+  }, [jobId, booking?.driverId]);
+
+  // 4. Handle route calculated by Google Routes API
+  const handleRouteCalculated = (route: RouteResult) => {
+    setIsCalculatingRoute(false);
+    if (route?.durationMinutes) {
+      setEtaText(`${route.durationMinutes} mins`);
+    }
+    if (route?.distanceKm) {
+      setDistanceText(`${route.distanceKm.toFixed(1)} km`);
+    }
+  };
 
   const handleNextState = async () => {
     if (jobState === 'LOADING') {
@@ -104,12 +207,18 @@ export default function TowingScreen() {
 
   const handleOpenGoogleMaps = () => {
     const dest = booking?.dropoff?.address || 'Destination';
-    const lat = dropoffCoords.latitude;
-    const lng = dropoffCoords.longitude;
+    const lat = dropoffCoords?.latitude;
+    const lng = dropoffCoords?.longitude;
+
+    if (!lat || !lng) {
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dest)}`);
+      return;
+    }
+
     const url = Platform.select({
       ios: `maps:0,0?q=${encodeURIComponent(dest)}`,
       android: `google.navigation:q=${lat},${lng}&mode=d`,
-    }) || `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    }) || `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
 
     Linking.openURL(url).catch(() => {
       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dest)}`);
@@ -149,22 +258,30 @@ export default function TowingScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Live Driving Navigation Map showing route to dropoff destination */}
-      <DriverNavigationMap
-        driverCoords={driverCoords}
-        userCoords={dropoffCoords}
-        customerName={(booking as any)?.customer || 'Customer'}
-        customerVehicle={
-          `${(booking as any)?.customerVehicle?.brand || ''} ${(booking as any)?.customerVehicle?.model || ''}`.trim() ||
-          'Towed Vehicle'
-        }
-        pickupAddress={booking?.dropoff?.address || 'Dropoff Destination'}
-        driverSpeed={jobState === 'IN_TRANSIT' ? 36 : 0}
-        onRouteCalculated={(route) => {
-          if (route?.durationMinutes) setEtaText(`${route.durationMinutes} mins`);
-          if (route?.distanceKm) setDistanceText(`${route.distanceKm.toFixed(1)} km`);
-        }}
-      />
+      {/* Live Map or GPS Satellite Lock Acquisition */}
+      {driverCoords && dropoffCoords ? (
+        <DriverNavigationMap
+          driverCoords={driverCoords}
+          userCoords={dropoffCoords}
+          customerName={(booking as any)?.customer || 'Customer'}
+          customerVehicle={
+            `${(booking as any)?.customerVehicle?.brand || ''} ${(booking as any)?.customerVehicle?.model || ''}`.trim() ||
+            'Towed Vehicle'
+          }
+          pickupAddress={booking?.dropoff?.address || 'Dropoff Destination'}
+          driverSpeed={driverSpeed}
+          driverHeading={driverHeading}
+          onRouteCalculated={handleRouteCalculated}
+        />
+      ) : (
+        <View style={styles.gpsAcquiringView}>
+          <ActivityIndicator size="large" color={THEME.colors.primary} />
+          <Text style={styles.gpsAcquiringTitle}>Acquiring Live GPS Satellite Lock</Text>
+          <Text style={styles.gpsAcquiringSub}>
+            Connecting to device navigation hardware and calculating live road polyline...
+          </Text>
+        </View>
+      )}
 
       {/* Top Banner with Safe Area Inset */}
       <View style={[styles.topBannerWrapper, { top: Math.max(insets.top + 8, 48) }]}>
@@ -174,7 +291,7 @@ export default function TowingScreen() {
         </LinearGradient>
       </View>
 
-      {/* Floating External Navigation Button */}
+      {/* Floating External Google Navigation Button */}
       <TouchableOpacity
         style={[styles.floatingNavBtn, { top: Math.max(insets.top + 68, 108) }]}
         onPress={handleOpenGoogleMaps}
@@ -192,7 +309,7 @@ export default function TowingScreen() {
         ]}
       >
         <BlurView intensity={45} tint="dark" style={styles.bottomCard}>
-          {/* Destination Header with Maps launch icon */}
+          {/* Destination Header with Maps shortcut */}
           <View style={styles.destHeaderRow}>
             <Text style={styles.cardTitle}>Destination</Text>
             <TouchableOpacity onPress={handleOpenGoogleMaps} activeOpacity={0.7} style={styles.mapsShortcut}>
@@ -204,31 +321,31 @@ export default function TowingScreen() {
           <View style={styles.locationRow}>
             <Ionicons name="location" size={22} color={THEME.colors.danger} style={{ marginTop: 2 }} />
             <Text style={styles.locationText} numberOfLines={2}>
-              {booking?.dropoff?.address || '4A, Manicktala, Goa Bagan, Ward Number 16, Kolkata'}
+              {booking?.dropoff?.address || 'Destination Dropoff Spot'}
             </Text>
           </View>
 
-          {/* Live ETA and Distance stats row */}
+          {/* Live ETA, Distance & Telemetry row (Real Live Google Routes & Sensor Data) */}
           {jobState === 'IN_TRANSIT' && (
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statLabel}>ESTIMATED ETA</Text>
-                <Text style={styles.statValue}>{etaText}</Text>
+                <Text style={styles.statLabel}>LIVE ETA</Text>
+                <Text style={styles.statValue}>{etaText || (isCalculatingRoute ? '...' : 'Calculating')}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>DISTANCE</Text>
-                <Text style={styles.statValue}>{distanceText}</Text>
+                <Text style={styles.statValue}>{distanceText || (isCalculatingRoute ? '...' : 'Calculating')}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statLabel}>SPEED</Text>
-                <Text style={styles.statValue}>36 km/h</Text>
+                <Text style={styles.statLabel}>LIVE SPEED</Text>
+                <Text style={styles.statValue}>{`${driverSpeed} km/h`}</Text>
               </View>
             </View>
           )}
 
-          {/* Stepper Timeline with Proper Single-Line Text Alignment */}
+          {/* Stepper Timeline with Proper Single-Line Text Alignment (No Line Breaks) */}
           <View style={styles.stepperContainer}>
             {/* Step 1: Loading */}
             <View style={styles.stepItem}>
@@ -327,6 +444,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.colors.background,
   },
+  gpsAcquiringView: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#050810',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  gpsAcquiringTitle: {
+    fontFamily: THEME.fonts.outfit.bold,
+    fontSize: 18,
+    color: THEME.colors.text,
+    marginTop: 18,
+    textAlign: 'center',
+  },
+  gpsAcquiringSub: {
+    fontFamily: THEME.fonts.inter.regular,
+    fontSize: 13,
+    color: THEME.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 18,
+  },
   topBannerWrapper: {
     position: 'absolute',
     left: 16,
@@ -358,7 +497,7 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(10, 14, 23, 0.9)',
+    backgroundColor: 'rgba(10, 14, 23, 0.92)',
     borderWidth: 1,
     borderColor: 'rgba(0, 207, 255, 0.4)',
     borderRadius: 100,
