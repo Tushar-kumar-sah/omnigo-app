@@ -50,8 +50,16 @@ export default function CompleteScreen() {
   const commissionAmount = Math.round(grossFare * commissionRate);
   const netEarnings = grossFare - commissionAmount;
 
+  const formatDistance = (val: any) => {
+    if (!val) return '—';
+    const s = String(val).trim();
+    if (s.toLowerCase().endsWith('km')) return s;
+    const num = parseFloat(s);
+    return isNaN(num) ? s : `${num} km`;
+  };
+
   const jobData = booking ? {
-    distance: booking.distance ? booking.distance + ' km' : '—',
+    distance: formatDistance(booking.distance),
     duration: booking.estimatedETA ? booking.estimatedETA + ' mins' : '—',
     driverEarnings: `₹${netEarnings}`,
     customerPayment: `₹${grossFare}`,
@@ -84,7 +92,11 @@ export default function CompleteScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 16, 52) }]}
+        showsVerticalScrollIndicator={false}
+      >
         
         <View style={styles.successArea}>
           <View style={styles.glowCircle}>
@@ -181,7 +193,6 @@ export default function CompleteScreen() {
           />
         </BlurView>
 
-        <View style={{ height: Math.max(insets.bottom + 80, 100) }} />
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 16) + 14 }]}>
@@ -205,9 +216,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.colors.background,
   },
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
     padding: THEME.spacing.md,
-    paddingTop: 64,
+    paddingBottom: 24,
   },
   successArea: {
     alignItems: 'center',
@@ -377,11 +391,9 @@ const styles = StyleSheet.create({
     height: 100,
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: THEME.spacing.md,
+    width: '100%',
+    paddingHorizontal: 16,
+    paddingTop: 12,
     backgroundColor: THEME.colors.background,
     borderTopWidth: 1,
     borderTopColor: THEME.colors.glassBorder,
