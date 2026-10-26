@@ -521,7 +521,7 @@ export default function TrackingScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom + 120, 130) }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom + 36, 48) }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled={true}
@@ -746,65 +746,73 @@ export default function TrackingScreen() {
           </BlurView>
         )}
 
-        {/* Completion OTP */}
-        {showCompletionOtp && (
-          <BlurView intensity={20} tint="dark" style={[styles.card, styles.otpCard, { borderColor: 'rgba(0,255,151,0.25)' }]}>
-            <View style={styles.otpHeader}>
-              <Ionicons name="checkmark-circle-outline" size={18} color="#00FF97" />
-              <Text style={[styles.otpTitle, { color: '#00FF97' }]}>Drop-off Delivery OTP</Text>
-            </View>
-            <View style={styles.otpDigits}>
-              {completionOtp.split(' ').map((d, i) => (
-                <View key={i} style={[styles.otpDigitBox, { borderColor: '#00FF97' }]}>
-                  <Text style={[styles.otpDigit, { color: '#00FF97' }]}>{d}</Text>
-                </View>
-              ))}
-            </View>
-            <Text style={styles.otpHint}>Provide this PIN to the garage mechanic to release the vehicle</Text>
-          </BlurView>
-        )}
-
-        {/* Delivered / Completed Post-Trip Rating Card */}
+        {/* Delivered / Completed Post-Trip Rating Card (Drop-off OTP completely removed per requirements) */}
         {currentStep === 6 && (
           <BlurView intensity={25} tint="dark" style={[styles.card, { borderColor: 'rgba(0,255,151,0.35)', backgroundColor: 'rgba(0,255,151,0.06)', marginTop: 8 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
               <Ionicons name="checkmark-done-circle" size={26} color="#00FF97" style={{ marginRight: 10 }} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: 'Outfit_700Bold', fontSize: 16, color: '#FFFFFF' }}>Vehicle Safely Delivered!</Text>
-                <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Your towing job has been successfully completed.</Text>
+                <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Your towing job has been successfully completed.</Text>
               </View>
             </View>
 
             {(userRatingSubmitted || booking?.driverRating || booking?.driver_rating) ? (
-              <View style={{ backgroundColor: 'rgba(255,214,10,0.12)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(255,214,10,0.3)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="star" size={20} color="#FFD60A" style={{ marginRight: 8 }} />
-                  <View>
-                    <Text style={{ fontFamily: 'Outfit_600SemiBold', fontSize: 14, color: '#FFD60A' }}>
+              <View style={styles.reviewedCard}>
+                <View style={styles.reviewedLeft}>
+                  <View style={styles.starBadgeCircle}>
+                    <Ionicons name="star" size={15} color="#050810" />
+                  </View>
+                  <View style={styles.reviewedTextContainer}>
+                    <Text style={styles.reviewedScoreText}>
                       You rated this trip {submittedStars || booking?.driverRating || booking?.driver_rating}.0 ★
                     </Text>
-                    <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+                    <Text style={styles.reviewedSubText} numberOfLines={1}>
                       Thank you for reviewing {driverName}!
                     </Text>
                   </View>
                 </View>
-                <TouchableOpacity onPress={() => setShowRatingModal(true)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: 'rgba(255,214,10,0.2)' }}>
-                  <Text style={{ fontFamily: 'Outfit_600SemiBold', fontSize: 12, color: '#FFD60A' }}>Edit</Text>
+                <TouchableOpacity
+                  onPress={() => setShowRatingModal(true)}
+                  style={styles.editRatingBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil" size={12} color="#FFD60A" style={{ marginRight: 4 }} />
+                  <Text style={styles.editRatingBtnText}>Edit</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity
                 onPress={() => setShowRatingModal(true)}
                 activeOpacity={0.8}
-                style={{ backgroundColor: '#00CFFF', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 6 }}
+                style={styles.rateDriverBtn}
               >
                 <Ionicons name="star" size={18} color="#050810" style={{ marginRight: 6 }} />
-                <Text style={{ fontFamily: 'Outfit_700Bold', fontSize: 14, color: '#050810' }}>
+                <Text style={styles.rateDriverBtnText}>
                   Rate Driver ({driverName})
                 </Text>
               </TouchableOpacity>
             )}
           </BlurView>
+        )}
+
+        {/* Completed Job - Return to Home Button */}
+        {currentStep === 6 && (
+          <TouchableOpacity
+            style={styles.completedHomeBtn}
+            onPress={() => router.replace('/(tabs)')}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={['#00FF97', '#00CFFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.completedHomeBtnGradient}
+            >
+              <Ionicons name="checkmark-done" size={18} color="#050810" style={{ marginRight: 8 }} />
+              <Text style={styles.completedHomeBtnText}>Return to Home</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         )}
 
         {/* Cancel Button */}
@@ -1692,6 +1700,98 @@ const styles = StyleSheet.create({
     color: '#F43F5E',
     fontWeight: '600',
     fontSize: 13,
+  },
+
+  reviewedCard: {
+    backgroundColor: 'rgba(255,214,10,0.12)',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,214,10,0.3)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 4,
+  },
+  reviewedLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+    gap: 8,
+  },
+  starBadgeCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#FFD60A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  reviewedTextContainer: {
+    flex: 1,
+  },
+  reviewedScoreText: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 14,
+    color: '#FFD60A',
+  },
+  reviewedSubText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 2,
+  },
+  editRatingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,214,10,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,214,10,0.35)',
+    flexShrink: 0,
+  },
+  editRatingBtnText: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 12,
+    color: '#FFD60A',
+  },
+  rateDriverBtn: {
+    backgroundColor: '#00CFFF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  rateDriverBtnText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
+    color: '#050810',
+  },
+  completedHomeBtn: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 6,
+  },
+  completedHomeBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  completedHomeBtnText: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 15,
+    color: '#050810',
   },
 
   // ─── MODALS ───
